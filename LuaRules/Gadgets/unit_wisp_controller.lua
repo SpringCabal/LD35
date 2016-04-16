@@ -30,7 +30,8 @@ local Vector = Spring.Utilities.Vector
 -------------------------------------------------------------------
 
 
-local MAX_HEIGHT_CHANGE = 40
+local MAX_HEIGHT_CHANGE = 200
+local PER_FRAME_CHANGE = 1
 
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
@@ -38,7 +39,7 @@ local wispMoving
 
 local movementMessage
 
-local heightmapChangedFrame
+local heightmapChangedFrame = 0
 -------------------------------------------------------------------
 -------------------------------------------------------------------
 
@@ -101,6 +102,13 @@ function gadget:GameStart()
 end
 
 function gadget:Initialize()
+	if Spring.GetGameRulesParam("spiritMode") == nil then
+		if Spring.GetGameRulesParam("gameMode") ~= "develop" then
+			Spring.SetGameRulesParam("spiritMode", 1)
+		else
+			Spring.SetGameRulesParam("spiritMode", 0)
+		end
+	end
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		gadget:UnitCreated(unitID, unitDefID)
@@ -116,7 +124,7 @@ function _PrecalculateKernel(radius)
 		local dx = radius - x
 		for y = 0, 2*radius do
 			local dy = radius - y
-			kernel[1 + x + y * 2*radius] = 1000 / (dx * dx + dy * dy + 1000)
+			kernel[1 + x + y * 2*radius] = 2500 / (dx * dx + dy * dy + 2500)
 		end
 	end
 	return kernel
@@ -124,15 +132,31 @@ end
 
 function _ChangeHeightmap(startX, startZ, delta, radius)
 	local kernel = _PrecalculateKernel(radius)
+	radius = radius - radius % Game.squareSize
+	startX = startX - startX % Game.squareSize
+	startZ = startZ - startZ % Game.squareSize
 	for x = 0, 2*radius, Game.squareSize do
 		for z = 0, 2*radius, Game.squareSize do
-			Spring.AddHeightMap(x + startX, z + startZ, delta * kernel[1 + x + z * radius])
+			local gh = Spring.GetGroundHeight(x + startX, z + startZ)
+			local ogh = Spring.GetGroundOrigHeight(x + startX, z + startZ)
+			local maxGH, minGH = ogh + MAX_HEIGHT_CHANGE, ogh - MAX_HEIGHT_CHANGE
+			local d = delta * kernel[1 + x + z * 2*radius]
+			if d > 0 then
+				d = math.min(d, maxGH - gh)
+			else
+				d = math.max(d, minGH - gh)
+			end
+			
+			Spring.AddHeightMap(x + startX, z + startZ,  d)
 		end
 	end
 end
 
 function ChangeHeightmap(x, z, delta, radius)
-	Spring.SetHeightMapFunc(_ChangeHeightmap, x - radius, z - radius, delta, radius)
+	if Spring.GetGameFrame() - heightmapChangedFrame > PER_FRAME_CHANGE then
+		heightmapChangedFrame = Spring.GetGameFrame()
+		Spring.SetHeightMapFunc(_ChangeHeightmap, x - radius, z - radius, delta, radius)
+	end
 end
 
 -------------------------------------------------------------------
@@ -165,13 +189,15 @@ function HandleLuaMessage(msg)
 		local y = tonumber(msg_table[3])
 		local z = tonumber(msg_table[4])	
 
-		ChangeHeightmap(x, z, 0.6, 20)
+		ChangeHeightmap(x, z, 5, 64)
 	elseif msg_table[1] == 'dec_heightmap' then -- RMB
 		local x = tonumber(msg_table[2])
 		local y = tonumber(msg_table[3])
 		local z = tonumber(msg_table[4])
 
-		ChangeHeightmap(x, z, -0.6, 20)
+		ChangeHeightmap(x, z, -5, 64)
+	elseif msg_table[1] == 'switch_form' then
+		Spring.SetGameRulesParam("spiritMode", 1 - Spring.GetGameRulesParam("spiritMode"))
 	end
 end
 

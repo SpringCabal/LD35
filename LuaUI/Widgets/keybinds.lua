@@ -76,6 +76,7 @@ function widget:Initialize()
 --         purple .. "Right click : " .. white .. "Place Mines",
 --         purple .. "Scroll Wheel : " .. white .. "Zoom",
         purple .. "Ctrl+Q : " .. white .. "Quit",
+		purple .. "Space : " .. white .. "Switch form",
     }
 
 

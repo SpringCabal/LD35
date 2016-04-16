@@ -23,6 +23,7 @@ if gadgetHandler:IsSyncedCode() then
 
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
+local wispEnv
 
 local PICKUP_RANGE = 50
 
@@ -33,8 +34,8 @@ local PICKUP_RANGE = 50
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == wispDefID then
 		wispID = unitID
-		local env = Spring.UnitScript.GetScriptEnv(wispID)
-		Spring.UnitScript.CallAsUnit(wispID, env.SetAllPiecesInvisibleNoThread)
+		wispEnv = Spring.UnitScript.GetScriptEnv(wispID)
+		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetAllPiecesInvisibleNoThread)
 	end
 end
 
@@ -59,6 +60,22 @@ function gadget:GameFrame()
 	if not wispID then
 		return
 	end
+	
+	if oldSpiritMode == nil then
+		oldSpiritMode = Spring.GetGameRulesParam("spiritMode")
+	end
+	if oldSpiritMode == 0 and Spring.GetGameRulesParam("spiritMode") == 1 then
+		oldSpiritMode = 1
+		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetAllPiecesInvisibleNoThread)
+	elseif oldSpiritMode == 1 and Spring.GetGameRulesParam("spiritMode") == 0 then
+		oldSpiritMode = 0
+		for ruleName, _ in pairs(Spring.GetGameRulesParams()) do
+			if ruleName:find("has_") then
+				local bodyPart = ruleName:sub(#"has_" + 1)
+				Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, bodyPart, true)
+			end
+		end
+	end
 
 	local x, _, z = Spring.GetUnitPosition(wispID)
 	for _, unitID in pairs(Spring.GetUnitsInCylinder(x, z, 50)) do
@@ -68,8 +85,9 @@ function gadget:GameFrame()
 			Spring.SetGameRulesParam("has_" .. unitDef.customParams.bodypart, 1)
 			Spring.DestroyUnit(unitID)
 
-			local env = Spring.UnitScript.GetScriptEnv(wispID)
-			Spring.UnitScript.CallAsUnit(wispID, env.SetPieceVisibleNoThread, unitDef.customParams.bodypart, true)
+			if Spring.GetGameRulesParam("spiritMode") == 1 then
+				Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, unitDef.customParams.bodypart, true)
+			end
 		end
 	end
 end

@@ -23,6 +23,7 @@ local W = KEYSYMS.W
 local S = KEYSYMS.S
 local A = KEYSYMS.A
 local D = KEYSYMS.D
+local SPACE = KEYSYMS.SPACE
 
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
@@ -89,7 +90,7 @@ function widget:MousePress(mx, my, button)
 		if button == 1 then
 			local x,y,z = getMouseCoordinate(mx,my)
 			if (x) then
-				Spring.SendLuaRulesMsg('zap|' .. x .. '|' .. y .. '|' .. z )
+				Spring.SendLuaRulesMsg('inc_heightmap|' .. x .. '|' .. y .. '|' .. z )
 				mouseControl1 = true
 				return true
 			else
@@ -98,7 +99,7 @@ function widget:MousePress(mx, my, button)
 		elseif button == 3 then
 			local x,y,z = getMouseCoordinate(mx,my)
 			if (x) then
-				Spring.SendLuaRulesMsg('zap|' .. x .. '|' .. y .. '|' .. z )
+				Spring.SendLuaRulesMsg('dec_heightmap|' .. x .. '|' .. y .. '|' .. z )
 				mouseControl3 = true
 				return true
 			else
@@ -140,6 +141,9 @@ function widget:KeyPress(key, mods, isRepeat)
 			keyControl = true
 			return true
 		end
+		if key == SPACE then
+			Spring.SendLuaRulesMsg('switch_form')
+		end
 	end
 	
 end
@@ -176,10 +180,10 @@ function widget:UnitDestroyed(unitID)
 end
 
 local function GetWispLight(beamLights, beamLightCount, pointLights, pointLightCount)
-	if wispID then
+	if wispID and Spring.GetGameRulesParam("spiritMode") == 1 then
 		local x, y, z = Spring.GetUnitPosition(wispID)
 		pointLightCount = pointLightCount + 1
-		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 0.1, g = 0.1, b = 3, radius = 1000}, colMult = 1}
+		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 2, g = 2, b = 2, radius = 1000}, colMult = 1}
 	end
 
 	return beamLights, beamLightCount, pointLights, pointLightCount

@@ -305,7 +305,7 @@ function widget:Initialize()
 
 				gl_FragColor.rg *= 0.3;
 				gl_FragColor.b += 0.1;
-				gl_FragColor.b *= 2;
+				gl_FragColor.b *= 1.3;
 
 				float dtime1 = sin(2*time) / 3.14 / 4;
 				float dtime2 = cos(3*time) / 3.14 / 4;
