@@ -112,7 +112,7 @@ function gadget:RecvLuaMsg(msg)
 		if not cmd.cheat or Spring.IsCheatingEnabled() then
 			ExecuteCustomCommand(cmd, params)
 		else
-			Spring.Log("Chonsole", LOG.ERROR, "Attempt to execute command that requires cheats while cheating is enabled.")
+			Spring.Log("Chonsole", LOG.ERROR, "Attempt to execute command that requires cheats while cheating is disabled.")
 		end
 		return
 	end
