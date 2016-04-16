@@ -66,6 +66,32 @@ local Legs = BaseEffect:New {
 	}
 }
 
+local Plate = BaseEffect:New {
+	name                = "Plate",
+	objectName 			= "plate.dae",
+}
+
+local Lever = BaseEffect:New {
+	name                = "Lever",
+	objectName 			= "lever.dae",
+}
+
+local Laser = BaseEffect:New {
+	name                = "Laser ",
+	objectName 			= "laser.dae",
+}
+
+local Target = BaseEffect:New {
+	name                = "Target",
+	objectName 			= "target.dae",
+}
+
+local Door = BaseEffect:New {
+	name                = "Door",
+	objectName 			= "door.dae",
+}
+
+
 return {
 	Eyes  = Eyes,
 	Ears  = Ears,
@@ -73,4 +99,10 @@ return {
 	Mouth = Mouth,
 	Arms  = Arms,
 	Legs  = Legs,
+	
+	Plate = Plate,
+	Lever = Lever,
+	Laser = Laser,
+	Target = Target,
+	Door = Door,
 }
