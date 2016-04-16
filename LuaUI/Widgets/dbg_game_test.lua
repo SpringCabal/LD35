@@ -44,7 +44,10 @@ function MakeToggleButton()
 		parent = screen0,
 		padding = { 0,0,0,0 },
         OnClick = {
-            function() 
+            function()
+			    if not Spring.IsCheatingEnabled() then
+					Spring.SendCommands("cheat")
+				end
                 if Spring.GetGameRulesParam("gameMode") == "develop" then
                    Spring.SendLuaRulesMsg('chonsole|gamerules|gameMode|test')
 				elseif Spring.GetGameRulesParam("gameMode") == "test" then
