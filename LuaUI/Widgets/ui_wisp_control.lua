@@ -14,7 +14,17 @@ end
 -------------------------------------------------------------------
 local mouseControl1 = false
 local mouseControl3 = false
--- local wispDefID = UnitDefNames["wisp"].id
+include('keysym.h.lua')
+local UP = KEYSYMS.UP
+local DOWN = KEYSYMS.DOWN
+local LEFT = KEYSYMS.LEFT
+local RIGHT = KEYSYMS.RIGHT
+local W = KEYSYMS.W
+local S = KEYSYMS.S
+local A = KEYSYMS.A
+local D = KEYSYMS.D
+
+local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
 
 local function getMouseCoordinate(mx,my)
@@ -27,7 +37,7 @@ local function getMouseCoordinate(mx,my)
 	return x,y,z
 end
 
-local function WeaponControl()
+local function MouseControl()
 	local mx, my, lmb, mmb, rmb = Spring.GetMouseState()
 	
 	if lmb and mouseControl1 then
@@ -49,7 +59,30 @@ local function WeaponControl()
 	end
 end
 
+local function MovementControl()
+	local x, z = 0, 0
+	
+	if Spring.GetKeyState(A) or Spring.GetKeyState(LEFT) then
+		x = x - 1
+	end
+	if Spring.GetKeyState(D) or Spring.GetKeyState(RIGHT) then
+		x = x + 1
+	end
+	if Spring.GetKeyState(W) or Spring.GetKeyState(UP) then
+		z = z - 1
+	end
+	if Spring.GetKeyState(S) or Spring.GetKeyState(DOWN) then
+		z = z + 1
+	end
+	
+	Spring.SendLuaRulesMsg('movement|' .. x .. '|' .. z)
+end
+
 function widget:MousePress(mx, my, button)
+	if Spring.GetGameRulesParam("gameMode") == "develop" then
+		return false
+	end
+
 	local alt, ctrl, meta, shift = Spring.GetModKeyState()
 	if not Spring.IsAboveMiniMap(mx, my) then
 
@@ -76,8 +109,15 @@ function widget:MousePress(mx, my, button)
 end
 
 function widget:GameFrame()
-	if mouseControl1 or mouseControl3 --[[and Spring.GetGameRulesParam("gameMode") ~= "develop" ]] then
-		WeaponControl()
+	if not wispID then
+		return
+	end
+
+	if keyControl then
+		MovementControl()
+	end
+	if mouseControl1 or mouseControl3 then
+		MouseControl()
 	end
 end
 
@@ -86,6 +126,27 @@ function widget:MouseRelease(mx, my, button)
 		mouseControl1 = false
 	elseif button == 3 then
 		mouseControl3 = false
+	end
+end
+
+-- handles weapon switching and abilities
+function widget:KeyPress(key, mods, isRepeat)
+	if Spring.GetGameRulesParam("gameMode") == "develop" then
+		return false
+	end
+
+	if wispID then
+		if key == LEFT or key == RIGHT or key == UP or key == DOWN or key == W or key == A or key == S or key == D then
+			keyControl = true
+			return true
+		end
+	end
+	
+end
+
+function widget:KeyRelease(key)
+	if not (Spring.GetKeyState(A) or Spring.GetKeyState(LEFT) or Spring.GetKeyState(D) or Spring.GetKeyState(RIGHT) or Spring.GetKeyState(W) or Spring.GetKeyState(UP) or Spring.GetKeyState(S) or Spring.GetKeyState(DOWN)) then
+		keyControl = false
 	end
 end
 
@@ -113,26 +174,32 @@ function widget:UnitDestroyed(unitID)
 		wispID = nil
 	end
 end
-function widget:Initialize()
-	for _, unitID in ipairs(Spring.GetAllUnits()) do
-		local unitDefID = Spring.GetUnitDefID(unitID)
-		gadget:UnitCreated(unitID, unitDefID)
-	end
-end
 
 local function GetWispLight(beamLights, beamLightCount, pointLights, pointLightCount)
 	if wispID then
 		local x, y, z = Spring.GetUnitPosition(wispID)
 		pointLightCount = pointLightCount + 1
-		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 0.1, g = 0.1, b = 1, radius = 1000}, colMult = 1}
+		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 0.1, g = 0.1, b = 3, radius = 1000}, colMult = 1}
 	end
 
 	return beamLights, beamLightCount, pointLights, pointLightCount
 end
 
 function widget:Initialize()
+	for _, unitID in ipairs(Spring.GetAllUnits()) do
+		local unitDefID = Spring.GetUnitDefID(unitID)
+		widget:UnitCreated(unitID, unitDefID)
+	end
+	
 	if WG.DeferredLighting_RegisterFunction then
 		WG.DeferredLighting_RegisterFunction(GetMouseLight)
 		WG.DeferredLighting_RegisterFunction(GetWispLight)
 	end
 end
+
+-- function widget:Initialize()
+-- -- 	if WG.DeferredLighting_RegisterFunction then
+-- -- 		WG.DeferredLighting_RegisterFunction(GetMouseLight)
+-- -- 		WG.DeferredLighting_RegisterFunction(GetWispLight)
+-- -- 	end
+-- end

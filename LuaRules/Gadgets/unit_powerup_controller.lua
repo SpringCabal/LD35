@@ -21,7 +21,7 @@ if gadgetHandler:IsSyncedCode() then
 -------------------------------------------------------------------
 
 
--- local wispDefID = UnitDefNames["wisp"].id
+local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
 
 local PICKUP_RANGE = 50
@@ -54,16 +54,16 @@ function gadget:Initialize()
 end
 
 function gadget:GameFrame()
-	if wispID == nil then
+	if not wispID then
 		return
 	end
 
 	local x, _, z = Spring.GetUnitPosition(wispID)
 	for _, unitID in pairs(Spring.GetUnitsInCylinder(x, z, 50)) do
 		local unitDef = UnitDefs[Spring.GetUnitDefID(unitID)]
-		if unitDef.customParams.bodyPart ~= nil then
-			Spring.Log("powerup", LOG.NOTICE, "Picked up body part: " .. unitDef.customParams.bodyPart)
-			Spring.SetGameRulesParam("has_" .. unitDef.customParams.bodyPart, 1)
+		if unitDef.customParams.bodypart ~= nil then
+			Spring.Log("powerup", LOG.NOTICE, "Picked up body part: " .. unitDef.customParams.bodypart)
+			Spring.SetGameRulesParam("has_" .. unitDef.customParams.bodypart, 1)
 			Spring.DestroyUnit(unitID)
 		end
 	end

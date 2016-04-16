@@ -11,6 +11,15 @@ local moveDefs  =    {
         crushStrength   =   5,
         heatmapping     =   false,
     },
+    {
+        name            =   "Wisp",
+        footprintX      =   2,
+        footprintZ      =   2,
+        maxWaterDepth   =   10,
+        maxSlope        =   36,
+        crushStrength   =   5,
+        heatmapping     =   false,
+    },
 }
 
 return moveDefs

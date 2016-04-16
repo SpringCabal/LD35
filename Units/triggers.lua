@@ -32,37 +32,37 @@ local BaseEffect = Unit:New {
 local Eyes = BaseEffect:New {
 	name                = "Eyes",
 	customParams        = {
-		bodyPart = "eyes",
+		bodypart = "eyes",
 	}
 }
 local Ears = BaseEffect:New {
 	name                = "Ears",
 	customParams        = {
-		bodyPart = "ears",
+		bodypart = "ears",
 	}
 }
 local Nose = BaseEffect:New {
 	name                = "Nose",
 	customParams        = {
-		bodyPart = "nose",
+		bodypart = "nose",
 	}
 }
 local Mouth = BaseEffect:New {
 	name                = "Mouth",
 	customParams        = {
-		bodyPart = "mouth",
+		bodypart = "mouth",
 	}
 }
 local Arms = BaseEffect:New {
 	name                = "Arms",
 	customParams        = {
-		bodyPart = "arms",
+		bodypart = "arms",
 	}
 }
 local Legs = BaseEffect:New {
 	name                = "Legs",
 	customParams        = {
-		bodyPart = "legs",
+		bodypart = "legs",
 	}
 }
 

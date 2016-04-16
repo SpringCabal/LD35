@@ -18,12 +18,25 @@ end
 -- SYNCED
 -------------------------------------------------------------------
 if gadgetHandler:IsSyncedCode() then
+
 -------------------------------------------------------------------
+-------------------------------------------------------------------
+
+local sqrt = math.sqrt
+
+local Vector = Spring.Utilities.Vector
+
+-------------------------------------------------------------------
+-------------------------------------------------------------------
+
 
 local MAX_HEIGHT_CHANGE = 40
 
--- local wispDefID = UnitDefNames["wisp"].id
+local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
+local wispMoving
+
+local movementMessage
 
 local heightmapChangedFrame
 -------------------------------------------------------------------
@@ -46,6 +59,30 @@ end
 -------------------------------------------------------------------
 -- Handling unit
 -------------------------------------------------------------------
+
+local function GiveClampedMoveGoal(unitID, x, z, radius)
+	radius = radius or 16
+	local cx, cz = Spring.Utilities.ClampPosition(x, z)
+	local cy = Spring.GetGroundHeight(cx, cz)
+	--Spring.MarkerAddPoint(cx, cy, cz)
+	Spring.SetUnitMoveGoal(unitID, cx, cy, cz, radius, nil, true) -- The last argument is whether the goal is raw
+	return true
+end
+
+local function MoveUnit(unitID, x, z, range, radius)
+	if not (unitID and Spring.ValidUnitID(unitID)) then
+		return
+	end
+	local speed = Spring.GetUnitRulesParam(unitID, "selfMoveSpeedChange") or 1
+	range = (range or 1000)*speed
+
+	local ux, uy, uz = Spring.GetUnitPosition(unitID)
+
+	local moveVec = Vector.Norm(range, {x, z})
+
+	GiveClampedMoveGoal(unitID, moveVec[1] + ux, moveVec[2] + uz, radius)
+end
+
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == wispDefID then
@@ -103,10 +140,26 @@ end
 -------------------------------------------------------------------
 
 function HandleLuaMessage(msg)
--- 	if not wispID then
--- 		return
--- 	end
+	if not wispID then
+		return
+	end
 	local msg_table = explode('|', msg)
+
+	if msg_table[1] == 'movement' then
+		local x = tonumber(msg_table[2])
+		local z = tonumber(msg_table[3])
+
+		if x == 0 and z == 0 then
+			movementMessage = false
+		else
+			movementMessage = {
+				frame = Spring.GetGameFrame(),
+				x = x,
+				z = z
+			}
+		end
+	end
+
 	if msg_table[1] == 'inc_heightmap' then --LMB
 		local x = tonumber(msg_table[2])
 		local y = tonumber(msg_table[3])
@@ -126,6 +179,33 @@ function gadget:RecvLuaMsg(msg)
 	HandleLuaMessage(msg)
 end
 
+function gadget:GameFrame(frame)
+	if wispID then
+		local x, y, z = Spring.GetUnitPosition(wispID)
+
+		if (movementMessage and movementMessage.frame + 2 > frame) then
+			MoveUnit(wispID, movementMessage.x, movementMessage.z)
+			wispMoving = true
+		else
+
+			local vx, _, vz = Spring.GetUnitVelocity(wispID)
+			if vx then
+				local speed = Vector.AbsVal(vx, vz)
+				if wispMoving or (speed > 6) then
+					MoveUnit(wispID, vx, vz, 20)
+					wispMoving = false
+				end
+			end
+
+			movementMessage = false
+		end
+
+
+		Spring.SetGameRulesParam("wisp_x", x)
+		Spring.SetGameRulesParam("wisp_y", y)
+		Spring.SetGameRulesParam("wisp_z", z)
+	end
+end
 
 
 -------------------------------------------------------------------
