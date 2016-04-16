@@ -61,16 +61,13 @@ function gadget:GameFrame()
 		return
 	end
 	
-	if oldSpiritMode == nil then
-		oldSpiritMode = Spring.GetGameRulesParam("spiritMode")
-	end
-	if oldSpiritMode == 0 and Spring.GetGameRulesParam("spiritMode") == 1 then
+	if oldSpiritMode ~= 1 and Spring.GetGameRulesParam("spiritMode") == 1 then
 		oldSpiritMode = 1
 		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetAllPiecesInvisibleNoThread)
-	elseif oldSpiritMode == 1 and Spring.GetGameRulesParam("spiritMode") == 0 then
+	elseif oldSpiritMode ~= 0 and Spring.GetGameRulesParam("spiritMode") == 0 then
 		oldSpiritMode = 0
-		for ruleName, _ in pairs(Spring.GetGameRulesParams()) do
-			if ruleName:find("has_") then
+		for ruleName, value in pairs(Spring.GetGameRulesParams()) do
+			if ruleName:find("has_") and value == 1 then
 				local bodyPart = ruleName:sub(#"has_" + 1)
 				Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, bodyPart, true)
 			end
@@ -85,7 +82,7 @@ function gadget:GameFrame()
 			Spring.SetGameRulesParam("has_" .. unitDef.customParams.bodypart, 1)
 			Spring.DestroyUnit(unitID)
 
-			if Spring.GetGameRulesParam("spiritMode") == 1 then
+			if Spring.GetGameRulesParam("spiritMode") == 0 then
 				Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, unitDef.customParams.bodypart, true)
 			end
 		end

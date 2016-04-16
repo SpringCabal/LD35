@@ -32,10 +32,11 @@ function widget:UnitDestroyed(unitID)
 	end
 end
 
+lastTrackingUpdate = os.clock()
 function widget:Update()
 	if Spring.GetGameRulesParam("gameMode") ~= "develop" and wispID ~= nil then
 		Spring.SelectUnitArray({wispID})
-		Spring.SendCommands("track " .. tostring(wispID))
+		Spring.SendCommands({"trackoff", "track"})
 	end
 end
 
@@ -44,9 +45,9 @@ function widget:Initialize()
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		widget:UnitCreated(unitID, unitDefID)
 	end
-    --for k, v in pairs(Spring.GetCameraState()) do
-    --    Spring.Echo(k .. " = " .. tostring(v) .. ",")
-    --end
+--     for k, v in pairs(Spring.GetCameraState()) do
+--        Spring.Echo(k .. " = " .. tostring(v) .. ",")
+--     end
 
     s = {
         px = 3150,

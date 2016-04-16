@@ -210,6 +210,14 @@ function HandleLuaMessage(msg)
 		ChangeHeightmap(x, z, -HEIGHT_CHANGE_PER_FRAME, 64, height)
 	elseif msg_table[1] == 'switch_form' then
 		Spring.SetGameRulesParam("spiritMode", 1 - Spring.GetGameRulesParam("spiritMode"))
+	elseif msg_table[1] == 'pull_lever' then
+		local unitID = tonumber(msg_table[2])
+		local active = Spring.GetUnitStates(unitID).active
+		if active then
+			Spring.GiveOrderToUnit(unitID, CMD.ONOFF, { 0 }, {})
+		else
+			Spring.GiveOrderToUnit(unitID, CMD.ONOFF, { 1 }, {})
+		end
 	end
 end
 

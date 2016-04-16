@@ -69,11 +69,15 @@ local Legs = BaseEffect:New {
 local Plate = BaseEffect:New {
 	name                = "Plate",
 	objectName 			= "plate.dae",
+	onoffable           = true,
+	script              = "plate.lua",
 }
 
 local Lever = BaseEffect:New {
 	name                = "Lever",
 	objectName 			= "lever.dae",
+	onoffable           = true,
+	script              = "lever.lua",
 }
 
 local Laser = BaseEffect:New {

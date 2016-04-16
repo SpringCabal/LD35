@@ -31,6 +31,7 @@ local Wisp = Unit:New {
     customParams = {
         player = true,
         radius = 20,
+		plate_toggler = true,
     },
 
     idletime = 120, --in simframes
