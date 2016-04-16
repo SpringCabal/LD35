@@ -33,6 +33,8 @@ local PICKUP_RANGE = 50
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == wispDefID then
 		wispID = unitID
+		local env = Spring.UnitScript.GetScriptEnv(wispID)
+		Spring.UnitScript.CallAsUnit(wispID, env.SetAllPiecesInvisibleNoThread)
 	end
 end
 
@@ -65,6 +67,9 @@ function gadget:GameFrame()
 			Spring.Log("powerup", LOG.NOTICE, "Picked up body part: " .. unitDef.customParams.bodypart)
 			Spring.SetGameRulesParam("has_" .. unitDef.customParams.bodypart, 1)
 			Spring.DestroyUnit(unitID)
+
+			local env = Spring.UnitScript.GetScriptEnv(wispID)
+			Spring.UnitScript.CallAsUnit(wispID, env.SetPieceVisibleNoThread, unitDef.customParams.bodypart, true)
 		end
 	end
 end
