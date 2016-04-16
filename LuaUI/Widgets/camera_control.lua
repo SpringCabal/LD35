@@ -17,15 +17,37 @@ function widget:GetInfo()
 	}
 end
 
+local wispDefID = UnitDefNames["wisp"].id
+local wispID = nil
+
+function widget:UnitCreated(unitID, unitDefID, unitTeam)
+	if unitDefID == wispDefID then
+		wispID = unitID
+	end
+end
+
+function widget:UnitDestroyed(unitID)
+	if wispID == unitID then
+		wispID = nil
+	end
+end
+
+function widget:Update()
+	if Spring.GetGameRulesParam("gameMode") ~= "develop" and wispID ~= nil then
+		Spring.SelectUnitArray({wispID})
+		Spring.SendCommands("track " .. tostring(wispID))
+	end
+end
+
 function widget:Initialize()
+	for _, unitID in ipairs(Spring.GetAllUnits()) do
+		local unitDefID = Spring.GetUnitDefID(unitID)
+		widget:UnitCreated(unitID, unitDefID)
+	end
     --for k, v in pairs(Spring.GetCameraState()) do
     --    Spring.Echo(k .. " = " .. tostring(v) .. ",")
     --end
---     local devMode = (tonumber(Spring.GetModOptions().play_mode) or 0) == 0
---     if devMode then
---         widgetHandler:RemoveWidget(widget)
---         return
---     end
+
     s = {
         px = 3150,
         py = 102.34146118164,

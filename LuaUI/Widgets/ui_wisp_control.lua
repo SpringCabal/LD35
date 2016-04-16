@@ -28,6 +28,8 @@ local SPACE = KEYSYMS.SPACE
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
 
+local height
+
 local function getMouseCoordinate(mx,my)
 	local traceType, pos = Spring.TraceScreenRay(mx, my, true)
     if not pos then return false end
@@ -44,7 +46,7 @@ local function MouseControl()
 	if lmb and mouseControl1 then
 		local x,y,z = getMouseCoordinate(mx,my)
 		if (x) then
-			Spring.SendLuaRulesMsg('inc_heightmap|' .. x .. '|' .. y .. '|' .. z )
+			Spring.SendLuaRulesMsg('inc_heightmap|' .. x .. '|' .. y .. '|' .. z .. "|" .. height)
 			return true
 		else
 			return false
@@ -52,7 +54,7 @@ local function MouseControl()
 	elseif rmb and mouseControl3 then
 		local x,y,z = getMouseCoordinate(mx,my)
 		if (x) then
-			Spring.SendLuaRulesMsg('dec_heightmap|' .. x .. '|' .. y .. '|' .. z )
+			Spring.SendLuaRulesMsg('dec_heightmap|' .. x .. '|' .. y .. '|' .. z .. "|" .. height)
 			return true
 		else
 			return false
@@ -86,11 +88,11 @@ function widget:MousePress(mx, my, button)
 
 	local alt, ctrl, meta, shift = Spring.GetModKeyState()
 	if not Spring.IsAboveMiniMap(mx, my) then
-
 		if button == 1 then
 			local x,y,z = getMouseCoordinate(mx,my)
+			height = Spring.GetGroundHeight(x, z)
 			if (x) then
-				Spring.SendLuaRulesMsg('inc_heightmap|' .. x .. '|' .. y .. '|' .. z )
+				Spring.SendLuaRulesMsg('inc_heightmap|' .. x .. '|' .. y .. '|' .. z .. "|" .. height)
 				mouseControl1 = true
 				return true
 			else
@@ -98,8 +100,9 @@ function widget:MousePress(mx, my, button)
 			end
 		elseif button == 3 then
 			local x,y,z = getMouseCoordinate(mx,my)
+			height = Spring.GetGroundHeight(x, z)
 			if (x) then
-				Spring.SendLuaRulesMsg('dec_heightmap|' .. x .. '|' .. y .. '|' .. z )
+				Spring.SendLuaRulesMsg('dec_heightmap|' .. x .. '|' .. y .. '|' .. z .. "|" .. height)
 				mouseControl3 = true
 				return true
 			else
