@@ -33,37 +33,41 @@ local Eyes = BaseEffect:New {
 	name                = "Eyes",
 	customParams        = {
 		bodypart = "eyes",
-	}
+	},
+	objectName 		    = "eye.dae",
 }
 local Ears = BaseEffect:New {
 	name                = "Ears",
 	customParams        = {
 		bodypart = "ears",
-	}
+	},
+	objectName 		    = "ear.dae",
 }
 local Nose = BaseEffect:New {
 	name                = "Nose",
 	customParams        = {
 		bodypart = "nose",
-	}
+	},
+	objectName 		    = "nose.dae",
 }
 local Mouth = BaseEffect:New {
 	name                = "Mouth",
 	customParams        = {
 		bodypart = "mouth",
-	}
+	},
+	objectName 		    = "mouth.dae",
 }
 local Arms = BaseEffect:New {
 	name                = "Arms",
 	customParams        = {
 		bodypart = "arms",
-	}
+	},
 }
 local Legs = BaseEffect:New {
 	name                = "Legs",
 	customParams        = {
 		bodypart = "legs",
-	}
+	},
 }
 
 local Plate = BaseEffect:New {

@@ -29,6 +29,8 @@ local npcWispDefID = UnitDefNames["npcwisp"].id
 
 local PICKUP_RANGE = 50
 
+local bodyParts = {}
+
 -------------------------------------------------------------------
 -- Handling unit
 -------------------------------------------------------------------
@@ -43,12 +45,17 @@ function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 		local env = Spring.UnitScript.GetScriptEnv(unitID)
 		Spring.UnitScript.CallAsUnit(unitID, env.SetAllPiecesInvisibleNoThread)
 	end
+	local unitDef = UnitDefs[unitDefID]
+	if unitDef.customParams.bodypart ~= nil then
+		bodyParts[unitID] = true
+	end
 end
 
 function gadget:UnitDestroyed(unitID)
 	if wispID == unitID then
 		wispID = nil
 	end
+	bodyParts[unitID] = nil
 end
 
 function gadget:GameStart()
@@ -67,6 +74,7 @@ function gadget:GameFrame()
 		return
 	end
 	
+	-- hide/show body parts
 	if oldSpiritMode ~= 1 and Spring.GetGameRulesParam("spiritMode") == 1 then
 		oldSpiritMode = 1
 		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetAllPiecesInvisibleNoThread)
@@ -82,10 +90,11 @@ function gadget:GameFrame()
 		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, "head", true)
 	end
 
+	-- pickup body parts
 	local x, _, z = Spring.GetUnitPosition(wispID)
 	for _, unitID in pairs(Spring.GetUnitsInCylinder(x, z, 50)) do
-		local unitDef = UnitDefs[Spring.GetUnitDefID(unitID)]
-		if unitDef.customParams.bodypart ~= nil then
+		if bodyParts[unitID] ~= nil then
+			local unitDef = UnitDefs[Spring.GetUnitDefID(unitID)]
 			Spring.Log("powerup", LOG.NOTICE, "Picked up body part: " .. unitDef.customParams.bodypart)
 			Spring.SetGameRulesParam("has_" .. unitDef.customParams.bodypart, 1)
 			Spring.DestroyUnit(unitID)
@@ -93,6 +102,14 @@ function gadget:GameFrame()
 			if Spring.GetGameRulesParam("spiritMode") == 0 then
 				Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, unitDef.customParams.bodypart, true)
 			end
+		end
+	end
+
+	-- rotate body parts
+	for _, unitID in pairs(Spring.GetAllUnits()) do
+		if bodyParts[unitID] then
+			local p, y, r = Spring.GetUnitRotation(unitID)
+			Spring.SetUnitRotation(unitID, p, y + 0.1, r)
 		end
 	end
 end

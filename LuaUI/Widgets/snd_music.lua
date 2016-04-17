@@ -26,11 +26,13 @@ local oldHasEars
 local function StartPlaying()
     playingTime = 0
     if not startedPlaying and Spring.GetGameRulesParam("gameMode") ~= "develop" then
-		local file
+		local file, volume
 		if Spring.GetGameRulesParam("has_ears") == 1 then
 			file = musicFile
+			volume = 1
 		else
 			file = musicFileMuffled
+			volume = 0.6
 		end
 		if Spring.GetGameRulesParam("gameMode") ~= "play" then
 			Spring.Echo("Playing: " .. tostring(file))
