@@ -12,8 +12,8 @@ local pieceNames = {
 	body = body,
 	eyes = eyes,
 	ears = ears,
-	arms = { arml, armr },
-	legs = { thighl, thighr },
+	arms = { arml, armr, piece('ForeArmL'), piece('ForeArmR'), piece('HandL'), piece('HandR') },
+	legs = { thighl, thighr, piece('CrusL'), piece('CrusR'), piece('FootL'), piece('FootR') },
 	nose = nose,
 	mouth = mouth,
 }
