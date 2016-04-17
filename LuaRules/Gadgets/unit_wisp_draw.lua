@@ -32,6 +32,7 @@ local npcWispDefID = UnitDefNames["npcwisp"].id
 -- local shader
 local shaderTimeLoc = nil
 local shaderSpiritAmountLoc = nil
+local shaderDeathAmountLoc = nil
 local shaderUnitIDLoc = nil
 
 -- changing form manually
@@ -84,9 +85,17 @@ function DrawWisp()
 	
 	for _, npcWispID in pairs(Spring.GetAllUnits()) do
 		if Spring.GetUnitDefID(npcWispID) == npcWispDefID then
-			x, y, z = Spring.GetUnitViewPosition(npcWispID)
+			
+			local deathAmount = 0
+			if Spring.GetUnitRulesParam(npcWispID, "is_dying") == 1 then
+				local destroy_frame = Spring.GetUnitRulesParam(npcWispID, "destroy_frame")
+				local killed_frame = Spring.GetUnitRulesParam(npcWispID, "killed_frame")
+				deathAmount = 1 - (destroy_frame - Spring.GetGameFrame()) / (destroy_frame - killed_frame)
+			end
+			gl.Uniform(shaderDeathAmountLoc,  deathAmount)
 			gl.Uniform(shaderUnitIDLoc,  npcWispID)
 			gl.PushMatrix()
+			x, y, z = Spring.GetUnitViewPosition(npcWispID)
 			gl.Translate(x,y,z)
 			gl.Billboard()
 			gl.TexRect(-width/2, 0, width/2, height)
@@ -107,6 +116,7 @@ function CreateShader()
 	  uniform float time;
 	  uniform float spiritAmount;
 	  uniform float unitID;
+	  uniform float deathAmount;
 
 	  float rand(vec2 n) { 
 		return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
@@ -116,6 +126,7 @@ function CreateShader()
       {
 		float dx = 0.5 - gl_TexCoord[0].x;
 		float dy = 0.5 - gl_TexCoord[0].y;
+		dy *= 1 - deathAmount/3;
 		float dist = 1 - 2.5 * (1.5 * dx * dx + dy * dy);
 		
 		float f = 0;
@@ -123,15 +134,16 @@ function CreateShader()
 		for (int i = -3; i <= 3; i++) {
 			for (int j = -3; j <= 3; j++) {
 				coord = round(gl_TexCoord[0].xy * 50 + vec2(i, j));
-				f += rand(coord * time * unitID) * dist;
+				f += rand(coord * time * unitID);
 			}
 		}
-		gl_FragColor.rgba = f / 49;
+		gl_FragColor.rgba = f / 49 * dist;
 		gl_FragColor.r *= rand(vec2(cos(unitID), sin(unitID)));
 		gl_FragColor.g *= rand(vec2(sin(unitID), cos(unitID)));
 		gl_FragColor.b *= rand(vec2(-cos(unitID), -sin(unitID)));
 		
-		gl_FragColor.rgba += dist * dist * dist / 1.2;
+		gl_FragColor.rgba += dist * dist * dist / 1.2 * (1 - deathAmount/1.5);
+		//gl_FragColor.rgba -= deathAmount * rand(vec2(cos(unitID), sin(unitID))) / 2.0;
 		gl_FragColor.rgba *= spiritAmount;
       }
     ]],
@@ -147,6 +159,7 @@ end
 function GetShaderLocations()
   shaderTimeLoc           = gl.GetUniformLocation(shader, 'time')
   shaderSpiritAmountLoc   = gl.GetUniformLocation(shader, 'spiritAmount')
+  shaderDeathAmountLoc    = gl.GetUniformLocation(shader, 'deathAmount')
   shaderUnitIDLoc         = gl.GetUniformLocation(shader, 'unitID')
 end
 
@@ -198,6 +211,7 @@ function gadget:DrawScreenEffects()
   time = math.floor(10 * time) / 10
   gl.Uniform(shaderTimeLoc,   time)
   gl.Uniform(shaderSpiritAmountLoc,  opts.spiritAmount)
+  gl.Uniform(shaderDeathAmountLoc,  0)
   gl.Uniform(shaderUnitIDLoc,  wispID)
 
   gl.MatrixMode(GL.PROJECTION); gl.PushMatrix(); gl.LoadMatrix("camprj")
