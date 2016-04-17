@@ -63,11 +63,13 @@ end
 -------------------------------------------------------------------
 
 local function GiveClampedMoveGoal(unitID, x, z, radius)
-	radius = radius or 160
+	radius = radius or 16
 	local cx, cz = Spring.Utilities.ClampPosition(x, z)
 	local cy = Spring.GetGroundHeight(cx, cz)
 	--Spring.MarkerAddPoint(cx, cy, cz)
-	Spring.SetUnitMoveGoal(unitID, cx, cy, cz, radius, nil, false) -- The last argument is whether the goal is raw
+	--Spring.SetUnitMoveGoal(unitID, cx, cy, cz, radius, nil, true) -- The last argument is whether the goal is raw
+	local _, height, _ = Spring.GetUnitPosition(unitID)
+	Spring.SetUnitMoveGoal(unitID, cx, cy, cz)
 	return true
 end
 
@@ -76,7 +78,7 @@ local function MoveUnit(unitID, x, z, range, radius)
 		return
 	end
 	local speed = Spring.GetUnitRulesParam(unitID, "selfMoveSpeedChange") or 1
-	range = (range or 1000)*speed
+	range = (range or 500)*speed
 
 	local ux, uy, uz = Spring.GetUnitPosition(unitID)
 
@@ -200,14 +202,14 @@ function HandleLuaMessage(msg)
 		local z = tonumber(msg_table[4])
 		local height = tonumber(msg_table[5])
 
-		ChangeHeightmap(x, z, HEIGHT_CHANGE_PER_FRAME, 64, height)
+-- 		ChangeHeightmap(x, z, HEIGHT_CHANGE_PER_FRAME, 64, height)
 	elseif msg_table[1] == 'dec_heightmap' then -- RMB
 		local x = tonumber(msg_table[2])
 		local y = tonumber(msg_table[3])
 		local z = tonumber(msg_table[4])
 		local height = tonumber(msg_table[5])
 
-		ChangeHeightmap(x, z, -HEIGHT_CHANGE_PER_FRAME, 64, height)
+-- 		ChangeHeightmap(x, z, -HEIGHT_CHANGE_PER_FRAME, 64, height)
 	elseif msg_table[1] == 'switch_form' then
 		Spring.SetGameRulesParam("spiritMode", 1 - Spring.GetGameRulesParam("spiritMode"))
 	elseif msg_table[1] == 'pull_lever' then
@@ -233,7 +235,7 @@ function gadget:GameFrame(frame)
 			MoveUnit(wispID, movementMessage.x, movementMessage.z)
 			wispMoving = true
 		else
-
+			Spring.GiveOrderToUnit(wispID, CMD.STOP,{},{})
 			local vx, _, vz = Spring.GetUnitVelocity(wispID)
 			if vx then
 				local speed = Vector.AbsVal(vx, vz)
@@ -245,6 +247,8 @@ function gadget:GameFrame(frame)
 
 			movementMessage = false
 		end
+		
+
 
 
 		Spring.SetGameRulesParam("wisp_x", x)
