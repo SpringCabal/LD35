@@ -5,8 +5,8 @@
       <author>Blender User</author>
       <authoring_tool>Blender 2.76.0 commit date:2015-11-03, commit time:10:56, hash:f337fea</authoring_tool>
     </contributor>
-    <created>2016-04-17T13:51:44</created>
-    <modified>2016-04-17T13:51:44</modified>
+    <created>2016-04-17T14:05:02</created>
+    <modified>2016-04-17T14:05:02</modified>
     <unit name="meter" meter="1"/>
     <up_axis>Z_UP</up_axis>
   </asset>
@@ -812,17 +812,17 @@
             <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_006-mesh" name="Ears"/>
           </node>
-          <node id="Icosphere_004" name="Icosphere_004" type="NODE">
+          <node id="Mouth" name="Mouth" type="NODE">
             <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
-            <instance_geometry url="#Icosphere_007-mesh" name="Icosphere_004"/>
+            <instance_geometry url="#Icosphere_007-mesh" name="Mouth"/>
           </node>
           <node id="Eyes" name="Eyes" type="NODE">
             <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_005-mesh" name="Eyes"/>
           </node>
-          <node id="Nose_001" name="Nose_001" type="NODE">
+          <node id="Nose" name="Nose" type="NODE">
             <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
-            <instance_geometry url="#Icosphere_008-mesh" name="Nose_001"/>
+            <instance_geometry url="#Icosphere_008-mesh" name="Nose"/>
           </node>
         </node>
         <node id="ThighL" name="ThighL" type="NODE">
