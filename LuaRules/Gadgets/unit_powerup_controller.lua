@@ -78,6 +78,8 @@ function gadget:GameFrame()
 				Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, bodyPart, true)
 			end
 		end
+		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, "body", true)
+		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetPieceVisibleNoThread, "head", true)
 	end
 
 	local x, _, z = Spring.GetUnitPosition(wispID)

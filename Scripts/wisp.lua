@@ -10,6 +10,7 @@ local mouth  = piece('Mouth')
 
 local pieceNames = {
 	body = body,
+	head = piece("Head"),
 	eyes = eyes,
 	ears = ears,
 	arms = { arml, armr, piece('ForeArmL'), piece('ForeArmR'), piece('HandL'), piece('HandR') },
