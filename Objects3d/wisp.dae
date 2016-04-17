@@ -5,40 +5,13 @@
       <author>Blender User</author>
       <authoring_tool>Blender 2.76.0 commit date:2015-11-03, commit time:10:56, hash:f337fea</authoring_tool>
     </contributor>
-    <created>2016-04-17T13:44:50</created>
-    <modified>2016-04-17T13:44:50</modified>
+    <created>2016-04-17T13:51:44</created>
+    <modified>2016-04-17T13:51:44</modified>
     <unit name="meter" meter="1"/>
     <up_axis>Z_UP</up_axis>
   </asset>
   <library_images/>
   <library_geometries>
-    <geometry id="Icosphere-mesh" name="Icosphere">
-      <mesh>
-        <source id="Icosphere-mesh-positions">
-          <float_array id="Icosphere-mesh-positions-array" count="0"/>
-          <technique_common>
-            <accessor source="#Icosphere-mesh-positions-array" count="0" stride="3">
-              <param name="X" type="float"/>
-              <param name="Y" type="float"/>
-              <param name="Z" type="float"/>
-            </accessor>
-          </technique_common>
-        </source>
-        <source id="Icosphere-mesh-normals">
-          <float_array id="Icosphere-mesh-normals-array" count="0"/>
-          <technique_common>
-            <accessor source="#Icosphere-mesh-normals-array" count="0" stride="3">
-              <param name="X" type="float"/>
-              <param name="Y" type="float"/>
-              <param name="Z" type="float"/>
-            </accessor>
-          </technique_common>
-        </source>
-        <vertices id="Icosphere-mesh-vertices">
-          <input semantic="POSITION" source="#Icosphere-mesh-positions"/>
-        </vertices>
-      </mesh>
-    </geometry>
     <geometry id="Icosphere_011-mesh" name="Icosphere.011">
       <mesh>
         <source id="Icosphere_011-mesh-positions">
@@ -817,78 +790,74 @@
   <library_controllers/>
   <library_visual_scenes>
     <visual_scene id="Scene" name="Scene">
-      <node id="Icosphere" name="Icosphere" type="NODE">
-        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 43.14347 0 0 0 1</matrix>
-        <instance_geometry url="#Icosphere-mesh" name="Icosphere"/>
-      </node>
       <node id="Body" name="Body" type="NODE">
-        <matrix sid="transform">1 0 0 -3.278554 0 1 0 -2.27381e-7 0 0 1 24.52532 0 0 0 1</matrix>
+        <matrix sid="transform">-4.37114e-8 1 0 -3.278554 -1 -4.37114e-8 0 -2.27381e-7 0 0 1 24.52532 0 0 0 1</matrix>
         <instance_geometry url="#Icosphere_015-mesh" name="Body"/>
         <node id="ArmL" name="ArmL" type="NODE">
-          <matrix sid="transform">1 0 0 2.027482 0 1 0 4.547931 0 0 1 3.702042 0 0 0 1</matrix>
+          <matrix sid="transform">1 7.10543e-15 0 2.027482 0 1 0 4.547931 0 0 1 3.702042 0 0 0 1</matrix>
           <instance_geometry url="#Icosphere_009-mesh" name="ArmL"/>
           <node id="ForeArmL" name="ForeArmL" type="NODE">
-            <matrix sid="transform">0.9999999 -1.86424e-8 -3.72529e-9 -2.38419e-7 0 1 0 11.05567 0 4.59622e-7 0.9999999 0.2797146 0 0 0 1</matrix>
+            <matrix sid="transform">0.9999998 2.5069e-8 0 2.38419e-7 -8.15418e-8 1 0 11.05567 -8.41241e-7 4.59622e-7 0.9999999 0.2797127 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_010-mesh" name="ForeArmL"/>
             <node id="HandL" name="HandL" type="NODE">
-              <matrix sid="transform">1 1.86424e-8 0 1.19209e-7 0 0.9999999 0 8.004484 0 -4.28956e-7 1 -0.06404114 0 0 0 1</matrix>
+              <matrix sid="transform">1 1.34995e-8 0 2.38419e-7 0 0.9999999 2.98023e-8 8.004481 -4.21431e-16 -4.28956e-7 1 -0.06404686 0 0 0 1</matrix>
               <instance_geometry url="#Icosphere_011-mesh" name="HandL"/>
             </node>
           </node>
         </node>
         <node id="Head" name="Head" type="NODE">
-          <matrix sid="transform">1 0 0 3.278553 0 1 0 2.27381e-7 0 0 1 16.00079 0 0 0 1</matrix>
+          <matrix sid="transform">1 7.10543e-15 0 3.278553 0 1 0 0 0 0 1 16.00079 0 0 0 1</matrix>
           <instance_geometry url="#Icosphere_004-mesh" name="Head"/>
           <node id="Ears" name="Ears" type="NODE">
-            <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+            <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_006-mesh" name="Ears"/>
           </node>
           <node id="Icosphere_004" name="Icosphere_004" type="NODE">
-            <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+            <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_007-mesh" name="Icosphere_004"/>
           </node>
           <node id="Eyes" name="Eyes" type="NODE">
-            <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+            <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_005-mesh" name="Eyes"/>
           </node>
           <node id="Nose_001" name="Nose_001" type="NODE">
-            <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+            <matrix sid="transform">1 4.37114e-8 0 2.38419e-7 -2.22106e-8 1 0 -2.38419e-7 1.20777e-6 5.27934e-14 1 0 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_008-mesh" name="Nose_001"/>
           </node>
         </node>
         <node id="ThighL" name="ThighL" type="NODE">
-          <matrix sid="transform">1 0 0 -0.5215561 0 1 0 3.080128 0 0 1 -4.000927 0 0 0 1</matrix>
+          <matrix sid="transform">1 7.10543e-15 0 -0.5215558 0 1 0 3.080128 0 0 1 -4.000927 0 0 0 1</matrix>
           <instance_geometry url="#Icosphere_017-mesh" name="ThighL"/>
           <node id="CrusL" name="CrusL" type="NODE">
-            <matrix sid="transform">1 0 0 -0.09050655 5.96046e-8 1 0 1.335058 0 0 1 -10.34505 0 0 0 1</matrix>
+            <matrix sid="transform">1 0 0 -0.09050661 5.96046e-8 1 0 1.335058 0 0 1 -10.34505 0 0 0 1</matrix>
             <instance_geometry url="#Icosphere_018-mesh" name="CrusL"/>
             <node id="FootL" name="FootL" type="NODE">
-              <matrix sid="transform">1 0 0 -0.1354802 5.96046e-8 0.9999999 0 1.43051e-6 0 0 0.9999999 -9.544778 0 0 0 1</matrix>
+              <matrix sid="transform">1 -1.58933e-8 0 -0.1354805 0 0.9999999 0 1.90735e-6 0 0 0.9999999 -9.544778 0 0 0 1</matrix>
               <instance_geometry url="#Icosphere_021-mesh" name="FootL"/>
             </node>
           </node>
         </node>
-        <node id="ThighL_001" name="ThighL_001" type="NODE">
-          <matrix sid="transform">1 0 0 -0.5215561 0 1 0 -3.421249 0 0 1 -4.000927 0 0 0 1</matrix>
-          <instance_geometry url="#Icosphere_022-mesh" name="ThighL_001"/>
-          <node id="CrusL_001" name="CrusL_001" type="NODE">
-            <matrix sid="transform">1 0 0 -0.09050655 0 1 0 -1.335058 0 0 1 -10.34505 0 0 0 1</matrix>
-            <instance_geometry url="#Icosphere_023-mesh" name="CrusL_001"/>
-            <node id="FootL_001" name="FootL_001" type="NODE">
-              <matrix sid="transform">0.9999999 0 0 -0.1354799 0 1 0 -2.38419e-6 0 0 0.9999999 -9.544778 0 0 0 1</matrix>
-              <instance_geometry url="#Icosphere_024-mesh" name="FootL_001"/>
+        <node id="ThighR" name="ThighR" type="NODE">
+          <matrix sid="transform">1 7.10543e-15 0 -0.521556 0 1 0 -3.421249 0 0 1 -4.000927 0 0 0 1</matrix>
+          <instance_geometry url="#Icosphere_022-mesh" name="ThighR"/>
+          <node id="CrusR" name="CrusR" type="NODE">
+            <matrix sid="transform">1 -9.92095e-10 0 -0.09050649 0 1 0 -1.335058 0 0 1 -10.34505 0 0 0 1</matrix>
+            <instance_geometry url="#Icosphere_023-mesh" name="CrusR"/>
+            <node id="FootR" name="FootR" type="NODE">
+              <matrix sid="transform">0.9999999 -9.92095e-10 -3.72529e-9 -0.1354799 0 1 0 -1.90735e-6 0 0 0.9999999 -9.544778 0 0 0 1</matrix>
+              <instance_geometry url="#Icosphere_024-mesh" name="FootR"/>
             </node>
           </node>
         </node>
-        <node id="ArmL_001" name="ArmL_001" type="NODE">
-          <matrix sid="transform">1 0 0 2.027482 0 1 0 -4.64573 0 0 1 3.702042 0 0 0 1</matrix>
-          <instance_geometry url="#Icosphere_025-mesh" name="ArmL_001"/>
-          <node id="ForeArmL_001" name="ForeArmL_001" type="NODE">
-            <matrix sid="transform">1 0 -3.72529e-9 1.19209e-7 0 1 0 -11.05567 0 0 0.9999999 0.279705 0 0 0 1</matrix>
-            <instance_geometry url="#Icosphere_026-mesh" name="ForeArmL_001"/>
-            <node id="HandL_001" name="HandL_001" type="NODE">
-              <matrix sid="transform">1 0 0 -3.57628e-7 9.35876e-7 1 0 -8.004485 -1.85516e-6 0 1 -0.06403351 0 0 0 1</matrix>
-              <instance_geometry url="#Icosphere_027-mesh" name="HandL_001"/>
+        <node id="ArmR" name="ArmR" type="NODE">
+          <matrix sid="transform">1 7.10543e-15 0 2.027482 0 1 0 -4.64573 0 0 1 3.702042 0 0 0 1</matrix>
+          <instance_geometry url="#Icosphere_025-mesh" name="ArmR"/>
+          <node id="ForeArmR" name="ForeArmR" type="NODE">
+            <matrix sid="transform">1 1.39091e-8 0 2.38419e-7 3.55271e-15 1 0 -11.05567 0 0 0.9999999 0.279705 0 0 0 1</matrix>
+            <instance_geometry url="#Icosphere_026-mesh" name="ForeArmR"/>
+            <node id="HandR" name="HandR" type="NODE">
+              <matrix sid="transform">1 -8.44268e-9 0 -4.76837e-7 9.35876e-7 0.9999999 0 -8.004484 -1.85516e-6 0 1 -0.06402969 0 0 0 1</matrix>
+              <instance_geometry url="#Icosphere_027-mesh" name="HandR"/>
             </node>
           </node>
         </node>
