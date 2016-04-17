@@ -25,8 +25,8 @@ local wall = Element:New {
 local corner = Element:New {
 	name                = "corner",
 	objectName 			= "corner.dae",
-	footprintX				= 11,
-	footprintZ				= 11,
+	footprintX				=  3,
+	footprintZ				=  3,
 }
 
 local floor1 = Element:New {
@@ -39,29 +39,29 @@ local floor1 = Element:New {
 local vertical_doorway	= Element:New {
 	name                = "vertical_doorway",
 	objectName 			= "vertical_doorway.dae",
-	footprintX				= 11,
-	footprintZ				= 11,
+	footprintX				= 4,
+	footprintZ				= 3,
 }
 
 local vertical_hall		= Element:New {
-	name                = "vertical_doorway",
-	objectName 			= "vertical_doorway.dae",
-	footprintX				= 11,
+	name                = "vertical_hall",
+	objectName 			= "vertical_hall.dae",
+	footprintX				= 4,
 	footprintZ				= 11,
 }
 
 local horzontal_doorway	= Element:New {
 	name                = "horzontal_doorway",
 	objectName 			= "horzontal_doorway.dae",
-	footprintX				= 11,
-	footprintZ				= 11,
+	footprintX				= 3,
+	footprintZ				= 4,
 }
 
 local horzontal_hall		= Element:New {
 	name                = "horzontal_hall",
 	objectName 			= "horzontal_hall.dae",
 	footprintX				= 11,
-	footprintZ				= 11,
+	footprintZ				= 4,
 }
 
 return {
