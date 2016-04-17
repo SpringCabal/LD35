@@ -91,11 +91,6 @@ local GL_DEPTH_COMPONENT16 = 0x81A5
 local GL_DEPTH_COMPONENT24 = 0x81A6
 local GL_DEPTH_COMPONENT32 = 0x81A7
 
---// speed ups
-local ALL_UNITS       = Spring.ALL_UNITS
-local GetUnitHealth   = Spring.GetUnitHealth
-local GetVisibleUnits = Spring.GetVisibleUnits
-
 local GL_MODELVIEW  = GL.MODELVIEW
 local GL_PROJECTION = GL.PROJECTION
 local GL_COLOR_BUFFER_BIT = GL.COLOR_BUFFER_BIT
@@ -329,10 +324,6 @@ end
 --------------------------------------------------------------------------------
 
 local function DrawVisibleUnits(overrideEngineDraw)
-  if (Spring.GetGameFrame() % 15 == 0) then
-        checknow = true
-  end
- 
   if Spring.GetGameRulesParam("has_arms") ~= 1 and Spring.GetGameRulesParam("spiritMode") ~= 0 then
 	  return
   end
@@ -439,15 +430,6 @@ end
 function widget:DrawWorldRefraction()
   DrawVisibleUnitsLines(true)
 end 
-
-function widget:UnitCreated(unitID)
-  unbuiltUnits[unitID] = true
-end
-
-function widget:UnitDestroyed(unitID)
-  unbuiltUnits[unitID] = nil
-end
-
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------

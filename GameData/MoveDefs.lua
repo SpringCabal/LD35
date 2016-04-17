@@ -16,7 +16,7 @@ local moveDefs  =    {
         footprintX      =   2,
         footprintZ      =   2,
         maxWaterDepth   =   10,
-        maxSlope        =   36,
+        maxSlope        =   55,
         crushStrength   =   5,
         heatmapping     =   false,
     },

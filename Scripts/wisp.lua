@@ -8,8 +8,6 @@ local thighr = piece('ThighR')
 local nose   = piece('Nose')
 local mouth  = piece('Mouth')
 
-Spring.Echo(eyes)
-
 local pieceNames = {
 	body = body,
 	eyes = eyes,

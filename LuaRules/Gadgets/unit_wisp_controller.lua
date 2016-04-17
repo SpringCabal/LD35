@@ -63,11 +63,11 @@ end
 -------------------------------------------------------------------
 
 local function GiveClampedMoveGoal(unitID, x, z, radius)
-	radius = radius or 16
+	radius = radius or 160
 	local cx, cz = Spring.Utilities.ClampPosition(x, z)
 	local cy = Spring.GetGroundHeight(cx, cz)
 	--Spring.MarkerAddPoint(cx, cy, cz)
-	Spring.SetUnitMoveGoal(unitID, cx, cy, cz, radius, nil, true) -- The last argument is whether the goal is raw
+	Spring.SetUnitMoveGoal(unitID, cx, cy, cz, radius, nil, false) -- The last argument is whether the goal is raw
 	return true
 end
 
