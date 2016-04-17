@@ -47,6 +47,6 @@ function gadget:GameFrame()
 	end
 end
 
-GG.KillWisp() = KillWisp
+GG.KillWisp = KillWisp
 
 end
