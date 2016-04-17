@@ -324,7 +324,7 @@ function widget:Initialize()
 				float dy = 0.5 - gl_TexCoord[0].y;
 				float dist = 1 - 2.5 * (1.5 * dx * dx + dy * dy);
 				
-				gl_FragColor.rgb *= dist * spiritAmount + 1 * (1 - spiritAmount);
+				gl_FragColor.rgb *= dist;// * spiritAmount + 1 * (1 - spiritAmount);
 				gl_FragColor.rgb += rand(vec2(dtime1, gl_TexCoord[0].x + 10 * gl_TexCoord[0].y)) / 12 * noiseAmount;
 			}
 		]],
