@@ -615,7 +615,7 @@ function widget:DrawScreenEffects()
 		if changeSpiritMode == 1 then
 			opts = { spiritAmount = 1 * progress, noiseAmount = 1 * progress + math.sin(progress * 3.14 / 1.5)}
 		else
-			opts = { spiritAmount = 1 - 1 * progress, noiseAmount = 1 - 1 * progress + math.cos(progress) * 3}
+			opts = { spiritAmount = 1 - 1 * progress, noiseAmount = 1 - 1 * progress + math.cos(progress * 3.14/2) * 3}
 		end
 
 		if deltaTime > CHANGE_DURATION then
