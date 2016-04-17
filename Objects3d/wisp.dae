@@ -5,8 +5,8 @@
       <author>Blender User</author>
       <authoring_tool>Blender 2.76.0 commit date:2015-11-03, commit time:10:56, hash:f337fea</authoring_tool>
     </contributor>
-    <created>2016-04-17T14:05:02</created>
-    <modified>2016-04-17T14:05:02</modified>
+    <created>2016-04-17T19:19:24</created>
+    <modified>2016-04-17T19:19:24</modified>
     <unit name="meter" meter="1"/>
     <up_axis>Z_UP</up_axis>
   </asset>
@@ -861,6 +861,18 @@
             </node>
           </node>
         </node>
+      </node>
+      <node id="Hair1" name="Hair1" type="NODE">
+        <matrix sid="transform">1 0 0 5.37458 0 1 0 -0.2162458 0 0 1 45.44135 0 0 0 1</matrix>
+      </node>
+      <node id="Hair2" name="Hair2" type="NODE">
+        <matrix sid="transform">1 0 0 -4.385194 0 1 0 8.516264 0 0 1 39.45765 0 0 0 1</matrix>
+      </node>
+      <node id="Hair3" name="Hair3" type="NODE">
+        <matrix sid="transform">1 0 0 -11.66693 0 1 0 -0.2162458 0 0 1 45.44135 0 0 0 1</matrix>
+      </node>
+      <node id="Hair4" name="Hair4" type="NODE">
+        <matrix sid="transform">1 0 0 -4.385194 0 1 0 1.2861 0 0 1 49.38161 0 0 0 1</matrix>
       </node>
     </visual_scene>
   </library_visual_scenes>
