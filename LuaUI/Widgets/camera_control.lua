@@ -37,6 +37,7 @@ function widget:Update()
 	if Spring.GetGameRulesParam("gameMode") ~= "develop" and wispID ~= nil then
 		Spring.SelectUnitArray({wispID})
 		Spring.SendCommands({"trackoff", "track"})
+		Spring.SelectUnitArray({})
 	end
 end
 
