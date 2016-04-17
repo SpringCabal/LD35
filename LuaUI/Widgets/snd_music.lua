@@ -10,23 +10,40 @@ function widget:GetInfo()
   }
 end
 
-local VOLUME = 0.15
+local VOLUME = 1
 local BUFFER = 0.015
 
 local playingTime = 0
 local dtTime = 0
 local trackTime
 local startedPlaying = false
--- FIXME: add the music file path here
-local musicFile
+
+local musicFile = "sounds/music.ogg"
+local musicFileMuffled = "sounds/muffled.ogg"
+
+local oldHasEars
 
 local function StartPlaying()
     playingTime = 0
-    if not startedPlaying then
-        Spring.PlaySoundStream(musicFile, VOLUME)
+    if not startedPlaying and Spring.GetGameRulesParam("gameMode") ~= "develop" then
+		local file
+		if Spring.GetGameRulesParam("has_ears") == 1 then
+			file = musicFile
+		else
+			file = musicFileMuffled
+		end
+		if Spring.GetGameRulesParam("gameMode") ~= "play" then
+			Spring.Echo("Playing: " .. tostring(file))
+		end
+		Spring.PlaySoundStream(file, VOLUME)
         _, trackTime = Spring.GetSoundStreamTime()
+		startedPlaying = true
     end
-    startedPlaying = true
+end
+
+local function StopPlaying()
+	startedPlaying = false
+	Spring.StopSoundStream()
 end
 
 function widget:Initialize()
@@ -34,9 +51,7 @@ function widget:Initialize()
         widgetHandler:RemoveWidget()
         return
     end
-    if Spring.GetGameFrame() > 0 then
-        StartPlaying()
-    end
+	oldHasEars = Spring.GetGameRulesParam("has_ears") or 0
 end
 
 function widget:GameStart()
@@ -44,14 +59,24 @@ function widget:GameStart()
 end
 
 function widget:Update(dt)
+	local newEars = Spring.GetGameRulesParam("has_ears") or 0
+	if oldHasEars ~= newEars then
+		oldHasEars = newEars
+		StopPlaying()
+		StartPlaying()
+	end
+	if startedPlaying and Spring.GetGameRulesParam("gameMode") == "develop" then
+		StopPlaying()
+	end
     if startedPlaying then
         playingTime = playingTime + dt
         --playingTime = Spring.GetSoundStreamTime()
         if playingTime > trackTime - BUFFER then
-            startedPlaying = false
-            Spring.StopSoundStream()
+            StopPlaying()
             StartPlaying()
         end
+	else
+        StartPlaying()
     end
 end 
 
