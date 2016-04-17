@@ -123,7 +123,7 @@ end
 
 function SetPieceVisible(name, visible)
 	local pieces = pieceNames[name]
-    if true then return end
+
 	if type(pieces) ~= "table" then
 		if visible then
 			Show(pieces)
@@ -142,12 +142,12 @@ function SetPieceVisible(name, visible)
 end
 
 function SetPieceVisibleNoThread(name, visible)
-	--StartThread(SetPieceVisible, name, visible)
+	StartThread(SetPieceVisible, name, visible)
 end
 
 function SetAllPiecesInvisibleNoThread()
 	for _, pieceID in pairs(Spring.GetUnitPieceMap(unitID)) do
-		--StartThread(function() Hide(pieceID) end)
+		StartThread(function() Hide(pieceID) end)
 	end
 end
 
