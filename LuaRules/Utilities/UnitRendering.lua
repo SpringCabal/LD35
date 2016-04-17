@@ -18,9 +18,7 @@ end
 local unitRendering = {
   lods = {},
   curHighestLOD = 0,
-
   activeMats = {},
-
   spSetLODCount = Spring.UnitRendering.SetLODCount,
   spSetMaterialLastLOD = Spring.UnitRendering.SetMaterialLastLOD,
 }
@@ -28,9 +26,7 @@ local unitRendering = {
 local featureRendering = {
   lods = {},
   curHighestLOD = 0,
-
   activeMats = {},
-
   spSetLODCount = Spring.FeatureRendering.SetLODCount,
   spSetMaterialLastLOD = Spring.FeatureRendering.SetMaterialLastLOD,
 }
@@ -56,7 +52,8 @@ local function ActivateMaterial(rendering, objectID, lod)
     SetLODCount(rendering, objectID, lod)
   end
 
-  rendering.activeMats[lod] = true
+  --rendering.activeMats[lod] = true
+  activeMats[lod] = true
 
   if lod > rendering.curHighestLOD then
     rendering.curHighestLOD = lod

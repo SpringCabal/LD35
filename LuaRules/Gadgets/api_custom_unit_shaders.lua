@@ -10,6 +10,10 @@
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+if not gadgetHandler:IsSyncedCode() then
+  return
+end
+
 function gadget:GetInfo()
   return {
     name      = "CustomUnitShaders",
@@ -22,74 +26,7 @@ function gadget:GetInfo()
   }
 end
 
-local engineIsMin97 = (Script.IsEngineMinVersion and Script.IsEngineMinVersion(96,0,1))
 local engineIsMin101 = (Script.IsEngineMinVersion and Script.IsEngineMinVersion(101,0,0))
-
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
--- Synced
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
-
-
-if (gadgetHandler:IsSyncedCode()) then
-
-if (not engineIsMin97) then
-  function gadget:UnitFinished(unitID,unitDefID,teamID)
-    SendToUnsynced("unitshaders_finished", unitID, unitDefID,teamID)
-  end
-
-  function gadget:UnitDestroyed(unitID,unitDefID,teamID)
-    SendToUnsynced("unitshaders_destroyed", unitID, unitDefID,teamID)
-  end
-
-  function gadget:UnitGiven(unitID,unitDefID,teamID)
-    SendToUnsynced("unitshaders_given", unitID, unitDefID,teamID)
-  end
-
-  function gadget:UnitCloaked(unitID,unitDefID,teamID)
-    SendToUnsynced("unitshaders_cloak", unitID, unitDefID,teamID)
-  end
-
-  function gadget:UnitDecloaked(unitID,unitDefID,teamID)
-    SendToUnsynced("unitshaders_decloak", unitID, unitDefID,teamID)
-  end
-
-  function gadget:GameFrame()
-    for i,uid in ipairs(Spring.GetAllUnits()) do
-      if not select(3,Spring.GetUnitIsStunned(uid)) then --// inbuild?
-        gadget:UnitFinished(uid,Spring.GetUnitDefID(uid),Spring.GetUnitTeam(uid))
-      end
-    end
-    gadgetHandler:RemoveCallIn('GameFrame')
-  end
-end
-
-  function gadget:UnitReverseBuild(unitID,unitDefID,teamID)
-    SendToUnsynced("unitshaders_reverse", unitID, unitDefID,teamID)
-  end
-
-  --// block first try, so we have enough time to disable the lua UnitRendering
-  --// else the model would be invisible for 1 gameframe
-  local blockFirst = {}
-  function gadget:AllowUnitBuildStep(builderID, builderTeam, unitID, unitDefID, part)
-    if (part < 0) then
-      local inbuild = not select(3,Spring.GetUnitIsStunned(unitID))
-      if (not inbuild) then
-        gadget:UnitReverseBuild(unitID,unitDefID,Spring.GetUnitTeam(unitID))
-        if (not blockFirst[unitID]) then
-          blockFirst[unitID] = true
-          return false
-        end
-      end
-    else
-      blockFirst[unitID] = nil
-    end
-    return true
-  end
-
-  return
-end
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -172,7 +109,6 @@ local function InsertPlugin(str)
   return (_plugins and _plugins[str]) or ""
 end
 
-
 local function CompileShader(shader, definitions, plugins)
   shader.vertexOrig   = shader.vertex
   shader.fragmentOrig = shader.fragment
@@ -231,18 +167,38 @@ local function _CompileMaterialShaders(rendering)
       local GLSLshader = CompileShader(mat_src.shaderSource, mat_src.shaderDefinitions, mat_src.shaderPlugins)
 
       if (GLSLshader) then
-        if (mat_src.shader) then
-          gl.DeleteShader(mat_src.shader)
+        if (mat_src.standardShader) then
+          gl.DeleteShader(mat_src.standardShader)
         end
-        mat_src.shader          = GLSLshader
-        mat_src.cameraLoc       = gl.GetUniformLocation(GLSLshader,"camera")
-        mat_src.cameraInvLoc    = gl.GetUniformLocation(GLSLshader,"cameraInv")
-        mat_src.cameraPosLoc    = gl.GetUniformLocation(GLSLshader,"cameraPos")
-        mat_src.shadowMatrixLoc = gl.GetUniformLocation(GLSLshader,"shadowMatrix")
-        mat_src.shadowParamsLoc = gl.GetUniformLocation(GLSLshader,"shadowParams")
-        mat_src.sunLoc          = gl.GetUniformLocation(GLSLshader,"sunPos")
-        mat_src.frameLoc        = gl.GetUniformLocation(GLSLshader,"frame2")
-        mat_src.speedLoc        = gl.GetUniformLocation(GLSLshader,"speed")
+        mat_src.standardShader   = GLSLshader
+        mat_src.standardUniforms = {
+          cameraloc       = gl.GetUniformLocation(GLSLshader, "camera"),
+          camerainvloc    = gl.GetUniformLocation(GLSLshader, "cameraInv"),
+          cameraposloc    = gl.GetUniformLocation(GLSLshader, "cameraPos"),
+          shadowmatrixloc = gl.GetUniformLocation(GLSLshader, "shadowMatrix"),
+          shadowparamsloc = gl.GetUniformLocation(GLSLshader, "shadowParams"),
+          sunposloc       = gl.GetUniformLocation(GLSLshader, "sunPos"),
+          simframeloc     = gl.GetUniformLocation(GLSLshader, "simFrame"),
+        }
+      end
+    end
+    if (mat_src.deferredSource) then
+      local GLSLshader = CompileShader(mat_src.deferredSource, mat_src.deferredDefinitions, mat_src.deferredPlugins)
+
+      if (GLSLshader) then
+        if (mat_src.deferredShader) then
+          gl.DeleteShader(mat_src.deferredShader)
+        end
+        mat_src.deferredShader   = GLSLshader
+        mat_src.deferredUniforms = {
+          cameraloc       = gl.GetUniformLocation(GLSLshader, "camera"),
+          camerainvloc    = gl.GetUniformLocation(GLSLshader, "cameraInv"),
+          cameraposloc    = gl.GetUniformLocation(GLSLshader, "cameraPos"),
+          shadowmatrixloc = gl.GetUniformLocation(GLSLshader, "shadowMatrix"),
+          shadowparamsloc = gl.GetUniformLocation(GLSLshader, "shadowParams"),
+          sunposloc       = gl.GetUniformLocation(GLSLshader, "sunPos"),
+          simframeloc     = gl.GetUniformLocation(GLSLshader, "simFrame"),
+        }
       end
     end
   end
@@ -284,7 +240,7 @@ local function GetObjectMaterial(rendering, objectDefID)
     local texdl = gl.CreateList(function()
     for _,tex in pairs(texUnits) do
       local prefix = tex.tex:sub(1,1)
-      if   (prefix~="%") 
+      if   (prefix~="%")
         and(prefix~="#")
         and(prefix~="!")
         and(prefix~="$")
@@ -298,17 +254,17 @@ local function GetObjectMaterial(rendering, objectDefID)
   end
 
   local luaMat = rendering.spGetMaterial("opaque", {
-    shader          = mat.shader,
-    cameraposloc    = mat.cameraPosLoc,
-    cameraloc       = mat.cameraLoc,
-    camerainvloc    = mat.cameraInvLoc,
-    shadowloc       = mat.shadowMatrixLoc,
-    shadowparamsloc = mat.shadowParamsLoc,
-    usecamera       = mat.usecamera,
-    culling         = mat.culling,
-    texunits        = texUnits,
-    prelist         = mat.predl,
-    postlist        = mat.postdl,
+    standardshader = mat.standardShader,
+    deferredshader = mat.deferredShader,
+
+    standarduniforms = mat.standardUniforms,
+    deferreduniforms = mat.deferredUniforms,
+
+    usecamera   = mat.usecamera,
+    culling     = mat.culling,
+    texunits    = texUnits,
+    prelist     = mat.predl,
+    postlist    = mat.postdl,
   })
 
   rendering.bufMaterials[objectDefID] = luaMat
@@ -329,7 +285,7 @@ function ToggleShadows()
   for _, unitID in pairs(units) do
     local unitDefID = Spring.GetUnitDefID(unitID)
     local teamID    = Spring.GetUnitTeam(unitID)
-    UnitDestroyed(nil, unitID)
+    ObjectDestroyed(unitRendering, unitID, unitDefID)
     Spring.UnitRendering.DeactivateMaterial(unitID, 3)
     if not select(3,Spring.GetUnitIsStunned(unitID)) then --// inbuild?
       UnitFinished(nil,unitID,unitDefID,teamID)
@@ -341,7 +297,7 @@ function ToggleShadows()
   for _, featureID in pairs(features) do
     local featureDefID = Spring.GetFeatureDefID(featureID)
     local teamID       = Spring.GetFeatureTeam(featureID)
-    FeatureDestroyed(nil, featureID)
+    ObjectDestroyed(featureRendering, featureID, featureDefID)
     Spring.FeatureRendering.DeactivateMaterial(featureID, 3)
     FeatureCreated(nil,featureID,featureDefID,teamID)
   end
@@ -371,14 +327,19 @@ function ToggleAdvShading()
 end
 
 
-function ToggleNormalmapping(_,_,_, playerID)
+function ToggleNormalmapping(_,newSetting,_, playerID)
   if (playerID ~= Spring.GetMyPlayerID()) then
     return
   end
 
-  normalmapping = not normalmapping
+  if newSetting and newSetting~="" then
+    normalmapping = (newSetting=="1")
+  elseif not newSetting or newSetting=="" then
+    normalmapping = not normalmapping
+  end
+
   Spring.SetConfigInt("NormalMapping", (normalmapping and 1) or 0)
-  Spring.Echo("Set NormalMapping to " .. tostring((normalmapping and 1) or 0))
+  Spring.Echo("Normalmapping is " .. (normalmapping and "enabled" or "disabled"))
 
   if (not normalmapping) then
     --// unload normalmapped materials
@@ -389,7 +350,7 @@ function ToggleNormalmapping(_,_,_, playerID)
       if (unitMat) then
         local mat = unitRendering.materialDefs[unitMat[1]]
         if (not mat.force) then
-          gadget:UnitDestroyed(unitID,unitDefID)
+          ObjectDestroyed(unitRendering, unitID, unitDefID)
         end
       end
     end
@@ -438,7 +399,6 @@ function ObjectFinished(rendering, objectID, objectDefID)
       for pieceID in ipairs(rendering.spGetObjectPieceList(objectID) or {}) do
         rendering.spSetPieceList(objectID, 3, pieceID)
       end
-
       local DrawObject = mat[rendering.DrawObject]
       local ObjectCreated = mat[rendering.ObjectCreated]
       if DrawObject then
@@ -459,7 +419,6 @@ end
 function gadget:FeatureCreated(featureID)
   ObjectFinished(featureRendering, featureID, Spring.GetFeatureDefID(featureID))
 end
-
 
 function ObjectDestroyed(rendering, objectID, objectDefID)
   rendering.spDeactivateMaterial(objectID, 3)
@@ -514,7 +473,7 @@ gadget.UnitDecloaked = gadget.UnitFinished
 -- NOTE: No feature equivalent (features can't change team)
 function gadget:UnitGiven(unitID,...)
   if not select(3, Spring.GetUnitIsStunned(unitID)) then
-    gadget:UnitDestroyed(unitID, ...)
+    ObjectDestroyed(unitRendering,unitID, ...)
     gadget:UnitFinished(unitID, ...)
   end
 end
@@ -574,7 +533,7 @@ local function _LoadMaterialConfigFiles(path)
     for k, v in pairs(unitMats) do
       --// we check if the material is defined as a unit or as feature material (one namespace for both!!)
       local materialDefs
-      if featureRendering.materialDefs[v] then
+      if featureRendering.materialDefs[v[1]] then
         materialDefs = featureMaterialDefs
       else
         materialDefs = unitMaterialDefs
@@ -588,11 +547,17 @@ local function _LoadMaterialConfigFiles(path)
 end
 
 local function _ProcessMaterials(rendering, materialDefs)
+  local engineShaderTypes = {"3do", "s3o", "obj", "ass"}
   for _, mat_src in pairs(rendering.materialDefs) do
-    if mat_src.shader and mat_src.shader ~= "3do" and mat_src.shader ~= "s3o" then
+    -- mat_src = {shader = include(".../default.lua") or "s3o", ...}
+    if mat_src.shader ~= nil and engineShaderTypes[mat_src.shader] == nil then
       mat_src.shaderSource = mat_src.shader
       mat_src.shader = nil
     end
+    if mat_src.deferred ~= nil and engineShaderTypes[mat_src.deferred] == nil then
+        mat_src.deferredSource = mat_src.deferred
+        mat_src.deferred = nil
+      end
   end
 
   _CompileMaterialShaders(rendering)
@@ -618,15 +583,6 @@ function gadget:Initialize()
   --// process the materials (compile shaders, load textures, ...)
   _ProcessMaterials(unitRendering,    unitMaterialDefs)
   _ProcessMaterials(featureRendering, featureMaterialDefs)
-
-  --// insert synced actions
-  if (not engineIsMin97) then
-    gadgetHandler:AddSyncAction("unitshaders_finished", UnitFinished)
-    gadgetHandler:AddSyncAction("unitshaders_destroyed", RenderUnitDestroyed)
-    gadgetHandler:AddSyncAction("unitshaders_given", UnitGiven)
-    gadgetHandler:AddSyncAction("unitshaders_cloak", UnitCloaked)
-    gadgetHandler:AddSyncAction("unitshaders_decloak", UnitDecloaked)
-  end
 
   gadgetHandler:AddSyncAction("unitshaders_reverse", UnitReverseBuild)
   gadgetHandler:AddChatAction("normalmapping", ToggleNormalmapping)
