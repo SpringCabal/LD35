@@ -89,11 +89,16 @@ function widget:MousePress(mx, my, button)
 	local alt, ctrl, meta, shift = Spring.GetModKeyState()
 	if not Spring.IsAboveMiniMap(mx, my) then
 		if button == 1 then
-			if not (Spring.GetGameRulesParam("has_arms") ~= 1 and Spring.GetGameRulesParam("spiritMode") ~= 0) then
+			if Spring.GetGameRulesParam("has_arms") == 1 and Spring.GetGameRulesParam("spiritMode") == 0 then
 				local traceType, unitID = Spring.TraceScreenRay(mx, my)
 				if traceType == "unit" and UnitDefs[Spring.GetUnitDefID(unitID)].name == "lever" then
-					Spring.SendLuaRulesMsg('pull_lever|' .. unitID)
-					return true
+					local x, _, z = Spring.GetUnitPosition(unitID)
+					local wx, _, wz = Spring.GetUnitPosition(wispID)
+					local dx, dz = x - wx, z - wz
+					if dx * dx + dz * dz < 100*100 then
+						Spring.SendLuaRulesMsg('pull_lever|' .. unitID)
+						return true
+					end
 				end
 			end
 			local x,y,z = getMouseCoordinate(mx,my)

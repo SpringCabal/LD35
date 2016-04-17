@@ -126,6 +126,11 @@ local unbuiltUnits = {}
 
 
 function widget:Initialize()
+	for _, unitID in ipairs(Spring.GetAllUnits()) do
+		local unitDefID = Spring.GetUnitDefID(unitID)
+		widget:UnitCreated(unitID, unitDefID)
+	end
+	
   vsx, vsy = widgetHandler:GetViewSizes()
 
   self:ViewResize(widgetHandler:GetViewSizes())
@@ -164,9 +169,9 @@ function widget:Initialize()
         float depth  = texture2D(tex0, texCoord ).z;
 
         if (depth < gl_FragCoord.z) {
-          discard;
+//          discard;
         }
-        gl_FragColor = gl_Color;
+        gl_FragColor = vec4(0.5, 0.5, 0.2, 0.4);
       }
     ]],
     uniformInt = {
@@ -323,22 +328,42 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+local wispDefID = UnitDefNames["wisp"].id
+local wispID = nil
+
+function widget:UnitCreated(unitID, unitDefID, unitTeam)
+	if unitDefID == wispDefID then
+		wispID = unitID
+	end
+end
+
+function widget:UnitDestroyed(unitID)
+	if wispID == unitID then
+		wispID = nil
+	end
+end
+
 local function DrawVisibleUnits(overrideEngineDraw)
-  if Spring.GetGameRulesParam("has_arms") ~= 1 and Spring.GetGameRulesParam("spiritMode") ~= 0 then
+  if Spring.GetGameRulesParam("has_arms") ~= 1 or Spring.GetGameRulesParam("spiritMode") ~= 0 or wispID == nil then
 	  return
   end
 
   local mx, my, lmb, mmb, rmb = Spring.GetMouseState()
   local traceType, unitID = Spring.TraceScreenRay(mx, my)
   if traceType == "unit" and UnitDefs[Spring.GetUnitDefID(unitID)].name == "lever" then
-	local createdFrame = Spring.GetUnitRulesParam(unitID, "createdFrame") or 0
-	local growTime = 33 * 0.5
-	local duration = Spring.GetGameFrame() - createdFrame
-	local grownPercentage = math.min(1, duration / growTime)
-	local unitDefID = Spring.GetUnitDefID(unitID )
-	local unitDef = UnitDefs[unitDefID]
-	
-    glUnit(unitID, overrideEngineDraw)
+	local x, _, z = Spring.GetUnitPosition(unitID)
+	local wx, _, wz = Spring.GetUnitPosition(wispID)
+	local dx, dz = x - wx, z - wz
+	if dx * dx + dz * dz < 100*100 then
+		local createdFrame = Spring.GetUnitRulesParam(unitID, "createdFrame") or 0
+		local growTime = 33 * 0.5
+		local duration = Spring.GetGameFrame() - createdFrame
+		local grownPercentage = math.min(1, duration / growTime)
+		local unitDefID = Spring.GetUnitDefID(unitID )
+		local unitDef = UnitDefs[unitDefID]
+		
+		glUnit(unitID, overrideEngineDraw)
+	end
   end
 end
 

@@ -1,6 +1,7 @@
 local lever = piece('Base_001')
 
 function script.Create()
+	Turn(lever, x_axis, 0.6, 0);
 end
 
 function script.Killed(recentDamage, _)
@@ -22,7 +23,7 @@ end
 function script.Activate()
     StartThread(function()
         local x, y, z = Spring.GetUnitPosition(unitID)
---         Spring.PlaySoundFile("sounds/click.ogg", 1)
+        Spring.PlaySoundFile("sounds/lever.ogg", 0.6)
         Turn(lever, x_axis, -0.6, 15);
 --         WaitForMove(middle, z_axis);
 --         Move(middle, z_axis, -5, 50);
@@ -34,7 +35,7 @@ end
 function script.Deactivate()
     StartThread(function()
         local x, y, z = Spring.GetUnitPosition(unitID)
---         Spring.PlaySoundFile("sounds/click.ogg", 1)
+		Spring.PlaySoundFile("sounds/lever.ogg", 0.6)
         Turn(lever, x_axis, 0.6, 15);
 --         WaitForMove(middle, z_axis);
 --         Move(middle, z_axis, 0, 50);

@@ -62,6 +62,7 @@ local Arms = BaseEffect:New {
 	customParams        = {
 		bodypart = "arms",
 	},
+	objectName 		    = "hand.dae",
 }
 local Legs = BaseEffect:New {
 	name                = "Legs",
