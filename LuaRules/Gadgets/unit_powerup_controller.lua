@@ -25,6 +25,8 @@ local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
 local wispEnv
 
+local npcWispDefID = UnitDefNames["npcwisp"].id
+
 local PICKUP_RANGE = 50
 
 -------------------------------------------------------------------
@@ -36,6 +38,10 @@ function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 		wispID = unitID
 		wispEnv = Spring.UnitScript.GetScriptEnv(wispID)
 		Spring.UnitScript.CallAsUnit(wispID, wispEnv.SetAllPiecesInvisibleNoThread)
+	end
+	if npcWispDefID == unitDefID then
+		local env = Spring.UnitScript.GetScriptEnv(unitID)
+		Spring.UnitScript.CallAsUnit(unitID, env.SetAllPiecesInvisibleNoThread)
 	end
 end
 

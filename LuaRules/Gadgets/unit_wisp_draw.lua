@@ -26,12 +26,13 @@ local TEXTURE     = 'LuaUI/Images/wisp1.png'
 	
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
+local npcWispDefID = UnitDefNames["npcwisp"].id
 
 -- BEGIN Custom eye stuff
 -- local shader
 local shaderTimeLoc = nil
 local shaderSpiritAmountLoc = nil
-local shaderNoiseAmountLoc = nil
+local shaderUnitIDLoc = nil
 
 -- changing form manually
 local CHANGE_DURATION = 15 -- in frames
@@ -73,10 +74,25 @@ function DrawWisp()
     gl.Blending(GL.SRC_ALPHA, GL.ONE)
 
 	local width, height = 40, 40
-	local x, y, z = Spring.GetUnitViewPosition(wispID)--Spring.GetUnitPosition(wispID)
+
+	local x, y, z = Spring.GetUnitViewPosition(wispID)
+	gl.PushMatrix()
 	gl.Translate(x,y,z)
 	gl.Billboard()
 	gl.TexRect(-width/2, 0, width/2, height)
+	gl.PopMatrix()
+	
+	for _, npcWispID in pairs(Spring.GetAllUnits()) do
+		if Spring.GetUnitDefID(npcWispID) == npcWispDefID then
+			x, y, z = Spring.GetUnitViewPosition(npcWispID)
+			gl.Uniform(shaderUnitIDLoc,  npcWispID)
+			gl.PushMatrix()
+			gl.Translate(x,y,z)
+			gl.Billboard()
+			gl.TexRect(-width/2, 0, width/2, height)
+			gl.PopMatrix()
+		end
+	end
 
     gl.Texture(false)
     gl.Blending(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA)
@@ -90,6 +106,7 @@ function CreateShader()
 	fragment = [[
 	  uniform float time;
 	  uniform float spiritAmount;
+	  uniform float unitID;
 
 	  float rand(vec2 n) { 
 		return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
@@ -101,15 +118,18 @@ function CreateShader()
 		float dy = 0.5 - gl_TexCoord[0].y;
 		float dist = 1 - 2.5 * (1.5 * dx * dx + dy * dy);
 		
-		gl_FragColor.rgba = 0;
+		float f = 0;
 		float2 coord = gl_TexCoord[0].xy;
 		for (int i = -3; i <= 3; i++) {
 			for (int j = -3; j <= 3; j++) {
 				coord = round(gl_TexCoord[0].xy * 50 + vec2(i, j));
-				gl_FragColor.rga += rand(coord * time) * dist;
+				f += rand(coord * time * unitID) * dist;
 			}
 		}
-		gl_FragColor.rga /= 49;
+		gl_FragColor.rgba = f / 49;
+		gl_FragColor.r *= rand(vec2(cos(unitID), sin(unitID)));
+		gl_FragColor.g *= rand(vec2(sin(unitID), cos(unitID)));
+		gl_FragColor.b *= rand(vec2(-cos(unitID), -sin(unitID)));
 		
 		gl_FragColor.rgba += dist * dist * dist / 1.2;
 		gl_FragColor.rgba *= spiritAmount;
@@ -127,6 +147,7 @@ end
 function GetShaderLocations()
   shaderTimeLoc           = gl.GetUniformLocation(shader, 'time')
   shaderSpiritAmountLoc   = gl.GetUniformLocation(shader, 'spiritAmount')
+  shaderUnitIDLoc         = gl.GetUniformLocation(shader, 'unitID')
 end
 
 function gadget:DrawScreenEffects()
@@ -177,6 +198,7 @@ function gadget:DrawScreenEffects()
   time = math.floor(10 * time) / 10
   gl.Uniform(shaderTimeLoc,   time)
   gl.Uniform(shaderSpiritAmountLoc,  opts.spiritAmount)
+  gl.Uniform(shaderUnitIDLoc,  wispID)
 
   gl.MatrixMode(GL.PROJECTION); gl.PushMatrix(); gl.LoadMatrix("camprj")
   gl.MatrixMode(GL.MODELVIEW);  gl.PushMatrix(); gl.LoadMatrix("camera")

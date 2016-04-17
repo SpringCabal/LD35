@@ -32,6 +32,7 @@ local Wisp = Unit:New {
         player = true,
         radius = 20,
 		plate_toggler = true,
+		wisp   = true,
     },
 
     idletime = 120, --in simframes
@@ -44,9 +45,20 @@ local Wisp = Unit:New {
     fireState           = 0,
     moveState           = 0,
     script              = "wisp.lua",
+	objectName 			= "wisp.dae",
+}
+
+NPCWisp = Wisp:New {
+	name 				= "NPCWisp",
+	customParams = {
+        player = false,
+		plate_toggler = false,
+		wisp   = true,
+    },
 }
 
 
 return {
-    Wisp = Wisp,
+    Wisp    = Wisp,
+	NPCWisp = NPCWisp,
 }

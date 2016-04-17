@@ -315,9 +315,9 @@ function widget:Initialize()
 
 				gl_FragColor = bool(debugDraw) ? S1 : S0 + S1;
 
-				gl_FragColor.rg *= 0.3 + 0.7 * (1 - spiritAmount);
+				gl_FragColor.rg *= 0.4 + 0.6 * (1 - spiritAmount);
 				gl_FragColor.b += 0.1 - 0.1 * (1 - spiritAmount);
-				gl_FragColor.b *= 1.3 - 0.3 * (1 - spiritAmount);
+				gl_FragColor.b *= 1.2 - 0.2 * (1 - spiritAmount);
 
 				float dtime1 = sin(2*time) / 3.14 / 4;
 				float dx = 0.5 - gl_TexCoord[0].x;
