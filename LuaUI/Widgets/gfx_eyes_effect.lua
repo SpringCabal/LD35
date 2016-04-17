@@ -137,9 +137,19 @@ local combineShaderTexture1Loc = nil
 local combineShaderIllumLoc = nil
 local combineShaderFragLoc = nil
 
-local shaderTimeLoc = nil
+-- BEGIN Custom eye stuff
 -- local shader
+local shaderTimeLoc = nil
+local shaderSpiritAmountLoc = nil
+local shaderNoiseAmountLoc = nil
 
+-- changing form manually
+local CHANGE_DURATION = 15 -- in frames
+local oldSpiritMode
+local changeTime
+local changeSpiritMode = 0
+
+-- END
 
 function bloomBrightnessIncrease()
   options.maxBrightness.value = options.maxBrightness.value + options.maxBrightness.step
@@ -288,6 +298,8 @@ function widget:Initialize()
 			uniform int debugDraw;
 			
 			uniform float time;
+			uniform float spiritAmount;
+			uniform float noiseAmount;
 			
 			float rand(vec2 co){
 				return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
@@ -303,18 +315,17 @@ function widget:Initialize()
 
 				gl_FragColor = bool(debugDraw) ? S1 : S0 + S1;
 
-				gl_FragColor.rg *= 0.3;
-				gl_FragColor.b += 0.1;
-				gl_FragColor.b *= 1.3;
+				gl_FragColor.rg *= 0.3 + 0.7 * (1 - spiritAmount);
+				gl_FragColor.b += 0.1 - 0.1 * (1 - spiritAmount);
+				gl_FragColor.b *= 1.3 - 0.3 * (1 - spiritAmount);
 
 				float dtime1 = sin(2*time) / 3.14 / 4;
-				float dtime2 = cos(3*time) / 3.14 / 4;
 				float dx = 0.5 - gl_TexCoord[0].x;
 				float dy = 0.5 - gl_TexCoord[0].y;
 				float dist = 1 - 2.5 * (1.5 * dx * dx + dy * dy);
 				
-				gl_FragColor.rgb *= dist;
-				gl_FragColor.rgb += rand(vec2(dtime1, gl_TexCoord[0].x + 10 * gl_TexCoord[0].y)) / 12;
+				gl_FragColor.rgb *= dist * spiritAmount + 1 * (1 - spiritAmount);
+				gl_FragColor.rgb += rand(vec2(dtime1, gl_TexCoord[0].x + 10 * gl_TexCoord[0].y)) / 12 * noiseAmount;
 			}
 		]],
 
@@ -446,6 +457,8 @@ function widget:Initialize()
 	combineShaderFragLoc = glGetUniformLocation(combineShader, "fragMaxBrightness")
 	
 	shaderTimeLoc = glGetUniformLocation(combineShader, "time")
+	shaderSpiritAmountLoc = glGetUniformLocation(combineShader, "spiritAmount")
+	shaderNoiseAmountLoc = glGetUniformLocation(combineShader, "noiseAmount")
 	
 
 	widgetHandler:AddAction("bloom1BrightnessIncrease", bloomBrightnessIncrease, nil, "t")
@@ -511,7 +524,7 @@ end
 
 
 
-local function Bloom()
+local function Bloom(opts)
 	gl.Color(1, 1, 1, 1)
 
 	glCopyToTexture(screenTexture, 0, 0, 0, 0, vsx, vsy)
@@ -548,44 +561,80 @@ local function Bloom()
 		glUniform(   combineShaderIllumLoc, illumThreshold)
 		glUniform(   combineShaderFragLoc, maxBrightness)
 		glUniform(   shaderTimeLoc, os.clock())
+		glUniform(   shaderSpiritAmountLoc, opts.spiritAmount)
+		glUniform(   shaderNoiseAmountLoc, opts.noiseAmount)
 		mglActiveTexture(0, screenTexture, vsx, vsy, false, true)
 		mglActiveTexture(1, brightTexture1, vsx, vsy, false, true)
 	glUseShader(0)
 end
 
-local shader
-
-function InitShader()
-	shader = glCreateShader({
-		fragment = [[
-			void main(void) {
-
-				vec2 C0 = vec2(gl_TexCoord[0]);
-				vec4 S0 = texture2D(texture0, C0);
-				vec4 S1 = texture2D(texture1, C0);
-				S1 = vec4(S1.rgb * fragMaxBrightness/max(1.0 - illuminationThreshold, 0.0001), 1.0);
-
-
-				gl_FragColor = bool(debugDraw) ? S1 : S0 + S1;
-				gl_FragColor.rg *= 0.3;
-				gl_FragColor.b += 0.1;
-				gl_FragColor.b *= 2;
-			}
-		]],
-
-		uniformInt = { texture0 = 0, texture1 = 1, debugDraw = 0},
-		uniformFloat = {illuminationThreshold, fragMaxBrightness}
-	})
-end
+-- local shader
+-- 
+-- function InitShader()
+-- 	shader = glCreateShader({
+-- 		fragment = [[
+-- 			void main(void) {
+-- 
+-- 				vec2 C0 = vec2(gl_TexCoord[0]);
+-- 				vec4 S0 = texture2D(texture0, C0);
+-- 				vec4 S1 = texture2D(texture1, C0);
+-- 				S1 = vec4(S1.rgb * fragMaxBrightness/max(1.0 - illuminationThreshold, 0.0001), 1.0);
+-- 
+-- 
+-- 				gl_FragColor = bool(debugDraw) ? S1 : S0 + S1;
+-- 				gl_FragColor.rg *= 0.3;
+-- 				gl_FragColor.b += 0.1;
+-- 				gl_FragColor.b *= 2;
+-- 			}
+-- 		]],
+-- 
+-- 		uniformInt = { texture0 = 0, texture1 = 1, debugDraw = 0},
+-- 		uniformFloat = {illuminationThreshold, fragMaxBrightness}
+-- 	})
+-- end
 
 function widget:DrawScreenEffects()
 -- 	if not shader then
 -- 		InitShader()
 -- 	end
-	
-	if Spring.GetGameRulesParam("spiritMode") == 1 then
-		Bloom()
+
+	if oldSpiritMode == nil then
+		oldSpiritMode = Spring.GetGameRulesParam("spiritMode")
 	end
+	local newSpiritMode = Spring.GetGameRulesParam("spiritMode")
+	if oldSpiritMode ~= newSpiritMode then
+		changeSpiritMode = newSpiritMode - oldSpiritMode
+		changeTime = Spring.GetGameFrame()
+		oldSpiritMode = newSpiritMode
+	end
+
+	local opts = {}
+	if changeSpiritMode ~= 0 then
+		local deltaTime = Spring.GetGameFrame() - changeTime
+		local progress = math.min(1, deltaTime / CHANGE_DURATION)
+		if changeSpiritMode == 1 then
+			opts = { spiritAmount = 1 * progress, noiseAmount = 1 * progress + math.sin(progress * 3.14 / 1.5)}
+		else
+			opts = { spiritAmount = 1 - 1 * progress, noiseAmount = 1 - 1 * progress + math.cos(progress) * 3}
+		end
+
+		if deltaTime > CHANGE_DURATION then
+			changeSpiritMode = 0
+		end
+	elseif Spring.GetGameRulesParam("spiritMode") == 1 then
+		opts = { spiritAmount = 1, noiseAmount = 1 }
+	else
+		opts = { spiritAmount = 0, noiseAmount = 0 }
+	end
+
+-- 	{
+-- -- 			spiritAmount = 0.4 + 0.6 * math.abs(math.sin(1 * os.clock())),
+-- -- 			noiseAmount  = 1 + 3 *  math.abs(math.sin(1 * os.clock() + 3.14/2)),
+-- 	}
+	Bloom(opts)	
+-- 	if Spring.GetGameRulesParam("spiritMode") == 1 then
+-- 
+-- 	end
 end
 
 
