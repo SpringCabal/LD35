@@ -69,6 +69,7 @@ local Legs = BaseEffect:New {
 	customParams        = {
 		bodypart = "legs",
 	},
+	objectName 		    = "leg.dae",
 }
 
 local Plate = BaseEffect:New {
