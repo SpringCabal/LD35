@@ -171,7 +171,7 @@ local function GetMouseLight(beamLights, beamLightCount, pointLights, pointLight
 
 	if x then
 		pointLightCount = pointLightCount + 1
-		pointLights[pointLightCount] = {px = x, py = y + 100, pz = z, param = {r = 0.4, g = 0.4, b = 0.4, radius = 3000}, colMult = 1}
+		pointLights[pointLightCount] = {px = x, py = y + 100, pz = z, param = {r = 0.9, g = 0.9, b = 0.9, radius = 5000}, colMult = 1}
 	end
 
 	return beamLights, beamLightCount, pointLights, pointLightCount
@@ -193,7 +193,7 @@ local function GetWispLight(beamLights, beamLightCount, pointLights, pointLightC
 	if wispID and Spring.GetGameRulesParam("spiritMode") == 1 then
 		local x, y, z = Spring.GetUnitPosition(wispID)
 		pointLightCount = pointLightCount + 1
-		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 2, g = 2, b = 2, radius = 1000}, colMult = 1}
+		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 4, g = 4, b = 4, radius = 2000}, colMult = 1}
 	end
 
 	return beamLights, beamLightCount, pointLights, pointLightCount

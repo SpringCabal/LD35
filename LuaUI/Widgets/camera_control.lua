@@ -32,6 +32,28 @@ function widget:UnitDestroyed(unitID)
 	end
 end
 
+local gameMode
+function SetGameMode(gameMode)
+	if Spring.GetGameRulesParam("gameMode") ~= "develop" then
+		s = {
+			dist = 518.541626,
+			px = 1078.2821,
+			py = 436.300781,
+			pz = 2710.06079,
+			rz = 0,
+			dx = 0,
+			dy = -0.8283768,
+			dz = -0.5601712,
+			fov = 45,
+			ry = 0.01,
+			mode = 2,
+			rx = 2.54700017,
+			name = "spring",
+		}
+		Spring.SetCameraState(s, 0)
+	end
+end
+
 lastTrackingUpdate = os.clock()
 function widget:Update()
 	if Spring.GetGameRulesParam("gameMode") ~= "develop" and wispID ~= nil then
@@ -39,6 +61,11 @@ function widget:Update()
 		Spring.SendCommands({"trackoff", "track"})
 		Spring.SelectUnitArray({})
 	end
+	local newGameMode = Spring.GetGameRulesParam("gameMode")
+    if gameMode ~= newGameMode then
+        gameMode = newGameMode
+        SetGameMode(gameMode)
+    end
 end
 
 function widget:Initialize()
@@ -46,25 +73,12 @@ function widget:Initialize()
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		widget:UnitCreated(unitID, unitDefID)
 	end
---     for k, v in pairs(Spring.GetCameraState()) do
---        Spring.Echo(k .. " = " .. tostring(v) .. ",")
---     end
+    for k, v in pairs(Spring.GetCameraState()) do
+       print(k .. " = " .. tostring(v) .. ",")
+    end
 
-    s = {
-        px = 3150,
-        py = 102.34146118164,
-        pz = 3480,
-        mode = 1,
-        flipped = -1,
-        dy = -0.90149933099747,
-        dz = -0.43356931209564,
-        fov = 45,
-        height = 3300,
-        angle = 0.46399998664856,
-        dx = 0,
-        name = "spring",
-    }
---     Spring.SetCameraState(s, 0)
+    gameMode = Spring.GetGameRulesParam("gameMode")
+    SetGameMode(gameMode)
 end
 
 function widget:Shutdown()
@@ -72,5 +86,7 @@ end
 
 function widget:MouseWheel(up,value)
     -- uncomment this to disable zoom/panning
-    --return true
+	if Spring.GetGameRulesParam("gameMode") ~= "develop" and wispID ~= nil then
+		return true
+	end
 end

@@ -15,7 +15,7 @@ local Chili, screen0
 local children = {}
 local x,y,h
 
-local purple = "\255\255\10\255"
+local notPurple = "\255\202\202\101"
 local white = "\255\255\255\255"
 
 local function SetBindings()
@@ -75,8 +75,8 @@ function widget:Initialize()
 --         purple .. "Left click: " .. white .. "Shoot",
 --         purple .. "Right click : " .. white .. "Place Mines",
 --         purple .. "Scroll Wheel : " .. white .. "Zoom",
-        purple .. "Ctrl+Q : " .. white .. "Quit",
-		purple .. "Space : " .. white .. "Switch form",
+        notPurple .. "Ctrl+Q : " .. white .. "Quit",
+		notPurple .. "Space : " .. white .. "Switch form",
     }
 
 
