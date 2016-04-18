@@ -23,6 +23,7 @@ local ThighR = piece('ThighR');
 
 local SIG_WALK =  tonumber("00001",2);
 local SIG_IDLE =  tonumber("00010",2);
+local SIG_FLOAT=  tonumber("00100",2);
 
 local floating = false;
 
@@ -36,6 +37,8 @@ local pieceNames = {
 	nose = Nose,
 	mouth = Mouth,
 }
+
+local pieceStatus = {}
 
 local scriptEnv = {	ArmL = ArmL,
 	ArmR = ArmR,
@@ -69,6 +72,8 @@ local scriptEnv = {	ArmL = ArmL,
 local Animations = {};
 Animations['walk_legs'] = VFS.Include("Scripts/animations/wisp_walk_legs.lua", scriptEnv)
 Animations['walk_arms'] = VFS.Include("Scripts/animations/wisp_walk_arms.lua", scriptEnv)
+Animations['float_body'] = VFS.Include("Scripts/animations/wisp_hover_body.lua", scriptEnv)
+Animations['float_arms'] = VFS.Include("Scripts/animations/wisp_hover_arms.lua", scriptEnv)
 Animations['idle'] = VFS.Include("Scripts/animations/wisp_idle.lua", scriptEnv)
 Animations['stop'] = VFS.Include("Scripts/animations/wisp_reset_all.lua", scriptEnv)
 
@@ -123,6 +128,12 @@ end
 
 function SetPieceVisible(name, visible)
 	local pieces = pieceNames[name]
+    pieceStatus[name] = visible
+    
+    if name == "legs" then
+        Signal(SIG_FLOAT);
+        Signal(SIG_WALK);
+    end
 
 	if type(pieces) ~= "table" then
 		if visible then
@@ -154,6 +165,7 @@ end
 local function Walk()
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)
+    
 	PlayAnimation("walk_legs", true);
 	while true do
 		PlayAnimation("walk_legs", false);
@@ -168,11 +180,26 @@ local function Wave_Arms()
 	end
 end
 
+local function Float_Body()
+	SetSignalMask(SIG_FLOAT)
+	PlayAnimation("float_body", true);
+	while true do
+		PlayAnimation("float_body", false);
+	end
+end
+
+local function Float_Arms()
+	SetSignalMask(SIG_WALK)
+	PlayAnimation("float_arms", true);
+	while true do
+		PlayAnimation("float_arms", false);
+	end
+end
+
 local function Stop()
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)
 	PlayAnimation("idle",true)
-	--PlayAnimation("stop",false)
 end
 
 -- call-ins
@@ -195,12 +222,17 @@ function script.Create()
         end
     end    
     PlayAnimation('idle');
+    StartThread(Float_Body);
 end
 
 function script.StartMoving()
 	Signal(SIG_WALK);
-	StartThread(Walk);
-	StartThread(Wave_Arms);
+    if(pieceStatus['legs']) then
+        StartThread(Walk);
+        StartThread(Wave_Arms);
+    elseif pieceStatus['arms'] then
+        StartThread(Float_Arms);
+    end
 end
 
 function script.StopMoving()
@@ -208,9 +240,6 @@ function script.StopMoving()
 	StartThread(Stop);
 end
 
-
 function script.Killed(recentDamage, maxHealth)
 	return 0
 end
-        
-            
