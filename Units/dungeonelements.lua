@@ -24,6 +24,22 @@ local gateSmoth = Element:New {
 	objectName 			= "gateSmoth.dae",
 	footprintX				= 3,
 	footprintZ				= 3,
+	script					= "gate.lua",
+	onoffable				= true,
+	customParams = {
+		wall = false,
+		dungeonElement = true,
+		triggerable = true,
+	},
+	collisionVolumeType		= "box",
+	collisionVolumeScales	= "116 115 271",
+	collisionVolumeOffsets	= "-6 60 0",
+	
+	canMove				= true,
+    maxVelocity         = 0.00001,
+	pushResistant       = true,
+	
+	movementClass		= "Wisp", 
 }
 
 local wall1 = Element:New {
@@ -197,15 +213,6 @@ local horizontal_wall5		= Element:New {
 	footprintZ				= 4,
 }
 
-
-local Door = Element:New {
-	name                = "Door",
-	objectName 			= "door.dae",
-	customParams = {
-		triggerable = true,
-	},
-}
-
 return {
 	gateSmoth = gateSmoth,
 	wall1 = wall1,
@@ -234,6 +241,5 @@ return {
 	horizontal_wall3 = horizontal_wall3,
 	horizontal_wall4 = horizontal_wall4,
 	horizontal_wall5 = horizontal_wall5,
-	Door = Door,
 }
 

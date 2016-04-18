@@ -14,7 +14,9 @@ if (gadgetHandler:IsSyncedCode()) then
 
 function gadget:UnitCreated(unitID, unitDefID)
 	local unitDef = UnitDefs[unitDefID]
-	if unitDef.customParams.wall then
+	if unitDef.name == "gatesmoth" then
+-- 		Spring.SetUnitBlocking(unitID, false, false, false, false, false, false, false)
+	elseif unitDef.customParams.wall then
 		Spring.SetUnitCollisionVolumeData(unitID, 
 			0, 0, 0, 
 			0, 0, 0, 
