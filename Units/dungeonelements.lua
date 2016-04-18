@@ -150,6 +150,15 @@ local horizontal_wall2		= Element:New {
 	footprintZ				= 4,
 }
 
+
+local Door = Element:New {
+	name                = "Door",
+	objectName 			= "door.dae",
+	customParams = {
+		triggerable = true,
+	},
+}
+
 return {
 	wall1 = wall1,
 	wall2 = wall2,
@@ -171,5 +180,6 @@ return {
 	vertical_wall2 = vertical_wall2,
 	horizontal_wall1 = horizontal_wall1,
 	horizontal_wall2 = horizontal_wall2,
+	Door = Door,
 }
 

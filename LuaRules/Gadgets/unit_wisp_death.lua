@@ -78,14 +78,14 @@ function gadget:UnitDestroyed(unitID, unitDefID)
 end
 
 function gadget:Initialize()
+	Spring.SetGameRulesParam("alive_wisps", 0)
+	Spring.SetGameRulesParam("saved_wisps", 0)
+	Spring.SetGameRulesParam("killed_wisps", 0)
+
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		gadget:UnitCreated(unitID, unitDefID)
 	end
-
-	Spring.SetGameRulesParam("alive_wisps", 0)
-	Spring.SetGameRulesParam("saved_wisps", 0)
-	Spring.SetGameRulesParam("killed_wisps", 0)
 end
 
 GG.KillWisp = KillWisp

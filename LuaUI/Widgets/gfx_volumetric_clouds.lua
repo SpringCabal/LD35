@@ -23,14 +23,14 @@ local enabled = true
 -- Config
 
 local clouds = {
-	speed = 0.006, -- multiplier for speed of scrolling with wind
+	speed = 0.009, -- multiplier for speed of scrolling with wind
 	color    = {0.6, 0.75, 0.7}, -- diffuse color of the fog
 	-- all altitude values can be either absolute, in percent, or "auto"
 	height   = "100%", -- opacity of fog above and at this altitude will be zero
 	bottom = 0, -- no fog below this altitude
 	fade_alt = "85%"; -- fog will linearly fade away between this and "height", should be between height and bottom
 	scale = 15, -- how large will the clouds be
-	opacity = 0.8, -- what it says
+	opacity = 0.7, -- what it says
 	clamp_to_map = true, -- whether fog volume is sliced to fit map, or spreads to horizon
 	sun_penetration = 15, -- how much does the sun penetrate the fog
 }

@@ -103,24 +103,6 @@ local Lever = BaseEffect:New {
 	},
 }
 
-local Laser = BaseEffect:New {
-	name                = "Laser ",
-	objectName 			= "laser.dae",
-}
-
-local Target = BaseEffect:New {
-	name                = "Target",
-	objectName 			= "target.dae",
-}
-
-local Door = BaseEffect:New {
-	name                = "Door",
-	objectName 			= "door.dae",
-	customParams = {
-		triggerable = true,
-	},
-}
-
 
 return {
 	Eyes  = Eyes,
@@ -133,7 +115,5 @@ return {
 	Plate = Plate,
 	Cage  = Cage,
 	Lever = Lever,
--- 	Laser = Laser,
--- 	Target = Target,
 	Door = Door,
 }

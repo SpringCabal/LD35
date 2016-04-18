@@ -60,7 +60,8 @@ function gadget:UnitDestroyed(unitID, unitDefID, ...)
     end
 end
 
-function SimpleLink(triggerID, triggerableID)
+function SimpleLink(triggerID, triggerableID, opts)
+	opts = opts or {}
     if triggers[triggerID] == nil then
         Spring.Log(LOG_SECTION, "error", "SimpleLink: No such trigger with ID: ", triggerID)
         return
@@ -70,7 +71,13 @@ function SimpleLink(triggerID, triggerableID)
         return
     end
     Spring.Log(LOG_SECTION, LOG_LEVEL, "Linking trigger " .. tostring(triggerID) .. " with triggerable: " .. tostring(triggerableID))
-    triggers[triggerID].triggerableID = triggerableID
+	if triggers[triggerID].triggerables == nil then
+		triggers[triggerID].triggerables = {}
+	end
+    table.insert(triggers[triggerID].triggerables, {
+		triggerableID = triggerableID,
+		opts = opts
+	})
 end
 
 function BitmaskLink(triggerMask, triggerableID)
@@ -101,24 +108,16 @@ function DisableLinkChecks()
     linkChecksEnabled = false
 end
 
-local function GetUnitState(unitID)
-    if triggers[unitID] then 
-        return triggers[unitID].state
-    end
-    local _, _, _, _, active = Spring.GetUnitStates(unitID)
-    return active
-end
-
 local function SetUnitState(unitID, state)
     if triggers[unitID] then 
         triggers[unitID].state = state
     end
-    local _, _, _, _, active = GetUnitState(unitID)
+    local active = Spring.GetUnitStates(unitID).active
     if active ~= state then
         if state then
             Spring.GiveOrderToUnit(unitID, CMD.ONOFF, { 1 }, {})
         else
-            Spring.GiveOrderToUnit(unitID, CMD.ONOFF, { 0 }, {})
+--             Spring.GiveOrderToUnit(unitID, CMD.ONOFF, { 0 }, {})
         end
     end
 end
@@ -131,20 +130,22 @@ function gadget:GameFrame()
     if Spring.GetGameFrame() % UPDATE_RATE == 0 then
         -- check if triggers are toggled or not
         for triggerID, trigger in pairs(triggers) do
-            if trigger.triggerableID or trigger.bitmaskLink or true then
+            if trigger.triggerables or trigger.bitmaskLink then
                 local x, y, z = Spring.GetUnitPosition(triggerID)
                 local units = Spring.GetUnitsInCylinder(x, z, PLATE_ACTIVATION_RANGE)
                 local newState = false
-                for _, unitID in pairs(units) do
-					if Spring.GetGameRulesParam("spiritMode") ~= 0 or Spring.GetGameRulesParam("has_legs") ~= 1 then
-						break
+				if UnitDefs[Spring.GetUnitDefID(triggerID)].customParams.stand_trigger then
+					for _, unitID in pairs(units) do
+						if Spring.GetGameRulesParam("spiritMode") ~= 0 or Spring.GetGameRulesParam("has_legs") ~= 1 then
+							break
+						end
+						if UnitDefs[Spring.GetUnitDefID(unitID)].customParams.trigger_toggler then
+							newState = true
+							break
+						end
 					end
-                    if UnitDefs[Spring.GetUnitDefID(unitID)].customParams.trigger_toggler then
-                        newState = true
-                        break
-                    end
-                end
-                SetUnitState(triggerID, newState)
+					SetUnitState(triggerID, newState)
+				end
             elseif not reportedError then
                 Spring.Log(LOG_SECTION, LOG_LEVEL, "Plate has no triggerable: " .. tostring(triggerID))
             end
@@ -153,15 +154,22 @@ function gadget:GameFrame()
 
         -- issue simple links
         for triggerID, trigger in pairs(triggers) do
-            if trigger.triggerableID then
-                SetUnitState(trigger.triggerableID, GetUnitState(triggerID))
+            if trigger.triggerables then
+				for _, triggerable in pairs(trigger.triggerables) do
+					local triggerableID = triggerable.triggerableID
+					local opts = triggerable.opts
+					for key, value in pairs(opts) do
+						Spring.SetUnitRulesParam(triggerableID, key, value)
+					end
+					SetUnitState(triggerableID, Spring.GetUnitStates(triggerID).active)
+				end
             end
         end
         -- issue bitmask links
         for triggerableID, bitmaskLink in pairs(bitmaskLinks) do
             local totalState = 1
             for _, triggerObj in pairs(bitmaskLink) do
-                if triggerObj[2] ~= GetUnitState(triggerObj[1]) then
+                if triggerObj[2] ~= Spring.GetUnitStates(triggerObj[1]).active then
                     totalState = false
                     break
                 end
