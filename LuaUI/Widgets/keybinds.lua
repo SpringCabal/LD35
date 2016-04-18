@@ -60,33 +60,37 @@ local function SetGameMode(gameMode)
     SetBindings()
 end
 
-function widget:Initialize()
-    gameMode = Spring.GetGameRulesParam("gameMode")
-    SetGameMode(gameMode)
+local hasArms, hasEyes
+local function SetBodyParts(hasEyes, hasArms)
+	mouseText = {
+        notPurple .. "Ctrl+Q : " .. white .. "Quit",
+    }
+	if hasEyes == 1 then
+		mouseText[#mouseText+1] = notPurple .. "Space : " .. white .. "Switch form"
+	end
+	if hasArms == 1 then
+		mouseText[#mouseText+1] = notPurple .. "Left click: " .. white .. "Interact"
+	end
+	MakeBindingText()
+end
 
-    bindText = { -- keybinds told to player
+function widget:Initialize()
+	bindText = { -- keybinds told to player
         --purple .. "Q : " .. white .. "swap pull / push",
         --purple .. "A : " .. white .. "stop shooting",
         --purple .. "W : " .. white .. "jump (+ left mouse)",
         --purple .. "S : " .. white .. "stop shooting & moving",
     }
-    
-    mouseText = {
---         purple .. "Left click: " .. white .. "Shoot",
---         purple .. "Right click : " .. white .. "Place Mines",
---         purple .. "Scroll Wheel : " .. white .. "Zoom",
-        notPurple .. "Ctrl+Q : " .. white .. "Quit",
-		notPurple .. "Space : " .. white .. "Switch form",
-    }
-
 
     if (not WG.Chili) then
 		return
 	end
 	Chili = WG.Chili
 	screen0 = Chili.Screen0
-
-    MakeBindingText()
+	
+    gameMode = Spring.GetGameRulesParam("gameMode")
+    SetGameMode(gameMode)
+	SetBodyParts(Spring.GetGameRulesParam("has_eyes"), Spring.GetGameRulesParam("has_arms"))
 end
 
 
@@ -129,4 +133,10 @@ function widget:Update()
         gameMode = newGameMode
         SetGameMode(gameMode)
     end
+	local newHasArms, newHasEyes = Spring.GetGameRulesParam("has_arms"), Spring.GetGameRulesParam("has_eyes")
+	if hasArms ~= newHasArms or hasEyes ~= newHasEyes then
+		hasArms = newHasArms
+		hasEyes = newHasEyes
+		SetBodyParts(hasEyes, hasArms)
+	end
 end
