@@ -90,7 +90,9 @@ local Cage = BaseEffect:New {
 	script              = "cage.lua",
 	customParams = {
 		triggerable = true,
+		effect = false,
 	},
+	blocking = true,
 }
 
 local Lever = BaseEffect:New {
@@ -103,6 +105,66 @@ local Lever = BaseEffect:New {
 	},
 }
 
+-- FIXME: cleanse
+-- Probably don't need, who knows!
+-- return {
+--   areas = {},
+--   features = {},
+--   units = {
+--     [18189] = {
+--       defName = "cage",
+--       paralyze = 0,
+--       team = 0,
+--       blocking = {
+--         blockEnemyPushing = true,
+--         blockHeightChanges = false,
+--         crushable = false,
+--         isBlocking = true,
+--         isProjectileCollidable = true,
+--         isRaySegmentCollidable = true,
+--         isSolidObjectCollidable = true,
+--       },
+--       collision = {
+--         axis = 1,
+--         disabled = false,
+--         offsetX = 0,
+--         offsetY = 23,
+--         offsetZ = 0,
+--         scaleX = 64.5954666,
+--         scaleY = 85.595459,
+--         scaleZ = 64.5954666,
+--         testType = 1,
+--         vType = 1,
+--       },
+--       midAimPos = {
+--         aim = {
+--           x = 0.00024414,
+--           y = 0,
+--           z = 31.4523926,
+--         },
+--         mid = {
+--           x = -0.9998779,
+--           y = 21,
+--           z = -6.5610352,
+--         },
+--       },
+--       pos = {
+--         x = 1039.70911,
+--         y = 411.499023,
+--         z = 2508.77148,
+--       },
+--       radiusHeight = {
+--         height = 43.1672592,
+--         radius = 53.7977295,
+--       },
+--       rot = {
+--         x = 0,
+--         y = 0.01340772,
+--         z = 0,
+--       },
+--     },
+--   },
+-- }
 
 return {
 	Eyes  = Eyes,
