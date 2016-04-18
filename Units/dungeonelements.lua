@@ -12,10 +12,18 @@ local Element = Unit:New {
 	objectName				= "corner.dae",
 	script			 		= "empty.lua",
 	unitname           		= "Element",
+	levelGround       		= false,
 	customParams = {
 		wall = true,
 		dungeonElement = true, -- Make sure all non interactable items have this as true
 	}
+}
+
+local gateSmoth = Element:New {
+	name                = "gateSmoth",
+	objectName 			= "gateSmoth.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
 }
 
 local wall1 = Element:New {
@@ -136,16 +144,55 @@ local vertical_wall2		= Element:New {
 	footprintZ				= 11,
 }
 
+local vertical_wall3		= Element:New {
+	name                = "vertical_wall3",
+	objectName 			= "vertical_wall3.dae",
+	footprintX				= 4,
+	footprintZ				= 11,
+}
+
+local vertical_wall4		= Element:New {
+	name                = "vertical_wall4",
+	objectName 			= "vertical_wall4.dae",
+	footprintX				= 4,
+	footprintZ				= 11,
+}
+
+local vertical_wall5		= Element:New {
+	name                = "vertical_wall5",
+	objectName 			= "vertical_wall5.dae",
+	footprintX				= 4,
+	footprintZ				= 11,
+}
+
 local horizontal_wall1		= Element:New {
 	name                = "horizontal_wall1",
 	objectName 			= "horizontal_wall1.dae",
 	footprintX				= 11,
 	footprintZ				= 4,
 }
-
 local horizontal_wall2		= Element:New {
 	name                = "horizontal_wall2",
 	objectName 			= "horizontal_wall2.dae",
+	footprintX				= 11,
+	footprintZ				= 4,
+}
+local horizontal_wall3		= Element:New {
+	name                = "horizontal_wall3",
+	objectName 			= "horizontal_wall3.dae",
+	footprintX				= 11,
+	footprintZ				= 4,
+}
+local horizontal_wall4		= Element:New {
+	name                = "horizontal_wall4",
+	objectName 			= "horizontal_wall4.dae",
+	footprintX				= 11,
+	footprintZ				= 4,
+}
+
+local horizontal_wall5		= Element:New {
+	name                = "horizontal_wall5",
+	objectName 			= "horizontal_wall5.dae",
 	footprintX				= 11,
 	footprintZ				= 4,
 }
@@ -160,6 +207,7 @@ local Door = Element:New {
 }
 
 return {
+	gateSmoth = gateSmoth,
 	wall1 = wall1,
 	wall2 = wall2,
 	wall3 = wall3,
@@ -178,8 +226,14 @@ return {
 	corner6 = corner6,
 	vertical_wall1 = vertical_wall1,
 	vertical_wall2 = vertical_wall2,
+	vertical_wall3 = vertical_wall3,
+	vertical_wall4 = vertical_wall4,
+	vertical_wall5 = vertical_wall5,
 	horizontal_wall1 = horizontal_wall1,
 	horizontal_wall2 = horizontal_wall2,
+	horizontal_wall3 = horizontal_wall3,
+	horizontal_wall4 = horizontal_wall4,
+	horizontal_wall5 = horizontal_wall5,
 	Door = Door,
 }
 
