@@ -14,6 +14,7 @@ local Element = Unit:New {
 	unitname           		= "Element",
 	customParams = {
 		wall = true,
+		dungeonElement = true, -- Make sure all non interactable items have this as true
 	}
 }
 

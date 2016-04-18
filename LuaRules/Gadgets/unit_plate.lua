@@ -33,11 +33,15 @@ function gadget:UnitCreated(unitID, unitDefID, unitTeam, builderID)
 	local unitDef = UnitDefs[unitDefID]
     if unitDef.customParams.trigger then
         triggers[unitID] = { pressed = false }
-		Spring.SetUnitCollisionVolumeData(unitID, 
+		if unitDef.name == "lever" then
+			Spring.SetUnitBlocking(unitID, false, false, false, true, false, false, false)
+		else
+			Spring.SetUnitCollisionVolumeData(unitID, 
 			0, 0, 0, 
 			0, 0, 0, 
 			0, 0, 0);
-		Spring.SetUnitBlocking(unitID, false, false, false, false, false, false, false)
+			Spring.SetUnitBlocking(unitID, false, false, false, false, false, false, false)
+		end
     end
 --     -- EXAMPLE:
 --     if UnitDefs[unitDefID].customParams.triggerable then

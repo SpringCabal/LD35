@@ -19,8 +19,14 @@ local loaded = false
 
 function gadget:GameFrame()
 	if GG.s11n ~= nil and not loaded then
-		Spring.SendCommands({"globallos"})
 		loaded = true
+		
+		for _, unitID in pairs(Spring.GetAllUnits()) do
+			local unitDef = UnitDefs[Spring.GetUnitDefID(unitID)]
+			if unitDef.customParams.dungeonElement then
+				Spring.DestroyUnit(unitID)
+			end
+		end
 
 		local elements = VFS.LoadFile(customElements)
 		elements = loadstring(elements)()
