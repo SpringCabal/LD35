@@ -12,7 +12,9 @@ local Element = Unit:New {
 	objectName				= "corner.dae",
 	script			 		= "empty.lua",
 	unitname           		= "Element",
-
+	customParams = {
+		wall = true,
+	}
 }
 
 local wall1 = Element:New {
