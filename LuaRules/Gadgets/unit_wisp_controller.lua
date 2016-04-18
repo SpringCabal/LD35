@@ -178,7 +178,7 @@ end
 -------------------------------------------------------------------
 
 function HandleLuaMessage(msg)
-	if not wispID then
+	if not wispID or Spring.GetGameRulesParam("game_over") == 1 then
 		return
 	end
 	local msg_table = explode('|', msg)
@@ -239,6 +239,13 @@ end
 
 function gadget:GameFrame(frame)
 	if wispID then
+		-- force spiritMode on start if no eyes 
+		if Spring.GetGameRulesParam("spiritMode") ~= 1 and
+			Spring.GetGameRulesParam("has_eyes") ~= 1 then
+			Spring.SetGameRulesParam("spiritMode", 1)
+		end
+		
+		
 		local x, y, z = Spring.GetUnitPosition(wispID)
 
 		local vx, vy, vz = Spring.GetUnitVelocity(wispID)

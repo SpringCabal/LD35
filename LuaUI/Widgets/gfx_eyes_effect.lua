@@ -142,12 +142,17 @@ local combineShaderFragLoc = nil
 local shaderTimeLoc = nil
 local shaderSpiritAmountLoc = nil
 local shaderNoiseAmountLoc = nil
+local shaderGameOverAmountLoc = nil
 
 -- changing form manually
 local CHANGE_DURATION = 15 -- in frames
 local oldSpiritMode
 local changeTime
 local changeSpiritMode = 0
+
+local GAME_END_DURATION = 80
+local oldGameEnd
+local gameEndTime
 
 -- END
 
@@ -300,6 +305,7 @@ function widget:Initialize()
 			uniform float time;
 			uniform float spiritAmount;
 			uniform float noiseAmount;
+			uniform float gameOverAmount;
 			
 			float rand(vec2 co){
 				return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
@@ -323,9 +329,17 @@ function widget:Initialize()
 				float dx = 0.5 - gl_TexCoord[0].x;
 				float dy = 0.5 - gl_TexCoord[0].y;
 				float dist = 1 - 2.5 * (1.5 * dx * dx + dy * dy);
-				
+								
+				if (spiritAmount == 2) {
+					gl_FragColor.rgb = 0.2;
+					gl_FragColor.a = 1;
+				}
+
 				gl_FragColor.rgb *= dist;// * spiritAmount + 1 * (1 - spiritAmount);
 				gl_FragColor.rgb += rand(vec2(dtime1, gl_TexCoord[0].x + 10 * gl_TexCoord[0].y)) / 12 * noiseAmount;
+
+				gl_FragColor.rgba += 0.5 * gameOverAmount;
+				gl_FragColor.rgba *= 1 + gameOverAmount;
 			}
 		]],
 
@@ -459,6 +473,7 @@ function widget:Initialize()
 	shaderTimeLoc = glGetUniformLocation(combineShader, "time")
 	shaderSpiritAmountLoc = glGetUniformLocation(combineShader, "spiritAmount")
 	shaderNoiseAmountLoc = glGetUniformLocation(combineShader, "noiseAmount")
+	shaderGameOverAmountLoc = glGetUniformLocation(combineShader, "gameOverAmount")
 	
 
 	widgetHandler:AddAction("bloom1BrightnessIncrease", bloomBrightnessIncrease, nil, "t")
@@ -528,8 +543,6 @@ local function Bloom(opts)
 	gl.Color(1, 1, 1, 1)
 
 	glCopyToTexture(screenTexture, 0, 0, 0, 0, vsx, vsy)
-
-
 	
 	glUseShader(brightShader)
 		glUniformInt(brightShaderText0Loc, 0)
@@ -563,6 +576,7 @@ local function Bloom(opts)
 		glUniform(   shaderTimeLoc, os.clock())
 		glUniform(   shaderSpiritAmountLoc, opts.spiritAmount)
 		glUniform(   shaderNoiseAmountLoc, opts.noiseAmount)
+		glUniform(   shaderGameOverAmountLoc, opts.gameOverAmount)
 		mglActiveTexture(0, screenTexture, vsx, vsy, false, true)
 		mglActiveTexture(1, brightTexture1, vsx, vsy, false, true)
 	glUseShader(0)
@@ -608,25 +622,55 @@ function widget:DrawScreenEffects()
 		oldSpiritMode = newSpiritMode
 	end
 
-	local opts = {}
+	local opts = { gameOverAmount = 0 }
+	
 	if changeSpiritMode ~= 0 then
 		local deltaTime = Spring.GetGameFrame() - changeTime
 		local progress = math.min(1, deltaTime / CHANGE_DURATION)
 		if changeSpiritMode == 1 then
-			opts = { spiritAmount = 1 * progress, noiseAmount = 1 * progress + math.sin(progress * 3.14 / 1.5)}
+			opts.spiritAmount = 1 * progress
+			opts.noiseAmount = 1 * progress + math.sin(progress * 3.14 / 1.5)
 		else
-			opts = { spiritAmount = 1 - 1 * progress, noiseAmount = 1 - 1 * progress + math.cos(progress * 3.14/2) * 3}
+			opts.spiritAmount = 1 - 1 * progress
+			opts.noiseAmount = 1 - 1 * progress + math.cos(progress * 3.14/2) * 3
 		end
 
 		if deltaTime > CHANGE_DURATION then
 			changeSpiritMode = 0
 		end
 	elseif Spring.GetGameRulesParam("spiritMode") == 1 then
-		opts = { spiritAmount = 1, noiseAmount = 1 }
+		opts.spiritAmount = 1
+		opts.noiseAmount = 1
 	else
-		opts = { spiritAmount = 0, noiseAmount = 0 }
+		opts.spiritAmount = 0
+		opts.noiseAmount = 0
 	end
+	
+	if Spring.GetGameRulesParam("game_over") == 0 then
+		oldGameEnd, gameEndTime = nil, nil
+	end
+	if Spring.GetGameRulesParam("game_over_sequence") == 1 then
+		if oldGameEnd == nil then
+			oldGameEnd = Spring.GetGameRulesParam("game_over") or 0
+		end
+		local newGameEnd = Spring.GetGameRulesParam("game_over") or 0
+		if oldGameEnd ~= newGameEnd then
+			gameEndTime = Spring.GetGameFrame()
+			oldGameEnd = newGameEnd
+		end
 
+		if oldGameEnd == 1 then
+			local deltaTime = Spring.GetGameFrame() - (gameEndTime or 0)
+			local progress = math.min(1, deltaTime / GAME_END_DURATION)
+			if deltaTime > 2 * GAME_END_DURATION then
+				progress = math.max(0, math.min(1, 2 - deltaTime/GAME_END_DURATION/2))
+				opts.spiritAmount = 2
+				opts.noiseAmount = 0
+				WG.ShowEndgameUI()
+			end
+			opts.gameOverAmount = progress
+		end
+	end
 -- 	{
 -- -- 			spiritAmount = 0.4 + 0.6 * math.abs(math.sin(1 * os.clock())),
 -- -- 			noiseAmount  = 1 + 3 *  math.abs(math.sin(1 * os.clock() + 3.14/2)),

@@ -67,6 +67,12 @@ function gadget:Initialize()
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		gadget:UnitCreated(unitID, unitDefID)
 	end
+	
+	for ruleName, value in pairs(Spring.GetGameRulesParams()) do
+		if ruleName:find("has_") then
+			Spring.SetGameRulesParam(ruleName, 0)
+		end
+	end
 end
 
 function gadget:GameFrame()
