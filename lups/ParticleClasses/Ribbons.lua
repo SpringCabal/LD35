@@ -50,7 +50,7 @@ Ribbon.Default = {
   width    = 1,
   size     = 24, --//max 32
   color    = {0.9,0.9,1,1},
-  texture1 = ":c:bitmaps/GPL/Lups/jet.bmp",
+  texture1 = ":c:bitmaps/hair.png",
   
   worldspace = true,
   repeatEffect = true,
