@@ -130,6 +130,9 @@ local spGetWind              = Spring.GetWind
 local time                   = Spring.GetGameSeconds
 local spGetDrawFrame         = Spring.GetDrawFrame
 
+local wispDefID = UnitDefNames["wisp"].id
+local wispID = nil
+
 local function spEcho(words)
 	Spring.Echo('<Volumetric Clouds> '..words)
 end
@@ -165,6 +168,7 @@ local uniformOffset
 local uniformSundir
 local uniformSunColor
 local uniformTime
+local uniformWispPos
 
 local offsetX = 0;
 local offsetY = 0;
@@ -278,6 +282,7 @@ function widget:Initialize()
 			uniformSundir       = glGetUniformLocation(depthShader, 'sundir')
 			uniformSunColor     = glGetUniformLocation(depthShader, 'suncolor')
 			uniformTime         = glGetUniformLocation(depthShader, 'time')
+			uniformWispPos      = glGetUniformLocation(depthShader, 'wispPos')
 		end
 	end
 
@@ -316,7 +321,14 @@ local function DrawFogNew()
 	-- setup the shader and its uniform values
 	glUseShader(depthShader)
 
-	-- set uniforms
+
+    local wx,wy,wz = 0,0,0;
+    
+    if(wispID) then
+        wx,wy,wz = Spring.GetUnitPosition(wispID);
+    end
+    
+    glUniform(uniformWispPos, wx,wy,wz)
 	glUniform(uniformEyePos, spGetCameraPosition())
 	glUniform(uniformOffset, offsetX, offsetY, offsetZ);
 	
@@ -344,13 +356,16 @@ function widget:GameFrame()
 	offsetX = offsetX-dx*speed;
 	offsetY = offsetY-0.25-dy*0.25*speed;
 	offsetZ = offsetZ-dz*speed;
-
+    
 	sunDir = {gl.GetSun('pos')}
 	sunCol = {gl.GetSun('specular')}
 end
 
-widget:GameFrame()
-
+function widget:UnitCreated(unitID, unitDefID, unitTeam)
+	if unitDefID == wispDefID then
+		wispID = unitID
+	end
+end
 
 function widget:DrawScreenEffects()
 	glBlending(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) -- in theory not needed but sometimes evil widgets disable it w/o reenabling it

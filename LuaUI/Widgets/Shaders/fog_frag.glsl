@@ -25,6 +25,7 @@ uniform sampler2D tex0;
 uniform sampler2D tex1;
 
 uniform vec3 eyePos;
+uniform vec3 wispPos;
 uniform mat4 viewProjectionInv;
 uniform vec3 offset;
 uniform vec3 sundir;
@@ -77,7 +78,10 @@ const mat3 m = mat3( 0.00,  0.80,  0.60,
 
 float MapClouds(in vec3 p)
 {
+    float wispDist = length(p-wispPos);
 	float factor = 1.0-smoothstep(fadeAltitude,fogHeight,p.y);
+    
+    factor *= smoothstep(50.0,300.0,wispDist);
 
 	p += offset;
 	p *= noiseScale;
@@ -133,6 +137,7 @@ vec4 RaymarchClouds(in vec3 start, in vec3 end)
 	vec4 col;
 	col.rgb = sunContrib * suncolor + fogColor;
 	col.a   = fogContrib * alpha;
+    
 	return col;
 }
 
