@@ -23,7 +23,7 @@ function gadget:GameFrame()
 		
 		for _, unitID in pairs(Spring.GetAllUnits()) do
 			local unitDef = UnitDefs[Spring.GetUnitDefID(unitID)]
-			if not unitDef.customParams.dungeonElement then
+			if not unitDef.customParams.dungeonelement then
 				Spring.DestroyUnit(unitID)
 			end
 		end
