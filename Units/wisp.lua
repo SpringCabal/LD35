@@ -31,7 +31,7 @@ local Wisp = Unit:New {
     customParams = {
         player = true,
         radius = 20,
-		plate_toggler = true,
+		trigger_toggler = true,
 		wisp   = true,
     },
 

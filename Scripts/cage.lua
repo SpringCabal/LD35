@@ -1,4 +1,3 @@
-local button = piece('Button')
 
 function script.Create()
 end
@@ -22,8 +21,8 @@ end
 function script.Activate()
     StartThread(function()
         local x, y, z = Spring.GetUnitPosition(unitID)
-        Spring.PlaySoundFile("sounds/plate.01.ogg", 1)
-        Move(button, z_axis, -2, 15);
+		Spring.PlaySoundFile("sounds/plate.01.ogg", 1)
+--         Move(button, z_axis, -2, 15);
 --         WaitForMove(middle, z_axis);
 --         Move(middle, z_axis, -5, 50);
     end)
@@ -35,7 +34,7 @@ function script.Deactivate()
     StartThread(function()
         local x, y, z = Spring.GetUnitPosition(unitID)
 		Spring.PlaySoundFile("sounds/plate.01.ogg", 1)
-        Move(button, z_axis, 0, 15);
+--         Move(button, z_axis, 0, 15);
 --         WaitForMove(middle, z_axis);
 --         Move(middle, z_axis, 0, 50);
     end)

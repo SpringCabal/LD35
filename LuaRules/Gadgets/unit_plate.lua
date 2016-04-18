@@ -1,21 +1,21 @@
 function gadget:GetInfo()
 	return {
-		name = "Plates and gates",
-		desc = "Would like you a plate?",
+		name = "Plates, levers, cages and triggerables",
+		desc = "Would you a like trigger?",
 		author = "gajop",
-		date = "April 2015",
+		date = "April 2016",
 		license = "GNU GPL, v2 or later",
 		layer = 1,
 		enabled = true
 	}
 end
 
-local LOG_SECTION = "plate-gate"
+local LOG_SECTION = "trigger-triggerable"
 local LOG_LEVEL = LOG.NOTICE
 
 if (gadgetHandler:IsSyncedCode()) then
 
-local plates = {}
+local triggers = {}
 local bitmaskLinks = {}
 local linkChecksEnabled = false
 local reportedError = false
@@ -30,8 +30,9 @@ function gadget:Initialize()
 end
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam, builderID)
-    if UnitDefs[unitDefID].name == "plate" then
-        plates[unitID] = { pressed = false }
+	local unitDef = UnitDefs[unitDefID]
+    if unitDef.customParams.trigger then
+        triggers[unitID] = { pressed = false }
 		Spring.SetUnitCollisionVolumeData(unitID, 
 			0, 0, 0, 
 			0, 0, 0, 
@@ -39,52 +40,52 @@ function gadget:UnitCreated(unitID, unitDefID, unitTeam, builderID)
 		Spring.SetUnitBlocking(unitID, false, false, false, false, false, false, false)
     end
 --     -- EXAMPLE:
---     if UnitDefs[unitDefID].customParams.gate then
---         for plateID, _ in pairs(plates) do
---             SimpleLink(plateID, unitID)
+--     if UnitDefs[unitDefID].customParams.triggerable then
+--         for triggerID, _ in pairs(triggers) do
+--             SimpleLink(triggerID, unitID)
 --         end
 --     end
 end
 
 function gadget:UnitDestroyed(unitID, unitDefID, ...)
-    if plates[unitID] then
-        plates[unitID] = nil
+    if triggers[unitID] then
+        triggers[unitID] = nil
     end
     if bitmaskLinks[unitID] then
         bitmaskLinks[unitID] = nil
     end
 end
 
-function SimpleLink(plateID, gateID)
-    if plates[plateID] == nil then
-        Spring.Log(LOG_SECTION, "error", "SimpleLink: No such plate with ID: ", plateID)
+function SimpleLink(triggerID, triggerableID)
+    if triggers[triggerID] == nil then
+        Spring.Log(LOG_SECTION, "error", "SimpleLink: No such trigger with ID: ", triggerID)
         return
     end
-    if not UnitDefs[Spring.GetUnitDefID(gateID)].customParams.gate then
-        Spring.Log(LOG_SECTION, "error", "SimpleLink: Trying to link plate with non-gate: ", gateID)
+    if not UnitDefs[Spring.GetUnitDefID(triggerableID)].customParams.triggerable then
+        Spring.Log(LOG_SECTION, "error", "SimpleLink: Trying to link trigger with non-triggerable: ", triggerableID)
         return
     end
-    Spring.Log(LOG_SECTION, LOG_LEVEL, "Linking plate " .. tostring(plateID) .. " with gate: " .. tostring(gateID))
-    plates[plateID].gateID = gateID
+    Spring.Log(LOG_SECTION, LOG_LEVEL, "Linking trigger " .. tostring(triggerID) .. " with triggerable: " .. tostring(triggerableID))
+    triggers[triggerID].triggerableID = triggerableID
 end
 
-function BitmaskLink(plateMask, gateID)
-    for _, plateObj in pairs(plateMask) do
-        local plateID = plateObj[1]
-        if plates[plateID] == nil then
-            Spring.Log(LOG_SECTION, "error", "BitwiseLink: No such plate with ID: ", plateID)
+function BitmaskLink(triggerMask, triggerableID)
+    for _, triggerObj in pairs(triggerMask) do
+        local triggerID = triggerObj[1]
+        if triggers[triggerID] == nil then
+            Spring.Log(LOG_SECTION, "error", "BitwiseLink: No such trigger with ID: ", triggerID)
             return
         end
     end
-    if not UnitDefs[Spring.GetUnitDefID(gateID)].customParams.gate then
-        Spring.Log(LOG_SECTION, "error", "BitwiseLink: Trying to link plate with non-gate: ", gateID)
+    if not UnitDefs[Spring.GetUnitDefID(triggerableID)].customParams.triggerable then
+        Spring.Log(LOG_SECTION, "error", "BitwiseLink: Trying to link trigger with non-triggerable: ", triggerableID)
         return
     end
-    for _, plateObj in pairs(plateMask) do
-        local plateID = plateObj[1]
-        plates[plateID].bitmaskLink = true
+    for _, triggerObj in pairs(triggerMask) do
+        local triggerID = triggerObj[1]
+        triggers[triggerID].bitmaskLink = true
     end
-    bitmaskLinks[gateID] = plateMask
+    bitmaskLinks[triggerableID] = triggerMask
 end
 
 function EnableLinkChecks()
@@ -97,16 +98,16 @@ function DisableLinkChecks()
 end
 
 local function GetUnitState(unitID)
-    if plates[unitID] then 
-        return plates[unitID].state
+    if triggers[unitID] then 
+        return triggers[unitID].state
     end
     local _, _, _, _, active = Spring.GetUnitStates(unitID)
     return active
 end
 
 local function SetUnitState(unitID, state)
-    if plates[unitID] then 
-        plates[unitID].state = state
+    if triggers[unitID] then 
+        triggers[unitID].state = state
     end
     local _, _, _, _, active = GetUnitState(unitID)
     if active ~= state then
@@ -124,44 +125,44 @@ function gadget:GameFrame()
     end
 
     if Spring.GetGameFrame() % UPDATE_RATE == 0 then
-        -- check if plates are toggled or not
-        for plateID, plate in pairs(plates) do
-            if plate.gateID or plate.bitmaskLink or true then
-                local x, y, z = Spring.GetUnitPosition(plateID)
+        -- check if triggers are toggled or not
+        for triggerID, trigger in pairs(triggers) do
+            if trigger.triggerableID or trigger.bitmaskLink or true then
+                local x, y, z = Spring.GetUnitPosition(triggerID)
                 local units = Spring.GetUnitsInCylinder(x, z, PLATE_ACTIVATION_RANGE)
                 local newState = false
                 for _, unitID in pairs(units) do
 					if Spring.GetGameRulesParam("spiritMode") ~= 0 or Spring.GetGameRulesParam("has_legs") ~= 1 then
 						break
 					end
-                    if UnitDefs[Spring.GetUnitDefID(unitID)].customParams.plate_toggler then
+                    if UnitDefs[Spring.GetUnitDefID(unitID)].customParams.trigger_toggler then
                         newState = true
                         break
                     end
                 end
-                SetUnitState(plateID, newState)
+                SetUnitState(triggerID, newState)
             elseif not reportedError then
-                Spring.Log(LOG_SECTION, LOG_LEVEL, "Plate has no gate: " .. tostring(plateID))
+                Spring.Log(LOG_SECTION, LOG_LEVEL, "Plate has no triggerable: " .. tostring(triggerID))
             end
         end
         reportedError = true
 
         -- issue simple links
-        for plateID, plate in pairs(plates) do
-            if plate.gateID then
-                SetUnitState(plate.gateID, GetUnitState(plateID))
+        for triggerID, trigger in pairs(triggers) do
+            if trigger.triggerableID then
+                SetUnitState(trigger.triggerableID, GetUnitState(triggerID))
             end
         end
         -- issue bitmask links
-        for gateID, bitmaskLink in pairs(bitmaskLinks) do
+        for triggerableID, bitmaskLink in pairs(bitmaskLinks) do
             local totalState = 1
-            for _, plateObj in pairs(bitmaskLink) do
-                if plateObj[2] ~= GetUnitState(plateObj[1]) then
+            for _, triggerObj in pairs(bitmaskLink) do
+                if triggerObj[2] ~= GetUnitState(triggerObj[1]) then
                     totalState = false
                     break
                 end
             end
-            SetUnitState(gateID, totalState)
+            SetUnitState(triggerableID, totalState)
         end
     end
 end

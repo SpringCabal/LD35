@@ -77,6 +77,20 @@ local Plate = BaseEffect:New {
 	objectName 			= "plate.dae",
 	onoffable           = true,
 	script              = "plate.lua",
+	customParams = {
+		trigger = true,
+		stand_trigger = true,
+	},
+}
+
+local Cage = BaseEffect:New {
+	name                = "Cage",
+	objectName 			= "cage.dae",
+	onoffable           = true,
+	script              = "cage.lua",
+	customParams = {
+		triggerable = true,
+	},
 }
 
 local Lever = BaseEffect:New {
@@ -84,6 +98,9 @@ local Lever = BaseEffect:New {
 	objectName 			= "lever.dae",
 	onoffable           = true,
 	script              = "lever.lua",
+	customParams = {
+		trigger = true,
+	},
 }
 
 local Laser = BaseEffect:New {
@@ -99,6 +116,9 @@ local Target = BaseEffect:New {
 local Door = BaseEffect:New {
 	name                = "Door",
 	objectName 			= "door.dae",
+	customParams = {
+		triggerable = true,
+	},
 }
 
 
@@ -111,8 +131,9 @@ return {
 	Legs  = Legs,
 	
 	Plate = Plate,
+	Cage  = Cage,
 	Lever = Lever,
-	Laser = Laser,
-	Target = Target,
+-- 	Laser = Laser,
+-- 	Target = Target,
 	Door = Door,
 }
