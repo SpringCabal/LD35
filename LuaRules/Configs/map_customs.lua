@@ -23,7 +23,7 @@ return {
   units = {
     [5316] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = -0.1101074,
@@ -49,7 +49,7 @@ return {
     },
     [14725] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -70,7 +70,7 @@ return {
     },
     [15054] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = -0.4217529,
@@ -96,7 +96,7 @@ return {
     },
     [15262] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -117,7 +117,7 @@ return {
     },
     [22482] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -138,7 +138,7 @@ return {
     },
     [23261] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = -0.1186523,
@@ -164,7 +164,7 @@ return {
     },
     [26492] = {
       defName = "plate",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -190,7 +190,7 @@ return {
     },
     [27468] = {
       defName = "eyes",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 17.2563477,
@@ -216,7 +216,7 @@ return {
     },
     [27501] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0.09283447,
@@ -242,7 +242,7 @@ return {
     },
     [27806] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -277,7 +277,7 @@ return {
     },
 	[31488] = {
       defName = "plate",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -303,7 +303,7 @@ return {
     },
 [12701] = {
       defName = "plate",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -329,7 +329,7 @@ return {
     },
 [27489] = {
       defName = "ears",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 15.7817383,
@@ -355,7 +355,7 @@ return {
     },
     [30165] = {
       defName = "door",
-      team = 1,
+      team = 0,
       pos = {
         x = 4207.25635,
         y = 411.499023,
@@ -364,7 +364,7 @@ return {
     },
 [14619] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -385,7 +385,7 @@ return {
     },
     [19115] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -406,7 +406,7 @@ return {
     },
     [23884] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -427,7 +427,7 @@ return {
     },
     [29318] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -448,7 +448,7 @@ return {
     },
 	[22389] = {
       defName = "arms",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0.92871094,
@@ -474,7 +474,7 @@ return {
     },
 [4736] = {
       defName = "nose",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 27.486084,
@@ -500,7 +500,7 @@ return {
     },
 [27633] = {
       defName = "door",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -526,7 +526,7 @@ return {
     },
 [4949] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -547,7 +547,7 @@ return {
     },
  [1811] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -573,7 +573,7 @@ return {
     },
     [16824] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = -0.0004883,
@@ -599,7 +599,7 @@ return {
     },
     [24489] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = -0.0004883,
@@ -625,7 +625,7 @@ return {
     },
     [28033] = {
       defName = "cage",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -651,7 +651,7 @@ return {
     },
 [30700] = {
       defName = "door",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -677,7 +677,7 @@ return {
     },
 [18744] = {
       defName = "mouth",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 8.69189453,
@@ -703,7 +703,7 @@ return {
     },
 [2833] = {
       defName = "door",
-      team = 1,
+      team = 0,
       pos = {
         x = 6058.61182,
         y = 411.499023,
@@ -712,7 +712,7 @@ return {
     },
     [30249] = {
       defName = "legs",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 10.6547852,
@@ -738,7 +738,7 @@ return {
     },
  [11688] = {
       defName = "plate",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -764,7 +764,7 @@ return {
     },
     [18496] = {
       defName = "lever",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
@@ -785,7 +785,7 @@ return {
     },
     [30700] = {
       defName = "door",
-      team = 1,
+      team = 0,
       midAimPos = {
         aim = {
           x = 0,
