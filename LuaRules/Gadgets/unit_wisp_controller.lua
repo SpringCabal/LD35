@@ -38,6 +38,8 @@ local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
 local wispMoving
 
+local FORM_CHANGE_COOLDOWN = 30*2
+
 local movementMessage
 
 local heightmapChangedFrame = 0
@@ -211,9 +213,15 @@ function HandleLuaMessage(msg)
 
 -- 		ChangeHeightmap(x, z, -HEIGHT_CHANGE_PER_FRAME, 64, height)
 	elseif msg_table[1] == 'switch_form' then
-		Spring.SetGameRulesParam("spiritMode", 1 - Spring.GetGameRulesParam("spiritMode"))
-		local x, y, z = Spring.GetUnitPosition(wispID)
-		Spring.PlaySoundFile("sounds/changestate.ogg", 1, 'sfx')
+		local formChangeFrame = Spring.GetGameRulesParam("formChangeFrame") or 0
+		local frame = Spring.GetGameFrame()
+		if frame - formChangeFrame > FORM_CHANGE_COOLDOWN and Spring.GetGameRulesParam("has_eyes") == 1 then
+			Spring.SetGameRulesParam("formChangeFrame", frame)
+
+			Spring.SetGameRulesParam("spiritMode", 1 - Spring.GetGameRulesParam("spiritMode"))
+			local x, y, z = Spring.GetUnitPosition(wispID)
+			Spring.PlaySoundFile("sounds/changestate.ogg", 1, 'sfx')
+		end
 	elseif msg_table[1] == 'pull_lever' then
 		local unitID = tonumber(msg_table[2])
 		local active = Spring.GetUnitStates(unitID).active
