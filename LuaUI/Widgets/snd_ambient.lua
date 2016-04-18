@@ -48,8 +48,8 @@ local sounds = {
 	mouth = {
 		AMBIENT_COOLDOWN_MIN = 10,
 		AMBIENT_COOLDOWN_MAX = 15,
-		MIN_VOLUME = 1,
-		MAX_VOLUME = 5,
+		MIN_VOLUME = 0.05,
+		MAX_VOLUME = 0.2,
 		sound = "sounds/mouth.00.ogg",
 	}
 }
