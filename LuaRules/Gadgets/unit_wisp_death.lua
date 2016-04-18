@@ -33,6 +33,8 @@ function KillWisp(unitID, destroyTime)
 	Spring.SetUnitRulesParam(unitID, "is_dying", 1)
 	Spring.SetUnitRulesParam(unitID, "killed_frame", Spring.GetGameFrame(), {public=true})
 	Spring.SetUnitRulesParam(unitID, "destroy_frame", Spring.GetGameFrame() + destroyTime, {public=true})
+	local x, y, z = Spring.GetUnitPosition(unitID)
+	Spring.PlaySoundFile("sounds/death.ogg", 100, x, y, z)
 end
 
 function SaveWisp(unitID, destroyTime)
@@ -41,6 +43,12 @@ function SaveWisp(unitID, destroyTime)
 	Spring.SetUnitRulesParam(unitID, "is_being_saved", 1)
 	Spring.SetUnitRulesParam(unitID, "killed_frame", Spring.GetGameFrame(), {public=true})
 	Spring.SetUnitRulesParam(unitID, "destroy_frame", Spring.GetGameFrame() + destroyTime, {public=true})
+	local x, y, z = Spring.GetUnitPosition(unitID)
+	local volume = 100
+	if Spring.GetGameRulesParam("game_over") == 1 then
+		volume = 3
+	end
+	Spring.PlaySoundFile("sounds/freed.ogg", volume, x, y, z)
 end
 
 function gadget:GameFrame()

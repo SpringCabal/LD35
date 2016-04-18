@@ -158,10 +158,13 @@ function gadget:GameFrame()
 				for _, triggerable in pairs(trigger.triggerables) do
 					local triggerableID = triggerable.triggerableID
 					local opts = triggerable.opts
-					for key, value in pairs(opts) do
-						Spring.SetUnitRulesParam(triggerableID, key, value)
+					local active = Spring.GetUnitStates(triggerID).active
+					if active then
+						for key, value in pairs(opts) do
+							Spring.SetUnitRulesParam(triggerableID, key, value)
+						end
 					end
-					SetUnitState(triggerableID, Spring.GetUnitStates(triggerID).active)
+					SetUnitState(triggerableID, active)
 				end
             end
         end
