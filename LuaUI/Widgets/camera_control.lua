@@ -53,12 +53,16 @@ function SetGameMode(gameMode)
 		Spring.SetCameraState(s, 0)
 	end
 end
-
+frist = true
 lastTrackingUpdate = os.clock()
 function widget:Update()
 	if Spring.GetGameRulesParam("gameMode") ~= "develop" and wispID ~= nil then
 		Spring.SelectUnitArray({wispID})
 		Spring.SendCommands({"trackoff", "track"})
+        if(frist) then
+            Spring.SendCommands({"trackmode 1"});
+            frist = false
+        end
 		Spring.SelectUnitArray({})
 	end
 	local newGameMode = Spring.GetGameRulesParam("gameMode")
