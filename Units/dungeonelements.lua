@@ -213,8 +213,49 @@ local horizontal_wall5		= Element:New {
 	footprintZ				= 4,
 }
 
+local tank		= Element:New {
+	name                = "tank",
+	objectName 			= "tank.dae",
+	footprintX				= 1,
+	footprintZ				= 1,
+}
+
+local stool		= Element:New {
+	name                = "stool",
+	objectName 			= "stool.dae",
+	footprintX				= 1,
+	footprintZ				= 1,
+}
+
+local atable		= Element:New {
+	name                = "a table",
+	objectName 			= "atable.dae",
+	footprintX				= 1,
+	footprintZ				= 1,
+}
+
+local pipes		= Element:New {
+	name                = "pipes",
+	objectName 			= "pipes.dae",
+	footprintX				= 1,
+	footprintZ				= 1,
+}
+
+local Door = Element:New {
+	name                = "Door",
+	objectName 			= "door.dae",
+	customParams = {
+		triggerable = true,
+	},
+}
+
+>>>>>>> Stashed changes
 return {
 	gateSmoth = gateSmoth,
+	pipes = pipes,
+	tank = tank,
+	stool = stool,
+	atable = atable,
 	wall1 = wall1,
 	wall2 = wall2,
 	wall3 = wall3,
