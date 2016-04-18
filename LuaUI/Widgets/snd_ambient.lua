@@ -47,7 +47,7 @@ local sounds = {
 	},
 	mouth = {
 		AMBIENT_COOLDOWN_MIN = 10,
-		AMBIENT_COOLDOWN_MAX = 15,
+		AMBIENT_COOLDOWN_MAX = 35,
 		MIN_VOLUME = 0.05,
 		MAX_VOLUME = 0.2,
 		sound = "sounds/mouth.00.ogg",

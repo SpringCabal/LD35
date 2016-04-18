@@ -647,12 +647,12 @@ function widget:DrawScreenEffects()
 	end
 	
 	if Spring.GetGameRulesParam("game_over") == 0 then
-		oldGameEnd, gameEndTime = nil, nil
+		gameEndTime = nil
+	end
+	if oldGameEnd == nil then
+		oldGameEnd = Spring.GetGameRulesParam("game_over") or 0
 	end
 	if Spring.GetGameRulesParam("game_over_sequence") == 1 then
-		if oldGameEnd == nil then
-			oldGameEnd = Spring.GetGameRulesParam("game_over") or 0
-		end
 		local newGameEnd = Spring.GetGameRulesParam("game_over") or 0
 		if oldGameEnd ~= newGameEnd then
 			gameEndTime = Spring.GetGameFrame()
