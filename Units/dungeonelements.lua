@@ -121,30 +121,30 @@ local floor1 = Element:New {
 	footprintZ				= 11,
 }
 
-local vertical_doorway	= Element:New {
-	name                = "vertical_doorway",
-	objectName 			= "vertical_doorway.dae",
-	footprintX				= 4,
-	footprintZ				= 3,
-}
-
-local vertical_hall		= Element:New {
-	name                = "vertical_hall",
-	objectName 			= "vertical_hall.dae",
+local vertical_wall1		= Element:New {
+	name                = "vertical_wall1",
+	objectName 			= "vertical_wall1.dae",
 	footprintX				= 4,
 	footprintZ				= 11,
 }
 
-local horzontal_doorway	= Element:New {
-	name                = "horzontal_doorway",
-	objectName 			= "horzontal_doorway.dae",
-	footprintX				= 3,
+local vertical_wall2		= Element:New {
+	name                = "vertical_wall2",
+	objectName 			= "vertical_wall2.dae",
+	footprintX				= 4,
+	footprintZ				= 11,
+}
+
+local horizontal_wall1		= Element:New {
+	name                = "horizontal_wall1",
+	objectName 			= "horizontal_wall1.dae",
+	footprintX				= 11,
 	footprintZ				= 4,
 }
 
-local horzontal_hall		= Element:New {
-	name                = "horzontal_hall",
-	objectName 			= "horzontal_hall.dae",
+local horizontal_wall2		= Element:New {
+	name                = "horizontal_wall2",
+	objectName 			= "horizontal_wall2.dae",
 	footprintX				= 11,
 	footprintZ				= 4,
 }
@@ -166,9 +166,9 @@ return {
 	corner4 = corner4,
 	corner5 = corner5,
 	corner6 = corner6,
-    vertical_doorway = vertical_doorway,
-	vertical_hall = vertical_hall,
-	horzontal_doorway = horzontal_doorway,
-	horzontal_hall = horzontal_hall,
+	vertical_wall1 = vertical_wall1,
+	vertical_wall2 = vertical_wall2,
+	horizontal_wall1 = horizontal_wall1,
+	horizontal_wall2 = horizontal_wall2,
 }
 
