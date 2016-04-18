@@ -107,9 +107,9 @@ function _UnitBridge:init()
             end
             return states
         end,
-        losState = function(objectID)
-            return Spring.GetUnitLosState(objectID, 0)
-        end,
+--         losState = function(objectID)
+--             return Spring.GetUnitLosState(objectID, 0)
+--         end,
         rules = function(objectID)
             local ret = {}
             for _, foo in pairs(Spring.GetUnitRulesParams(objectID)) do
@@ -288,9 +288,9 @@ function _UnitBridge:init()
                 )
             end
         end,
-        losState = function(objectID, value)
-            Spring.SetUnitLosState(objectID, 0, value)
-        end,
+--         losState = function(objectID, value)
+--             Spring.SetUnitLosState(objectID, 0, value)
+--         end,
         rules = function(objectID, value)
             for ruleName, ruleValue in pairs(value) do
                 Spring.SetUnitRulesParam(objectID, ruleName, ruleValue)
