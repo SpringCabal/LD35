@@ -241,6 +241,12 @@ function gadget:GameFrame(frame)
 	if wispID then
 		local x, y, z = Spring.GetUnitPosition(wispID)
 
+		local vx, vy, vz = Spring.GetUnitVelocity(wispID)
+		if vy > 0 then
+			vy = 0
+		end
+		Spring.SetUnitVelocity(wispID, vx, vy, vz)
+		
 		if (movementMessage and movementMessage.frame + 2 > frame) then
 			MoveUnit(wispID, movementMessage.x, movementMessage.z)
 			wispMoving = true
