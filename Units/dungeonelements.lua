@@ -15,16 +15,99 @@ local Element = Unit:New {
 
 }
 
-local wall = Element:New {
-	name                = "wall",
-	objectName 			= "wall.dae",
+local wall1 = Element:New {
+	name                = "wall1",
+	objectName 			= "wall1.dae",
 	footprintX				= 3,
 	footprintZ				= 3,
 }
 
-local corner = Element:New {
-	name                = "corner",
-	objectName 			= "corner.dae",
+local wall2 = Element:New {
+	name                = "wall2",
+	objectName 			= "wall2.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+local wall3 = Element:New {
+	name                = "wall3",
+	objectName 			= "wall3.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+local wall4 = Element:New {
+	name                = "wall4",
+	objectName 			= "wall4.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+local wall4 = Element:New {
+	name                = "wall4",
+	objectName 			= "wall4.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+local wall5 = Element:New {
+	name                = "wall5",
+	objectName 			= "wall5.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+local wall6 = Element:New {
+	name                = "wall6",
+	objectName 			= "wall6.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+local wall7 = Element:New {
+	name                = "wall7",
+	objectName 			= "wall7.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+local wall8 = Element:New {
+	name                = "wall8",
+	objectName 			= "wall8.dae",
+	footprintX				= 3,
+	footprintZ				= 3,
+}
+
+local corner1 = Element:New {
+	name                = "corner1",
+	objectName 			= "corner1.dae",
+	footprintX				=  3,
+	footprintZ				=  3,
+}
+local corner2 = Element:New {
+	name                = "corner2",
+	objectName 			= "corner2.dae",
+	footprintX				=  3,
+	footprintZ				=  3,
+}
+
+local corner3 = Element:New {
+	name                = "corner3",
+	objectName 			= "corner3.dae",
+	footprintX				=  3,
+	footprintZ				=  3,
+}
+
+local corner4 = Element:New {
+	name                = "corner4",
+	objectName 			= "corner4.dae",
+	footprintX				=  3,
+	footprintZ				=  3,
+}
+
+local corner5 = Element:New {
+	name                = "corner5",
+	objectName 			= "corner5.dae",
+	footprintX				=  3,
+	footprintZ				=  3,
+}
+
+local corner6 = Element:New {
+	name                = "corner6",
+	objectName 			= "corner6.dae",
 	footprintX				=  3,
 	footprintZ				=  3,
 }
@@ -65,9 +148,22 @@ local horzontal_hall		= Element:New {
 }
 
 return {
+	wall1 = wall1,
+	wall2 = wall2,
+	wall3 = wall3,
+	wall4 = wall4,
+	wall5 = wall5,
+	wall6 = wall6,
+	wall7 = wall7,
+	wall8 = wall8,
 	wall = wall,
 	floor1 = floor1,
-	corner = corner,
+	corner1 = corner1,
+	corner2 = corner2,
+	corner3 = corner3,
+	corner4 = corner4,
+	corner5 = corner5,
+	corner6 = corner6,
     vertical_doorway = vertical_doorway,
 	vertical_hall = vertical_hall,
 	horzontal_doorway = horzontal_doorway,

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <contributor>
+      <author>Blender User</author>
+      <authoring_tool>Blender 2.77.0 commit date:2016-04-05, commit time:18:12, hash:abf6f08</authoring_tool>
+    </contributor>
+    <created>2016-04-17T18:39:20</created>
+    <modified>2016-04-17T18:39:20</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_images/>
+  <library_effects>
+    <effect id="default_017-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <phong>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color sid="ambient">0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <color sid="diffuse">0.7898538 0.8133333 0.6940445 1</color>
+            </diffuse>
+            <specular>
+              <color sid="specular">0 0 0 1</color>
+            </specular>
+            <shininess>
+              <float sid="shininess">1</float>
+            </shininess>
+            <transparency>
+              <float sid="transparency">1</float>
+            </transparency>
+            <index_of_refraction>
+              <float sid="index_of_refraction">1</float>
+            </index_of_refraction>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_materials>
+    <material id="default_017-material" name="default_017">
+      <instance_effect url="#default_017-effect"/>
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="Cube41_copy78_default-mesh" name="Cube41_copy78_default">
+      <mesh>
+        <source id="Cube41_copy78_default-mesh-positions">
+          <float_array id="Cube41_copy78_default-mesh-positions-array" count="120">-27.34737 86.59453 -33.27075 33.34001 86.59453 -33.27075 33.34001 -4.436532 -33.27075 -27.34737 -4.436532 -33.27075 -27.34737 -4.436532 -23.13596 23.20522 -4.436532 -23.13596 23.20522 86.59453 -23.13596 -27.34737 86.59453 -23.13596 23.20522 86.59453 27.41662 23.20522 -4.436532 27.41662 33.34001 -4.436532 27.41662 33.34001 86.59453 27.41662 33.34001 86.59453 -33.27075 33.34001 86.59453 -33.27075 33.34001 86.59453 -33.27075 33.34001 86.59453 27.41662 33.34001 86.59453 27.41662 33.34001 -4.436532 27.41662 33.34001 -4.436532 27.41662 33.34001 -4.436532 -33.27075 33.34001 -4.436532 -33.27075 33.34001 -4.436532 -33.27075 23.20522 -4.436532 -23.13596 23.20522 -4.436532 -23.13596 23.20522 -4.436532 -23.13596 23.20522 86.59453 27.41662 23.20522 86.59453 27.41662 -27.34737 -4.436532 -33.27075 -27.34737 -4.436532 -33.27075 -27.34737 -4.436532 -23.13596 -27.34737 -4.436532 -23.13596 23.20522 -4.436532 27.41662 23.20522 -4.436532 27.41662 -27.34737 86.59453 -23.13596 -27.34737 86.59453 -23.13596 23.20522 86.59453 -23.13596 23.20522 86.59453 -23.13596 23.20522 86.59453 -23.13596 -27.34737 86.59453 -33.27075 -27.34737 86.59453 -33.27075</float_array>
+          <technique_common>
+            <accessor source="#Cube41_copy78_default-mesh-positions-array" count="40" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="Cube41_copy78_default-mesh-normals">
+          <float_array id="Cube41_copy78_default-mesh-normals-array" count="27">0 0 -1 0 0 1 -1 0 0 1 0 0 0 1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0</float_array>
+          <technique_common>
+            <accessor source="#Cube41_copy78_default-mesh-normals-array" count="9" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="Cube41_copy78_default-mesh-map-0">
+          <float_array id="Cube41_copy78_default-mesh-map-0-array" count="120">0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9951999 0.05268067 0.524454 0.3141016 0.9951999 0.3141016 0.3998245 0.4643762 0.3474148 0.9351221 0.3998245 0.9351221 0.9951999 0.3665113 0.524454 0.3141016 0.524454 0.3665113 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.6612454 0.9351221 0.3998245 0.4643762 0.3998245 0.9351221 0.524454 0.05268067 0.4720442 0.3141016 0.524454 0.3141016 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.6612454 0.9351221 0.3998245 0.9875319 0.7136551 0.9875319 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9951999 0.05268067 0.524454 0.05268067 0.524454 0.3141016 0.3998245 0.4643762 0.3474148 0.4643762 0.3474148 0.9351221 0.9951999 0.3665113 0.9951999 0.3141016 0.524454 0.3141016 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.6612454 0.9351221 0.6612454 0.4643762 0.3998245 0.4643762 0.524454 0.05268067 0.4720442 2.70987e-4 0.4720442 0.3141016 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.9725889 0.9768444 0.6612454 0.9351221 0.3998245 0.9351221 0.3998245 0.9875319</float_array>
+          <technique_common>
+            <accessor source="#Cube41_copy78_default-mesh-map-0-array" count="60" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="Cube41_copy78_default-mesh-vertices">
+          <input semantic="POSITION" source="#Cube41_copy78_default-mesh-positions"/>
+        </vertices>
+        <polylist material="default_017-material" count="20">
+          <input semantic="VERTEX" source="#Cube41_copy78_default-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#Cube41_copy78_default-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#Cube41_copy78_default-mesh-map-0" offset="2" set="0"/>
+          <vcount>3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 </vcount>
+          <p>13 0 0 27 0 1 38 0 2 24 1 3 33 1 4 30 1 5 31 1 6 16 1 7 25 1 8 28 2 9 34 2 10 39 2 11 18 3 12 12 3 13 15 3 14 36 2 15 32 2 16 26 2 17 37 4 18 0 4 19 7 4 20 10 5 21 22 5 22 19 5 23 3 6 24 5 7 25 4 5 26 6 4 27 11 4 28 1 4 29 13 0 30 20 0 31 27 0 32 24 1 33 35 1 34 33 1 35 31 1 36 17 1 37 16 1 38 28 2 39 29 2 40 34 2 41 18 3 42 21 3 43 12 3 44 36 2 45 23 2 46 32 2 47 37 4 48 14 4 49 0 4 50 10 5 51 9 5 52 22 5 53 3 6 54 2 8 55 5 7 56 6 4 57 8 4 58 11 4 59</p>
+        </polylist>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_controllers/>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="Cube41_copy78_default" name="Cube41_copy78_default" type="NODE">
+        <matrix sid="transform">1 0 0 0 0 -1.62921e-7 -1 0 0 1 -1.62921e-7 0 0 0 0 1</matrix>
+        <instance_geometry url="#Cube41_copy78_default-mesh" name="Cube41_copy78_default">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="default_017-material" target="#default_017-material"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>
