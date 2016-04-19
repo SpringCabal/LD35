@@ -26,6 +26,7 @@ local SIG_IDLE =  tonumber("00010",2);
 local SIG_FLOAT=  tonumber("00100",2);
 
 local floating = false;
+local isMoving = false;
 
 local pieceNames = {
 	body = Body,
@@ -130,9 +131,8 @@ function SetPieceVisible(name, visible)
 	local pieces = pieceNames[name]
     pieceStatus[name] = visible
     
-    if name == "legs" then
-        Signal(SIG_FLOAT);
-        Signal(SIG_WALK);
+    if name == "legs" or name == "arms" then
+        updateMovement();
     end
 
 	if type(pieces) ~= "table" then
@@ -225,19 +225,29 @@ function script.Create()
     StartThread(Float_Body);
 end
 
-function script.StartMoving()
+function updateMovement()
 	Signal(SIG_WALK);
-    if(pieceStatus['legs']) then
-        StartThread(Walk);
-        StartThread(Wave_Arms);
-    elseif pieceStatus['arms'] then
-        StartThread(Float_Arms);
+    if(isMoving) then
+        if(pieceStatus['legs']) then
+            Signal(SIG_FLOAT);
+            StartThread(Walk);
+            StartThread(Wave_Arms);
+        elseif pieceStatus['arms'] then
+            StartThread(Float_Arms);
+        end
+    else
+        StartThread(Stop);
     end
 end
 
+function script.StartMoving()
+    isMoving = true;
+    updateMovement();
+end
+
 function script.StopMoving()
-	Signal(SIG_WALK);
-	StartThread(Stop);
+    isMoving = false;
+    updateMovement();
 end
 
 function script.Killed(recentDamage, maxHealth)
