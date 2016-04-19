@@ -203,15 +203,23 @@ local function GetMouseLight(beamLights, beamLightCount, pointLights, pointLight
 	return beamLights, beamLightCount, pointLights, pointLightCount
 end
 
+local lights = {}
+local lightDefID = UnitDefNames["light"].id
 function widget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == wispDefID then
 		wispID = unitID
+	end
+	if lightDefID == unitDefID then
+		lights[unitID] = true
 	end
 end
 
 function widget:UnitDestroyed(unitID)
 	if wispID == unitID then
 		wispID = nil
+	end
+	if lightDefID == unitDefID then
+		lights[unitID] = nil
 	end
 end
 
@@ -220,6 +228,16 @@ local function GetWispLight(beamLights, beamLightCount, pointLights, pointLightC
 		local x, y, z = Spring.GetUnitPosition(wispID)
 		pointLightCount = pointLightCount + 1
 		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 4, g = 4, b = 4, radius = 2000}, colMult = 1}
+	end
+
+	return beamLights, beamLightCount, pointLights, pointLightCount
+end
+
+local function GetLight(beamLights, beamLightCount, pointLights, pointLightCount)
+	for lightID, _ in pairs(lights) do
+		local x, y, z = Spring.GetUnitPosition(lightID)
+		pointLightCount = pointLightCount + 1
+		pointLights[pointLightCount] = {px = x, py = y + 60, pz = z, param = {r = 2, g = 2, b = 2, radius = 2000}, colMult = 1}
 	end
 
 	return beamLights, beamLightCount, pointLights, pointLightCount
@@ -236,6 +254,7 @@ function widget:Initialize()
 	if WG.DeferredLighting_RegisterFunction then
 		WG.DeferredLighting_RegisterFunction(GetMouseLight)
 		WG.DeferredLighting_RegisterFunction(GetWispLight)
+		WG.DeferredLighting_RegisterFunction(GetLight)
 	end
 end
 

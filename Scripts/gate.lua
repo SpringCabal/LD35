@@ -1,4 +1,4 @@
-local gate = piece('Cube41_extract45_longhaul_002')
+local gate = piece('Cube41_extract45_GATE')
 -- local rails = piece('Rails');
 
 function script.Create()

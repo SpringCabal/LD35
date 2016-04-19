@@ -43,10 +43,14 @@ local changeSpiritMode = 0
 
 -- END
 
+local lightDefID = UnitDefNames["light"].id
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == wispDefID then
 		wispID = unitID
+	end
+	if lightDefID == unitDefID then
+		Spring.SetUnitNoDraw(unitID, true)
 	end
 end
 

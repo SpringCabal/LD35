@@ -165,6 +165,11 @@ local Lever = BaseEffect:New {
 --     },
 --   },
 -- }
+local Light = BaseEffect:New {
+	name                = "Light",
+	objectName 		    = "eye.dae",
+}
+
 
 return {
 	Eyes  = Eyes,
@@ -177,5 +182,6 @@ return {
 	Plate = Plate,
 	Cage  = Cage,
 	Lever = Lever,
-	Door = Door,
+	
+	Light = Light,
 }
