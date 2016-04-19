@@ -216,15 +216,22 @@ local horizontal_wall5		= Element:New {
 local crate		= Element:New {
 	name                = "crate",
 	objectName 			= "crate.dae",
-	footprintX				= 1,
-	footprintZ				= 1,
+	footprintX				= 4,
+	footprintZ				= 4,
+	customParams = {
+		wall = false,
+		}
 } 
 
 local tank		= Element:New {
 	name                = "tank",
 	objectName 			= "tank.dae",
-	footprintX				= 1,
-	footprintZ				= 1,
+	footprintX				= 3,
+	footprintZ				= 3,
+	blocking = true,	
+	customParams = {
+		wall = false,
+		}
 }
 
 local stool		= Element:New {
@@ -232,20 +239,32 @@ local stool		= Element:New {
 	objectName 			= "stool.dae",
 	footprintX				= 1,
 	footprintZ				= 1,
+	blocking = true,
+	customParams = {
+		wall = false,
+	}
 }
 
 local atable		= Element:New {
 	name                = "a table",
 	objectName 			= "atable.dae",
-	footprintX				= 1,
-	footprintZ				= 1,
+	footprintX				= 5,
+	footprintZ				= 5,
+	blocking = true,
+	customParams = {
+		wall = false,
+	}
 }
 
 local pipes		= Element:New {
 	name                = "pipes",
 	objectName 			= "pipes.dae",
-	footprintX				= 1,
-	footprintZ				= 1,
+	footprintX				= 4,
+	footprintZ				= 7,
+	blocking = true,
+	customParams = {
+		wall = false,
+	}
 }
 
 local Door = Element:New {
