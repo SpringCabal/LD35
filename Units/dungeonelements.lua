@@ -219,8 +219,9 @@ local crate		= Element:New {
 	footprintX				= 4,
 	footprintZ				= 4,
 	customParams = {
-		wall = false,
-		}
+		wall = true,
+        wall_blocking = true;
+    }
 } 
 
 local tank		= Element:New {
@@ -230,8 +231,9 @@ local tank		= Element:New {
 	footprintZ				= 3,
 	blocking = true,	
 	customParams = {
-		wall = false,
-		}
+		wall = true,
+        wall_blocking = true;
+    }
 }
 
 local stool		= Element:New {
@@ -241,7 +243,8 @@ local stool		= Element:New {
 	footprintZ				= 1,
 	blocking = true,
 	customParams = {
-		wall = false,
+		wall = true,
+        wall_blocking = true;
 	}
 }
 
@@ -252,7 +255,8 @@ local atable		= Element:New {
 	footprintZ				= 5,
 	blocking = true,
 	customParams = {
-		wall = false,
+		wall = true,
+        wall_blocking = true;
 	}
 }
 
@@ -263,7 +267,8 @@ local pipes		= Element:New {
 	footprintZ				= 7,
 	blocking = true,
 	customParams = {
-		wall = false,
+		wall = true,
+        wall_blocking = true;
 	}
 }
 

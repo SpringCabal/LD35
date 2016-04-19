@@ -16,12 +16,14 @@ function gadget:UnitCreated(unitID, unitDefID)
 	local unitDef = UnitDefs[unitDefID]
 	if unitDef.name == "gatesmoth" then
 -- 		Spring.SetUnitBlocking(unitID, false, false, false, false, false, false, false)
-	elseif unitDef.customParams.wall and unitDef.customParams.wall == "true" then
-		Spring.SetUnitCollisionVolumeData(unitID, 
-			0, 0, 0, 
-			0, 0, 0, 
-			0, 0, 0);
-		Spring.SetUnitBlocking(unitID, false, false, false, false, false, false, false)
+	elseif unitDef.customParams.wall then
+        if not unitDef.customParams.wall_blocking then
+            Spring.SetUnitCollisionVolumeData(unitID, 
+                0, 0, 0, 
+                0, 0, 0, 
+                0, 0, 0);
+            Spring.SetUnitBlocking(unitID, false, false, false, false, false, false, false)
+        end
 	end
 end
 
