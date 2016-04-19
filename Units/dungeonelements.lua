@@ -249,7 +249,6 @@ local Door = Element:New {
 	},
 }
 
->>>>>>> Stashed changes
 return {
 	gateSmoth = gateSmoth,
 	pipes = pipes,
