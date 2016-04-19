@@ -239,7 +239,7 @@ local function GetLight(beamLights, beamLightCount, pointLights, pointLightCount
 	for lightID, _ in pairs(lights) do
 		local x, y, z = Spring.GetUnitPosition(lightID)
 		pointLightCount = pointLightCount + 1
-		pointLights[pointLightCount] = {px = x, py = y + 60, pz = z, param = {r = 2, g = 2, b = 2, radius = 2000}, colMult = 1}
+		pointLights[pointLightCount] = {px = x, py = y + 50, pz = z, param = {r = 0.5, g = 1, b = 1, radius = 1500}, colMult = 1}
 	end
 
 	return beamLights, beamLightCount, pointLights, pointLightCount
