@@ -213,6 +213,13 @@ local horizontal_wall5		= Element:New {
 	footprintZ				= 4,
 }
 
+local crate		= Element:New {
+	name                = "crate",
+	objectName 			= "crate.dae",
+	footprintX				= 1,
+	footprintZ				= 1,
+} 
+
 local tank		= Element:New {
 	name                = "tank",
 	objectName 			= "tank.dae",
@@ -251,6 +258,7 @@ local Door = Element:New {
 
 return {
 	gateSmoth = gateSmoth,
+	crate = crate,
 	pipes = pipes,
 	tank = tank,
 	stool = stool,
