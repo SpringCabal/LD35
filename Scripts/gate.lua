@@ -20,7 +20,7 @@ function script.Activate()
         GG.AdjustWallTerrain(unitID, 0)
         Sleep(500)
         local x, y, z = Spring.GetUnitPosition(unitID)
-        Spring.PlaySoundFile("sounds/gate.ogg", 5, x, y, z)
+        Spring.PlaySoundFile("sounds/gate.ogg", 40)
         Move(gate, z_axis, -168, 180);
 --         WaitForMove(gate, z_axis);
     end)

@@ -81,7 +81,7 @@ float MapClouds(in vec3 p)
     float wispDist = length(p-wispPos);
 	float factor = 1.0-smoothstep(fadeAltitude,fogHeight,p.y);
     
-    factor *= smoothstep(50.0,300.0,wispDist);
+    factor *= smoothstep(30.0,200.0,wispDist);
 
 	p += offset;
 	p *= noiseScale;

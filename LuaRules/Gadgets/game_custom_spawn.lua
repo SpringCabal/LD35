@@ -62,20 +62,47 @@ function GetAreaDoor(areaStr)
 	end
 end
 
+local buildinglist = {
+	{ name = 'gatesmoth', x = 5112, z = 1656, rot = "north" },
+	{ name = 'gatesmoth', x = 6648, z = 1656, rot = "south" },
+	{ name = 'gatesmoth', x = 4216, z = 1288, rot = "west" },
+	{ name = 'gatesmoth', x = 6056, z = 1880, rot = "east" },
+}
+
 function gadget:GameFrame()
 	if GG.s11n ~= nil and not loaded then
 		loaded = true
 		
+		local unitBridge = GG.s11n:GetUnitBridge()
 		for _, unitID in pairs(Spring.GetAllUnits()) do
 			local unitDef = UnitDefs[Spring.GetUnitDefID(unitID)]
-			if unitDef.name ~= "gatesmoth" and not unitDef.customParams.dungeonelement then
+			if unitDef.name == "gatesmoth" then
+-- 				local unit = unitBridge:Get(unitID)
+-- 				unit.unitID = nil
+-- 				unit.rot = nil
+-- 				unit.dir = unitBridge:Get(unitID, "dir")
+  				Spring.DestroyUnit(unitID)
+--  				local uid = unitBridge:Add(unit)
+			elseif not unitDef.customParams.dungeonelement then
 				Spring.DestroyUnit(unitID)
 			end
 		end
-
+		local gaiaID = Spring.GetGaiaTeamID()
+		local los_status = {los=true, prevLos=true, contRadar=true, radar=true}
+		for i,bDef in pairs(buildinglist) do
+			local flagID = Spring.CreateUnit(bDef.name, bDef.x, 0, bDef.z, bDef.rot, gaiaID)
+			Spring.SetUnitNeutral(flagID,true)
+			Spring.SetUnitLosState(flagID,0,los_status)
+			Spring.SetUnitAlwaysVisible(flagID,true)
+			Spring.SetUnitBlocking(flagID,true)
+		end
+		delayFrame = Spring.GetGameFrame() + 3
+	end
+	if delayFrame == Spring.GetGameFrame() then
+		local unitBridge = GG.s11n:GetUnitBridge()
+		delayFrame = nil
 		elements = VFS.LoadFile(customElements)
 		elements = loadstring(elements)()
-		local unitBridge = GG.s11n:GetUnitBridge()
 		for id, unit in pairs(elements.units) do
 			local unitID = unitBridge:Add(unit)
 			idMapping[id] = unitID
@@ -83,7 +110,7 @@ function gadget:GameFrame()
 		
 		for id, area in pairs(elements.areas) do
 			if id >= 20 and id <= 23 then
-				for _, unitID in pairs(Spring.GetUnitsInRectangle(area[1], area[2], area[3], area[4])) do
+				for _, unitID in pairs(Spring.GetUnitsInRectangle(area[1]-200, area[2]-200, area[3]+200, area[4]+200)) do
 					if UnitDefs[Spring.GetUnitDefID(unitID)].name == "gatesmoth" then
 						GG.AddAreaWall(unitID, area)
 					end
