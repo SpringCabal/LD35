@@ -30,6 +30,8 @@ local wispID = nil
 
 local height
 
+local pressSpace = 1
+
 local function getMouseCoordinate(mx,my)
 	local traceType, pos = Spring.TraceScreenRay(mx, my, true)
     if not pos then return false end
@@ -129,11 +131,29 @@ function widget:GameFrame()
 		return
 	end
 
+	if Spring.GetGameRulesParam("has_eyes") == 1 and pressSpace == 1 then
+		pressSpace = 2
+	end
+	if pressSpace == 3 and Spring.GetGameRulesParam("game_end") == 1 then
+		pressSpace = 4
+	end
+	if pressSpace == 4 and Spring.GetGameRulesParam("game_end") == 0 and Spring.GetGameRulesParam("has_eyes") == 0 then
+		pressSpace = 1
+	end
+	
 	if keyControl then
 		MovementControl()
 	end
 	if mouseControl1 or mouseControl3 then
 		MouseControl()
+	end
+end
+
+function widget:DrawScreen()
+	if pressSpace == 2 then
+		gl.PushMatrix()
+			gl.Text("Press Space", vsx * 0.4, vsy * 0.4, 20)
+		gl.PopMatrix()
 	end
 end
 
@@ -158,6 +178,7 @@ function widget:KeyPress(key, mods, isRepeat)
 		end
 		if key == SPACE then
 			Spring.SendLuaRulesMsg('switch_form')
+			pressSpace = 3
 		end
 	end
 	
@@ -205,6 +226,8 @@ local function GetWispLight(beamLights, beamLightCount, pointLights, pointLightC
 end
 
 function widget:Initialize()
+	vsx, vsy = Spring.GetViewGeometry()
+	
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		widget:UnitCreated(unitID, unitDefID)
