@@ -72,9 +72,11 @@ function AdjustAreaTerrain(unitID, adjust)
 		Spring.LevelHeightMap(area[1], area[2], area[3], area[4], value)
 		GG.Delay.DelayCall(function()
 			for _, uid in pairs(Spring.GetUnitsInRectangle(area[1]-100, area[2]-100, area[3]+100, area[4]+100)) do
-				local ux, uy, uz = Spring.GetUnitPosition(uid)
-				Spring.MoveCtrl.Enable(uid)
-				Spring.SetUnitPosition(uid, ux, 411.5, uz)
+				if UnitDefs[Spring.GetUnitDefID(uid)].name ~= "wisp" then
+					local ux, uy, uz = Spring.GetUnitPosition(uid)
+					Spring.MoveCtrl.Enable(uid)
+					Spring.SetUnitPosition(uid, ux, 411.5, uz)
+				end
 			end
 		end, {})
 	end
