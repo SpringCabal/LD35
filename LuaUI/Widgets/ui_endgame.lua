@@ -71,7 +71,13 @@ function ShowEndgameUI()
 				height = 50,
 				width = 80,
 				caption = "Restart",
-				OnClick = { function() Spring.SendCommands({"luarules reload"}) end },
+				OnClick = { function() 
+					if not Spring.IsCheatingEnabled() then
+						Spring.SendCommands({"cheat", "luarules reload"}) 
+					else
+						Spring.SendCommands({"luarules reload"}) 
+					end
+				end },
 			},
 -- 			Chili.Button:New {
 -- 				y = 400,
