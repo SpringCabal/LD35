@@ -71,6 +71,10 @@ local buildinglist = {
 
 function gadget:GameFrame()
 	if GG.s11n ~= nil and not loaded then
+		local myTeamID = 0
+		local myAllyTeamID = Spring.GetTeamInfo(myTeamID)
+		Spring.SetGlobalLos(myAllyTeamID, true)
+
 		loaded = true
 		
 		local unitBridge = GG.s11n:GetUnitBridge()
