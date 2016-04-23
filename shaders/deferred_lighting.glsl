@@ -24,7 +24,7 @@ uniform mat4 viewProjectionInv;
 float attentuate(float dist, float radius)
 	{
 		//float att = clamp ( constant-linear * dist / radius - squared * dist * dist / (radius*radius),0.0,.5);
-		float att = clamp(0.7 - 0.3 * dist / radius - 1 * dist * dist / (radius * radius), 0.0, 1.0);
+		float att = clamp(0.7 - 0.3 * dist / radius - 1.0 * dist * dist / (radius * radius), 0.0, 1.0);
 		att *= att;
 		return att;
 	}
@@ -43,7 +43,7 @@ void main(void)
 		map_normals4 = model_normals4;
 		mappos4 = modelpos4;
 		model_lighting_multiplier=1.5;
-		specularHighlight= specularHighlight + 2*model_extra4.g;
+		specularHighlight= specularHighlight + 2.0*model_extra4.g;
 		}
 	}
 	mappos4 = viewProjectionInv * mappos4;
@@ -98,7 +98,7 @@ void main(void)
 	if (dot(map_normals4.xyz, light_direction) > 0.02) // light source on the wrong side?
 	{
 		vec3 reflection = reflect(-1.0 * light_direction, map_normals4.xyz);
-		float highlight = pow(max(0.0, dot( reflection, viewDirection)), 8);
+		float highlight = pow(max(0.0, dot( reflection, viewDirection)), 8.0);
 		specularHighlight = specularHighlight * (0.5* highlight);
 	}else{
 		specularHighlight = 0.0;

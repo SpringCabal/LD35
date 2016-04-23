@@ -177,8 +177,11 @@ function widget:Initialize()
 				},
 			})
 
+			local shaderLog = glGetShaderLog()
+			if shaderLog ~= "" then
+				spEcho("\"" .. shaderLog .. "\"")
+			end
 			if (not depthPointShader) then
-				spEcho(glGetShaderLog())
 				spEcho("gfx_deferred_rendering.lua: Bad depth point shader, removing self.")
 				GLSLRenderer = false
 				widgetHandler:RemoveWidget()
@@ -201,8 +204,11 @@ function widget:Initialize()
 				},
 			})
 
+			shaderLog = glGetShaderLog()
+			if shaderLog ~= "" then
+				spEcho(shaderLog)
+			end
 			if (not depthBeamShader) then
-				spEcho(glGetShaderLog())
 				spEcho("gfx_deferred_rendering.lua: Bad depth beam shader, removing self.")
 				GLSLRenderer = false
 				widgetHandler:RemoveWidget()
