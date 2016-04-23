@@ -32,7 +32,7 @@ uniform vec3 sundir;
 uniform vec3 suncolor;
 uniform float time;
 
-/*const*/ float sunSpecularColor = suncolor; //FIXME
+///*const*/ float sunSpecularColor = suncolor; //FIXME
 const float sunSpecularExponent = float(100.0);
 
 float noise(in vec3 x)
