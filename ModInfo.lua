@@ -3,7 +3,7 @@ local modinfo = {
 	shortname = "Parts Needed",
 	game = "Parts Needed",
 	shortgame = "Parts Needed",
-    version = "$VERSION",
+    version = "1.1",
 	description = "Ludum Dare 35 entry",
 	
 	modtype = "1",
