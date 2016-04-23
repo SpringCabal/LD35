@@ -283,7 +283,8 @@ function widget:Initialize()
 		RemoveMe("[BloomShader::Initialize] removing widget, no shader support")
 		return
 	end
-  
+	local shaderLog
+
     darken = glCreateList(function()
 		gl.PushMatrix()
 		gl.Translate(0,0,0)
@@ -321,25 +322,24 @@ function widget:Initialize()
 
 				gl_FragColor = bool(debugDraw) ? S1 : S0 + S1;
 
-				gl_FragColor.rg *= 0.4 + 0.6 * (1 - spiritAmount);
-				gl_FragColor.b += 0.1 - 0.1 * (1 - spiritAmount);
-				gl_FragColor.b *= 1.2 - 0.2 * (1 - spiritAmount);
+				gl_FragColor.rg *= 0.4 + 0.6 * (1.0 - spiritAmount);
+				gl_FragColor.b += 0.1 - 0.1 * (1.0 - spiritAmount);
+				gl_FragColor.b *= 1.2 - 0.2 * (1.0 - spiritAmount);
 
-				float dtime1 = sin(2*time) / 3.14 / 4;
+				float dtime1 = sin(2.0*time) / 3.14 / 4.0;
 				float dx = 0.5 - gl_TexCoord[0].x;
 				float dy = 0.5 - gl_TexCoord[0].y;
-				float dist = 1 - 2.5 * (1.5 * dx * dx + dy * dy);
+				float dist = 1.0 - 2.5 * (1.5 * dx * dx + dy * dy);
 								
-				if (spiritAmount == 2) {
-					gl_FragColor.rgb = 0.2;
-					gl_FragColor.a = 1;
+				if (spiritAmount == 2.0) {
+					gl_FragColor = vec4(0.2, 0.2, 0.2, 1.0);
 				}
 
-				gl_FragColor.rgb *= dist;// * spiritAmount + 1 * (1 - spiritAmount);
-				gl_FragColor.rgb += rand(vec2(dtime1, gl_TexCoord[0].x + 10 * gl_TexCoord[0].y)) / 12 * noiseAmount;
+				gl_FragColor.rgb *= dist; // * spiritAmount + 1.0 * (1 - spiritAmount);
+				gl_FragColor.rgb += rand(vec2(dtime1, gl_TexCoord[0].x + 10.0 * gl_TexCoord[0].y)) / 12.0 * noiseAmount;
 
 				gl_FragColor.rgba += 0.5 * gameOverAmount;
-				gl_FragColor.rgba *= 1 + gameOverAmount;
+				gl_FragColor.rgba *= 1.0 + gameOverAmount;
 			}
 		]],
 
@@ -347,8 +347,12 @@ function widget:Initialize()
 		uniformFloat = {illuminationThreshold, fragMaxBrightness}
 	})
 
+	shaderLog = glGetShaderLog()
 	if (combineShader == nil) then
-		RemoveMe("[BloomShader::Initialize] combineShader compilation failed"); print(glGetShaderLog()); return
+		RemoveMe("[BloomShader::Initialize] combineShader compilation failed"); print(shaderLog); return
+	elseif shaderLog ~= "" then
+		Spring.Echo("[BloomShader::Initialize] combineShader log")
+		Spring.Echo(shaderLog)
 	end
 
 
@@ -372,7 +376,7 @@ function widget:Initialize()
 					S += texture2D(texture0, C0 - vec2(r * inverseRX, 0.0)) * weight;
 					S += texture2D(texture0, C0 + vec2(r * inverseRX, 0.0)) * weight;
 
-					total_weight += 2*weight;
+					total_weight += 2.0*weight;
 				}
 
 				gl_FragColor = vec4(S.rgb/total_weight, 1.0);
@@ -385,8 +389,12 @@ function widget:Initialize()
 		uniformFloat = {inverseRX, fragKernelRadius}
 	})
 
+	shaderLog = glGetShaderLog()
 	if (blurShaderH71 == nil) then
-		RemoveMe("[BloomShader::Initialize] blurShaderH71 compilation failed"); print(glGetShaderLog()); return
+		RemoveMe("[BloomShader::Initialize] blurShaderH71 compilation failed"); print(shaderLog); return
+	elseif shaderLog ~= "" then
+		Spring.Echo("[BloomShader::Initialize] blurShaderH71 log")
+		Spring.Echo(shaderLog)
 	end
 
 	blurShaderV71 = glCreateShader({
@@ -409,7 +417,7 @@ function widget:Initialize()
 					S += texture2D(texture0, C0 - vec2(0.0, r * inverseRY)) * weight;
 					S += texture2D(texture0, C0 + vec2(0.0, r * inverseRY)) * weight;
 
-					total_weight += 2*weight;
+					total_weight += 2.0*weight;
 				}
 
 				gl_FragColor = vec4(S.rgb/total_weight, 1.0);
@@ -420,8 +428,12 @@ function widget:Initialize()
 		uniformFloat = {inverseRY, fragKernelRadius}
 	})
 
+	shaderLog = glGetShaderLog()
 	if (blurShaderV71 == nil) then
-		RemoveMe("[BloomShader::Initialize] blurShaderV71 compilation failed"); print(glGetShaderLog()); return
+		RemoveMe("[BloomShader::Initialize] blurShaderV71 compilation failed"); print(shaderLog); return
+	elseif shaderLog ~= "" then
+		Spring.Echo("[BloomShader::Initialize] blurShaderV71 log")
+		Spring.Echo(shaderLog)
 	end
 
 	brightShader = glCreateShader({
@@ -448,8 +460,12 @@ function widget:Initialize()
 		uniformFloat = {illuminationThreshold, inverseRX, inverseRY}
 	})
 
+	shaderLog = glGetShaderLog()
 	if (brightShader == nil) then
-		RemoveMe("[BloomShader::Initialize] brightShader compilation failed"); print(glGetShaderLog()); return
+		RemoveMe("[BloomShader::Initialize] brightShader compilation failed"); print(shaderLog); return
+	elseif shaderLog ~= "" then
+		Spring.Echo("[BloomShader::Initialize] brightShader log")
+		Spring.Echo(shaderLog)
 	end
 
 	brightShaderText0Loc = glGetUniformLocation(brightShader, "texture0")

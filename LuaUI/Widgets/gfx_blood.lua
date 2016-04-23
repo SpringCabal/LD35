@@ -112,7 +112,7 @@ local areas = {}
 function InitShader()
     local shaderFragStr = [[
         uniform sampler2D brushTex;
-        void main()
+        void main(void)
         {
             vec4 brushColor = texture2D(brushTex, gl_TexCoord[0].st);
 
@@ -121,9 +121,17 @@ function InitShader()
             //gl_FragColor = vec4(gl_TexCoord[0].st, 0, 1);
         }
     ]]
- 
+	local vertSrc = [[
+		void main(void)
+		{
+			gl_TexCoord[0] = gl_MultiTexCoord0;
+			gl_Position    = gl_Vertex;
+		}
+	]]
+
     local shaderTemplate = {
         fragment = shaderFragStr,
+		vertex = vertSrc,
         uniformInt = {
             brushTex = 0,
         },
@@ -131,12 +139,13 @@ function InitShader()
 
     local shader = gl.CreateShader(shaderTemplate)
     local errors = gl.GetShaderLog(shader)
-    if errors ~= "" then
-        Spring.Log("Scened", "error", "Error creating shader: " .. tostring(errors))
-    else
-        shaderObj = {
+	if shader ~= nil then
+		shaderObj = {
             shader = shader,
         }
+	end
+    if errors ~= "" and errors ~= nil then
+        Spring.Log("Scened", "notice", "Shader infolog: " .. tostring(errors))
     end
 end
 
@@ -196,7 +205,6 @@ function DrawShape(shape, x1, z1, x2, z2)
     if not shaderObj then
         InitShader()
         dlist = gl.CreateList(DrawRectangle)
-		Spring.Echo(dlist)
     end
     gl.Texture(0, shape)
     gl.UseShader(shaderObj.shader)

@@ -117,31 +117,36 @@ function CreateShader()
 
   shader = gl.CreateShader({
 	fragment = [[
+	  #version 130
+		
 	  uniform float time;
 	  uniform float spiritAmount;
 	  uniform float unitID;
 	  uniform float deathAmount;
 
+	  out vec4 gl_FragColor;
+
 	  float rand(vec2 n) { 
 		return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
-	}
+	  }
 
       void main(void)
       {
 		float dx = 0.5 - gl_TexCoord[0].x;
 		float dy = 0.5 - gl_TexCoord[0].y;
-		dy *= 1 - deathAmount/3;
-		float dist = 1 - 2.5 * (1.5 * dx * dx + dy * dy);
+		dy *= 1.0 - deathAmount/3.0;
+		float dist = 1.0 - 2.5 * (1.5 * dx * dx + dy * dy);
 		
-		float f = 0;
-		float2 coord = gl_TexCoord[0].xy;
+		float f = 0.0;
+		vec2 coord = gl_TexCoord[0].xy;
 		for (int i = -3; i <= 3; i++) {
 			for (int j = -3; j <= 3; j++) {
-				coord = round(gl_TexCoord[0].xy * 50 + vec2(i, j));
+				coord = round(gl_TexCoord[0].xy * 50.0 + vec2(i, j));
 				f += rand(coord * time * unitID);
 			}
 		}
-		gl_FragColor.rgba = f / 49 * dist;
+		f = f / 49.0 * dist;
+		gl_FragColor.rgba = vec4(f, f, f, f);
 		gl_FragColor.r *= rand(vec2(cos(unitID), sin(unitID)));
 		gl_FragColor.g *= rand(vec2(sin(unitID), cos(unitID)));
 		gl_FragColor.b *= rand(vec2(-cos(unitID), -sin(unitID)));
@@ -153,8 +158,11 @@ function CreateShader()
     ]],
   })
 
+  local shaderLog = gl.GetShaderLog()
+  if shaderLog ~= "" then
+    Spring.Echo(shaderLog)
+  end
   if (shader == nil) then
-    print(gl.GetShaderLog())
     return false
   end
   return true
