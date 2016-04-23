@@ -253,6 +253,11 @@ end
 --------------------------------------------------------------------------------
 
 function widget:Initialize()
+	for _, unitID in ipairs(Spring.GetAllUnits()) do
+		local unitDefID = Spring.GetUnitDefID(unitID)
+		widget:UnitCreated(unitID, unitDefID)
+	end
+	
 	if (Spring.GetMiniMapDualScreen() == 'left') then --FIXME dualscreen
 		enabled = false
 	end
@@ -271,7 +276,10 @@ function widget:Initialize()
 			},
 		});
 
-		spEcho(glGetShaderLog())
+		local shaderLog = glGetShaderLog()
+		if shaderLog ~= "" then
+			spEcho(shaderLog)
+		end
 		if (not depthShader) then
 			spEcho("Bad shader, reverting to non-GLSL widget.")
 			enabled = false
@@ -324,7 +332,7 @@ local function DrawFogNew()
 
     local wx,wy,wz = 0,0,0;
     
-    if(wispID) then
+    if (wispID) then
         wx,wy,wz = Spring.GetUnitPosition(wispID);
     end
     
@@ -364,6 +372,12 @@ end
 function widget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == wispDefID then
 		wispID = unitID
+	end
+end
+
+function widget:UnitDestroyed(unitID)
+	if wispID == unitID then
+		wispID = nil
 	end
 end
 
