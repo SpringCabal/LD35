@@ -121,17 +121,9 @@ function InitShader()
             //gl_FragColor = vec4(gl_TexCoord[0].st, 0, 1);
         }
     ]]
-	local vertSrc = [[
-		void main(void)
-		{
-			gl_TexCoord[0] = gl_MultiTexCoord0;
-			gl_Position    = gl_Vertex;
-		}
-	]]
 
     local shaderTemplate = {
         fragment = shaderFragStr,
-		vertex = vertSrc,
         uniformInt = {
             brushTex = 0,
         },
