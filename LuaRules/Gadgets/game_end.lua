@@ -96,6 +96,7 @@ function gadget:GameFrame()
 			Spring.SetGameRulesParam("spiritMode", 1)
 			Spring.SetGameRulesParam("game_over_type", 1) -- The souls have been freed.
 			spawnWisps = true
+			Spring.MoveCtrl.Enable(wispID)
 		elseif alive_wisps == 0 and saved_wisps == 0 and killed_wisps ~= 0 then
 			Spring.SetGameRulesParam("game_over_type", 2) -- Their sacrifice is accepted.
 			Spring.SetGameRulesParam("game_over_sequence", 1)
