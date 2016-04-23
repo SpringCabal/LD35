@@ -14,7 +14,6 @@ local collisionData
 -- TODO: blocking/collision will be incosistent while it's pulling down/up
 function script.Activate()
     Spring.UnitScript.Signal(signalMask)
-	Spring.Echo("GATE GOING DOWN")
     StartThread(function()
         Spring.UnitScript.SetSignalMask(signalMask)
         GG.AdjustWallTerrain(unitID, 0)
