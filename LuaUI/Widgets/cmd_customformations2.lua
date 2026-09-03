@@ -8,7 +8,7 @@ function widget:GetInfo()
 		date      = "April, 2013",
 		license   = "GNU GPL, v2 or later",
 		layer     = 10000,
-		enabled   = true,
+		enabled   = false, -- RTS formation orders are not used by this single-wisp game.
 		handler   = true,
 	}
 end

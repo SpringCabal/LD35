@@ -13,7 +13,7 @@ end
 
 -- gl.Utilities
 
-if (not gl) then
+if (not gl) or (not gl.CreateShader) then
     return
 end
 

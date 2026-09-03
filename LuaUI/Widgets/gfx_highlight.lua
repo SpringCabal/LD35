@@ -126,6 +126,9 @@ local unbuiltUnits = {}
 
 
 function widget:Initialize()
+	if gl.CreateShader == nil or gl.DeleteTextureFBO == nil then
+		return false
+	end
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		widget:UnitCreated(unitID, unitDefID)
@@ -134,13 +137,6 @@ function widget:Initialize()
   vsx, vsy = widgetHandler:GetViewSizes()
 
   self:ViewResize(widgetHandler:GetViewSizes())
-
-  if gl.CreateShader == nil then --For old Intel chips
-    Spring.Log(widget:GetInfo().name, LOG.ERROR, "Outline widget: cannot create shaders. forcing shader-less fallback.")
-    forceLowQuality = true
-    options.lowQualityOutlines.value = true
-    return true
-  end
 
   --For cards that can use shaders
   enter2d = gl.CreateList(function()

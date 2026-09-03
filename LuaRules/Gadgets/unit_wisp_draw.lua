@@ -18,6 +18,11 @@ end
 -- UNSYNCED
 -------------------------------------------------------------------
 if not gadgetHandler:IsSyncedCode() then
+	-- Core's headless renderer intentionally has no programmable-GL API.
+	-- Keep rules loading in that environment; the visual is optional there.
+	if not gl or not gl.CreateShader then
+		return
+	end
 	
 local TEXTURE     = 'LuaUI/Images/wisp1.png'
 
@@ -238,4 +243,3 @@ function gadget:DrawScreenEffects()
 end
 
 end
-

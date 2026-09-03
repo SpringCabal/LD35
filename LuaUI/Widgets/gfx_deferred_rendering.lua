@@ -268,14 +268,17 @@ local function DrawLightType(lights, lightsCount, lighttype) -- point = 0 beam =
 		if lighttype == 0 then -- point
 			local lightradius = param.radius
 			--Spring.Echo("Drawlighttype position = ", light.px, light.py, light.pz)
-			local sx, sy, sz = spWorldToScreenCoords(light.px, light.py, light.pz) -- returns x, y, z, where x and y are screen pixels, and z is z buffer depth.
-			sx = sx/vsx
-			sy = sy/vsy --since FOV is static in the Y direction, the Y ratio is the correct one
 			local dist_sq = (light.px-cx)^2 + (light.py-cy)^2 + (light.pz-cz)^2
-			local ratio = lightradius / math.sqrt(dist_sq) * 1.5
-			glUniform(lightposlocPoint, light.px, light.py, light.pz, param.radius) --in world space
-			glUniform(lightcolorlocPoint, param.r * light.colMult, param.g * light.colMult, param.b * light.colMult, 1) 
-			glTexRect(
+			-- A light can coincide with the camera during the ending transition.
+			-- Avoid generating infinities for glTexRect in that case.
+			if dist_sq > 0.0001 and vsx > 0 and vsy > 0 then
+				local sx, sy = spWorldToScreenCoords(light.px, light.py, light.pz)
+				sx = sx / vsx
+				sy = sy / vsy -- since FOV is static in the Y direction, the Y ratio is correct
+				local ratio = lightradius / math.sqrt(dist_sq) * 1.5
+				glUniform(lightposlocPoint, light.px, light.py, light.pz, param.radius) --in world space
+				glUniform(lightcolorlocPoint, param.r * light.colMult, param.g * light.colMult, param.b * light.colMult, 1) 
+				glTexRect(
 				math.max(-1 , (sx-0.5)*2-ratio*screenratio), 
 				math.max(-1 , (sy-0.5)*2-ratio), 
 				math.min( 1 , (sx-0.5)*2+ratio*screenratio), 
@@ -284,8 +287,9 @@ local function DrawLightType(lights, lightsCount, lighttype) -- point = 0 beam =
 				math.max( 0 , sy - 0.5*ratio), 
 				math.min( 1 , sx + 0.5*ratio*screenratio),
 				math.min( 1 , sy + 0.5*ratio)
-			) -- screen size goes from -1, -1 to 1, 1; uvs go from 0, 0 to 1, 1
-		end 
+				) -- screen size goes from -1, -1 to 1, 1; uvs go from 0, 0 to 1, 1
+			end
+		end
 		if lighttype == 1 then -- beam
 			local lightradius = 0
 			local px = light.px+light.dx*0.5
@@ -293,18 +297,18 @@ local function DrawLightType(lights, lightsCount, lighttype) -- point = 0 beam =
 			local pz = light.pz+light.dz*0.5
 			local lightradius = param.radius + math.sqrt(light.dx^2 + light.dy^2 + light.dz^2)*0.5
 			VerboseEcho("Drawlighttype position = ", light.px, light.py, light.pz)
-			local sx, sy, sz = spWorldToScreenCoords(px, py, pz) -- returns x, y, z, where x and y are screen pixels, and z is z buffer depth.
-			sx = sx/vsx
-			sy = sy/vsy --since FOV is static in the Y direction, the Y ratio is the correct one
 			local dist_sq = (px-cx)^2 + (py-cy)^2 + (pz-cz)^2
-			local ratio = lightradius / math.sqrt(dist_sq)
-			ratio = ratio*2
+			if dist_sq > 0.0001 and vsx > 0 and vsy > 0 then
+				local sx, sy = spWorldToScreenCoords(px, py, pz)
+				sx = sx / vsx
+				sy = sy / vsy -- since FOV is static in the Y direction, the Y ratio is correct
+				local ratio = lightradius / math.sqrt(dist_sq) * 2
 
-			glUniform(lightposlocBeam, light.px, light.py, light.pz, param.radius) --in world space
-			glUniform(lightpos2locBeam, light.px+light.dx, light.py+light.dy+24, light.pz+light.dz, param.radius) --in world space, the magic constant of +24 in the Y pos is needed because of our beam distance calculator function in GLSL
-			glUniform(lightcolorlocBeam, param.r * light.colMult, param.g * light.colMult, param.b * light.colMult, 1) 
-			--TODO: use gl.Shape instead, to avoid overdraw
-			glTexRect(
+				glUniform(lightposlocBeam, light.px, light.py, light.pz, param.radius) --in world space
+				glUniform(lightpos2locBeam, light.px+light.dx, light.py+light.dy+24, light.pz+light.dz, param.radius) --in world space, the magic constant of +24 in the Y pos is needed because of our beam distance calculator function in GLSL
+				glUniform(lightcolorlocBeam, param.r * light.colMult, param.g * light.colMult, param.b * light.colMult, 1)
+				--TODO: use gl.Shape instead, to avoid overdraw
+				glTexRect(
 				math.max(-1 , (sx-0.5)*2-ratio*screenratio), 
 				math.max(-1 , (sy-0.5)*2-ratio), 
 				math.min( 1 , (sx-0.5)*2+ratio*screenratio), 
@@ -313,7 +317,8 @@ local function DrawLightType(lights, lightsCount, lighttype) -- point = 0 beam =
 				math.max( 0 , sy - 0.5*ratio), 
 				math.min( 1 , sx + 0.5*ratio*screenratio),
 				math.min( 1 , sy + 0.5*ratio)
-			) -- screen size goes from -1, -1 to 1, 1; uvs go from 0, 0 to 1, 1
+				) -- screen size goes from -1, -1 to 1, 1; uvs go from 0, 0 to 1, 1
+			end
 		end
 	end
 	glUseShader(0)

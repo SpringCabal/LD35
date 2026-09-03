@@ -10,7 +10,9 @@
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-if not gadgetHandler:IsSyncedCode() then
+-- This API owns GL resources and must run in the unsynced half of the
+-- gadget. The previous inverted guard accessed `gl` while synced.
+if gadgetHandler:IsSyncedCode() then
   return
 end
 

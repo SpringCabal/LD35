@@ -87,9 +87,6 @@ function _UnitBridge:init()
         neutral = function(objectID)
             return Spring.GetUnitNeutral(objectID)
         end,
-        fuel = function(objectID)
-            return Spring.GetUnitFuel(objectID)
-        end,
         states = function(objectID)
             local states = Spring.GetUnitStates(objectID)
             if states then
@@ -234,9 +231,6 @@ function _UnitBridge:init()
         end,
         neutral = function(objectID, value)
             Spring.SetUnitNeutral(objectID, value)
-        end,
-        fuel = function(objectID, value)
-            Spring.SetUnitFuel(objectID, value)
         end,
         states = function(objectID, value)
             if value.fireState ~= nil then
