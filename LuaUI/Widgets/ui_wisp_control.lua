@@ -14,7 +14,7 @@ end
 -------------------------------------------------------------------
 local mouseControl1 = false
 local mouseControl3 = false
-include('keysym.h.lua')
+require("keysym.lua")
 local UP = KEYSYMS.UP
 local DOWN = KEYSYMS.DOWN
 local LEFT = KEYSYMS.LEFT
@@ -64,6 +64,8 @@ local function MouseControl()
 	end
 end
 
+local lastMoveX, lastMoveZ = 0, 0
+
 local function MovementControl()
 	local x, z = 0, 0
 	
@@ -80,7 +82,12 @@ local function MovementControl()
 		z = z + 1
 	end
 	
-	Spring.SendLuaRulesMsg('movement|' .. x .. '|' .. z)
+	-- Keep refreshing while moving so the gadget's message never goes stale, and
+	-- send one final zero so it knows to brake.
+	if x ~= 0 or z ~= 0 or lastMoveX ~= 0 or lastMoveZ ~= 0 then
+		Spring.SendLuaRulesMsg('movement|' .. x .. '|' .. z)
+	end
+	lastMoveX, lastMoveZ = x, z
 end
 
 function widget:MousePress(mx, my, button)
@@ -141,9 +148,7 @@ function widget:GameFrame()
 		pressSpace = 1
 	end
 	
-	if keyControl then
-		MovementControl()
-	end
+	MovementControl()
 	if mouseControl1 or mouseControl3 then
 		MouseControl()
 	end
@@ -173,7 +178,7 @@ function widget:KeyPress(key, mods, isRepeat)
 
 	if wispID then
 		if key == LEFT or key == RIGHT or key == UP or key == DOWN or key == W or key == A or key == S or key == D then
-			keyControl = true
+			-- Swallow the key; GameFrame reads the live key state itself.
 			return true
 		end
 		if key == SPACE then
@@ -184,12 +189,6 @@ function widget:KeyPress(key, mods, isRepeat)
 		end
 	end
 	
-end
-
-function widget:KeyRelease(key)
-	if not (Spring.GetKeyState(A) or Spring.GetKeyState(LEFT) or Spring.GetKeyState(D) or Spring.GetKeyState(RIGHT) or Spring.GetKeyState(W) or Spring.GetKeyState(UP) or Spring.GetKeyState(S) or Spring.GetKeyState(DOWN)) then
-		keyControl = false
-	end
 end
 
 -- Custom lighting

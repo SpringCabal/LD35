@@ -26,6 +26,7 @@ uniform sampler2D tex1;
 
 uniform vec3 eyePos;
 uniform vec3 wispPos;
+uniform float wispEffectEnabled;
 uniform mat4 viewProjectionInv;
 uniform vec3 offset;
 uniform vec3 sundir;
@@ -78,10 +79,12 @@ const mat3 m = mat3( 0.00,  0.80,  0.60,
 
 float MapClouds(in vec3 p)
 {
-    float wispDist = length(p-wispPos);
 	float factor = 1.0-smoothstep(fadeAltitude,fogHeight,p.y);
-    
-    factor *= smoothstep(30.0,200.0,wispDist);
+
+	if (wispEffectEnabled > 0.5) {
+		float wispDist = length(p-wispPos);
+		factor *= smoothstep(30.0,200.0,wispDist);
+	}
 
 	p += offset;
 	p *= noiseScale;

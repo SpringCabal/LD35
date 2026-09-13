@@ -169,6 +169,7 @@ local uniformSundir
 local uniformSunColor
 local uniformTime
 local uniformWispPos
+local uniformWispEffectEnabled
 
 local offsetX = 0;
 local offsetY = 0;
@@ -291,6 +292,7 @@ function widget:Initialize()
 			uniformSunColor     = glGetUniformLocation(depthShader, 'suncolor')
 			uniformTime         = glGetUniformLocation(depthShader, 'time')
 			uniformWispPos      = glGetUniformLocation(depthShader, 'wispPos')
+			uniformWispEffectEnabled = glGetUniformLocation(depthShader, 'wispEffectEnabled')
 		end
 	end
 
@@ -330,13 +332,22 @@ local function DrawFogNew()
 	glUseShader(depthShader)
 
 
-    local wx,wy,wz = 0,0,0;
-    
-    if (wispID) then
-        wx,wy,wz = Spring.GetUnitPosition(wispID);
-    end
-    
-    glUniform(uniformWispPos, wx,wy,wz)
+	-- The fog shader clears a small area around wispPos only in spirit form.
+	-- Keep the effect disabled explicitly in corporal form so it cannot leave
+	-- a player-following trail due to a stale wisp position.
+	local spiritMode = tonumber(Spring.GetGameRulesParam("spiritMode")) or 0
+	local wispEffectEnabled = (spiritMode == 1) and 1 or 0
+	local wx, wy, wz = 0, 0, 0
+
+	if wispEffectEnabled == 1 and wispID then
+		wx, wy, wz = Spring.GetUnitPosition(wispID)
+		if not wx then
+			wx, wy, wz = 0, 0, 0
+		end
+	end
+
+	glUniform(uniformWispPos, wx, wy, wz)
+	glUniform(uniformWispEffectEnabled, wispEffectEnabled)
 	glUniform(uniformEyePos, spGetCameraPosition())
 	glUniform(uniformOffset, offsetX, offsetY, offsetZ);
 	

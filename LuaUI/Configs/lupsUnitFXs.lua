@@ -162,10 +162,10 @@ effectUnitDefs = {
   },  
   
   wisp = {
-    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair1", onActive=true}},
-    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair2", onActive=true}},
-    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair3", onActive=false}},
-    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair4", onActive=false}},
+    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair1", onActive=true, spiritOnly=true}},
+    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair2", onActive=true, spiritOnly=true}},
+    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair3", onActive=false, spiritOnly=true}},
+    {class='Ribbon', options={color={.3,.3,01,1}, width=3, piece="Hair4", onActive=false, spiritOnly=true}},
   },
   
   pw_warpgate = {

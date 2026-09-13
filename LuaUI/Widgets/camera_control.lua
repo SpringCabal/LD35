@@ -53,21 +53,55 @@ function SetGameMode(gameMode)
 		Spring.SetCameraState(s, 0)
 	end
 end
-frist = true
-lastTrackingUpdate = os.clock()
-function widget:Update()
+--------------------------------------------------------------------------------
+-- Follow camera
+--
+-- The engine's unit tracker ("track") is not smoothed: for non-FPS camera modes
+-- it does a bare SetPos() onto the unit's draw position every frame, so every
+-- bit of jitter in the wisp's movement lands in the camera 1:1.  Re-issuing
+-- "trackoff"/"track" each Update on top of that made it worse.  Follow the wisp
+-- ourselves with exponential smoothing instead, driven off the frame delta so
+-- the camera behaves the same at 55fps as at 150fps.
+
+local FOLLOW_TAU = 0.12 -- seconds to close ~63% of the distance to the target
+local LOOK_AHEAD = 8    -- frames of velocity to lead the wisp by
+
+local camX, camY, camZ
+
+local function UpdateCamera(dt)
+	local x, y, z = Spring.GetUnitViewPosition(wispID)
+	if not x then
+		return
+	end
+
+	-- Lead the wisp slightly so the camera hints at where you are heading.
+	local vx, vy, vz = Spring.GetUnitVelocity(wispID)
+	if vx then
+		x, y, z = x + vx*LOOK_AHEAD, y + vy*LOOK_AHEAD, z + vz*LOOK_AHEAD
+	end
+
+	if camX and dt and dt > 0 then
+		local alpha = 1 - math.exp(-dt / FOLLOW_TAU)
+		camX = camX + (x - camX)*alpha
+		camY = camY + (y - camY)*alpha
+		camZ = camZ + (z - camZ)*alpha
+	else
+		camX, camY, camZ = x, y, z
+	end
+
+	-- Transition time 0: the smoothing above is the only smoothing we want,
+	-- stacking the engine's on top of it just adds lag.
+	Spring.SetCameraTarget(camX, camY, camZ, 0)
+end
+
+function widget:Update(dt)
 	if Spring.GetGameRulesParam("gameMode") ~= "develop" and wispID ~= nil then
-		Spring.SelectUnitArray({wispID})
-		Spring.SendCommands({"trackoff", "track"})
-        if(frist) then
-            Spring.SendCommands({"trackmode 1"});
-            frist = false
-        end
-		Spring.SelectUnitArray({})
+		UpdateCamera(dt)
 	end
 	local newGameMode = Spring.GetGameRulesParam("gameMode")
     if gameMode ~= newGameMode then
         gameMode = newGameMode
+        camX, camY, camZ = nil, nil, nil
         SetGameMode(gameMode)
     end
 end

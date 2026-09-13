@@ -69,6 +69,7 @@ local spGetUnitPiecePosition = Spring.GetUnitPiecePosition
 local spGetUnitViewPosition  = Spring.GetUnitViewPosition
 local spGetUnitPiecePosDir   = Spring.GetUnitPiecePosDir
 local spGetUnitVectors       = Spring.GetUnitVectors
+local spGetGameRulesParam    = Spring.GetGameRulesParam
 local glUniform    = gl.Uniform
 local glUniformInt = gl.UniformInt
 local glUseShader  = gl.UseShader
@@ -243,6 +244,29 @@ end
 function Ribbon:Update(n)
   self.isvalid = (self.unit ~= 0 and not spGetUnitIsDead(self.unit)) or (self.projectile and Spring.GetProjectileDefID(self.projectile))
 
+  -- The wisp ribbons are only meaningful in spirit form.  Clear their
+  -- history while corporal so switching back cannot resurrect an old trail.
+  -- Keep isvalid tied to the unit/projectile so LUPS does not permanently
+  -- remove the repeating effect while it is temporarily hidden.
+  if self.spiritOnly and spGetGameRulesParam("spiritMode") ~= 1 then
+    if self.isvalid then
+      local x,y,z
+      if self.unit ~= 0 then
+        x,y,z = spGetUnitPiecePosDir(self.unit,self.piecenum)
+      elseif self.projectile then
+        x,y,z = Spring.GetProjectilePosition(self.projectile)
+      end
+      if x and y and z then
+        self.posIdx = 1
+        for i = 1, self.size do
+          self.oldPos[i] = {x,y,z}
+        end
+      end
+    end
+    self.blendfactor = 0
+    return
+  end
+
   if (self.isvalid) then
     local x,y,z
     if self.unit ~= 0 then
@@ -271,9 +295,13 @@ end
 
 
 function Ribbon:Visible()
+  if self.spiritOnly and spGetGameRulesParam("spiritMode") ~= 1 then
+    return false
+  end
+
   self.isvalid = (self.unit ~= 0 and not spGetUnitIsDead(self.unit)) or (self.projectile and Spring.GetProjectileDefID(self.projectile))
   local pos = self.oldPos[self.posIdx]
-  return (self.blendfactor>0) and (spIsSphereInView(pos[1],pos[2],pos[3], self.radius))
+  return (self.blendfactor>0) and pos and (spIsSphereInView(pos[1],pos[2],pos[3], self.radius))
 end
 
 

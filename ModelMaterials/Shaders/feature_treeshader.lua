@@ -42,7 +42,7 @@ return {
       vec4 vertex = gl_Vertex;
       vec3 normal = gl_Normal;
 
-    float distanceFromTrunk=(abs(vertex.x)+abs(vertex.z))/10;
+    float distanceFromTrunk=(abs(vertex.x)+abs(vertex.z))/10.0;
     vertex.x += distanceFromTrunk * vertex.y * frameLoc;
     vertex.z += distanceFromTrunk * vertex.y * frameLoc;
 

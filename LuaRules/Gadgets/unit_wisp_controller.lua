@@ -34,6 +34,15 @@ local MAX_HEIGHT_CHANGE = 200
 local PER_FRAME_CHANGE = 0
 local HEIGHT_CHANGE_PER_FRAME = 7
 
+-- How far ahead of the wisp the move goal is placed.  ClampPosition() clamps x
+-- and z independently, so a long lookahead near a map edge collapsed diagonal
+-- input onto a single axis; keep it short, it is re-issued every frame anyway.
+local MOVE_LOOKAHEAD = 120
+-- Frames a movement message stays valid.  The widget sends one per frame, but
+-- they arrive through the network layer, so a 2 frame window dropped inputs
+-- whenever delivery hiccuped and the wisp stuttered to a halt.
+local MOVE_STALE_FRAMES = 6
+
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
 local wispMoving
@@ -64,14 +73,33 @@ end
 -- Handling unit
 -------------------------------------------------------------------
 
+-- Spring.Utilities.ClampPosition() clamps x and z independently, which rotates
+-- an out-of-bounds goal onto an axis and makes diagonal input near a map edge
+-- read as cardinal.  Shorten the offset instead so the heading is preserved.
+local function ClampOffsetToMap(ux, uz, dx, dz)
+	local scale = 1
+	local function limit(origin, delta, lo, hi)
+		if delta > 0 and origin + delta > hi then
+			scale = math.min(scale, (hi - origin) / delta)
+		elseif delta < 0 and origin + delta < lo then
+			scale = math.min(scale, (lo - origin) / delta)
+		end
+	end
+	limit(ux, dx, 1, Game.mapSizeX - 1)
+	limit(uz, dz, 1, Game.mapSizeZ - 1)
+	scale = math.max(scale, 0)
+	return ux + dx * scale, uz + dz * scale
+end
+
 local function GiveClampedMoveGoal(unitID, x, z, radius)
 	radius = radius or 16
 	local cx, cz = Spring.Utilities.ClampPosition(x, z)
 	local cy = Spring.GetGroundHeight(cx, cz)
 	--Spring.MarkerAddPoint(cx, cy, cz)
-	--Spring.SetUnitMoveGoal(unitID, cx, cy, cz, radius, nil, true) -- The last argument is whether the goal is raw
 	local _, height, _ = Spring.GetUnitPosition(unitID)
-	Spring.SetUnitMoveGoal(unitID, cx, cy, cz)
+	-- Raw goal (last argument): head straight where the player pointed instead of
+	-- letting the pathfinder plan a detour around whatever is in the way.
+	Spring.SetUnitMoveGoal(unitID, cx, cy, cz, radius, nil, true)
 	return true
 end
 
@@ -80,13 +108,14 @@ local function MoveUnit(unitID, x, z, range, radius)
 		return
 	end
 	local speed = Spring.GetUnitRulesParam(unitID, "selfMoveSpeedChange") or 1
-	range = (range or 500)*speed
+	range = (range or MOVE_LOOKAHEAD)*speed
 
 	local ux, uy, uz = Spring.GetUnitPosition(unitID)
 
 	local moveVec = Vector.Norm(range, {x, z})
+	local gx, gz = ClampOffsetToMap(ux, uz, moveVec[1], moveVec[2])
 
-	GiveClampedMoveGoal(unitID, moveVec[1] + ux, moveVec[2] + uz, radius)
+	GiveClampedMoveGoal(unitID, gx, gz, radius)
 end
 
 
@@ -254,20 +283,19 @@ function gadget:GameFrame(frame)
 		end
 		Spring.SetUnitVelocity(wispID, vx, vy, vz)
 		
-		if (movementMessage and movementMessage.frame + 2 > frame) then
+		if (movementMessage and movementMessage.frame + MOVE_STALE_FRAMES > frame) then
 			MoveUnit(wispID, movementMessage.x, movementMessage.z)
 			wispMoving = true
-		else
+		elseif wispMoving then
+			-- Only brake on the transition out of movement.  Issuing STOP on every
+			-- idle frame kept cancelling the order the wisp had just been given.
 			Spring.GiveOrderToUnit(wispID, CMD.STOP,{},{})
 			local vx, _, vz = Spring.GetUnitVelocity(wispID)
-			if vx then
-				local speed = Vector.AbsVal(vx, vz)
-				if wispMoving or (speed > 6) then
-					MoveUnit(wispID, vx, vz, 20)
-					wispMoving = false
-				end
+			if vx and Vector.AbsVal(vx, vz) > 6 then
+				MoveUnit(wispID, vx, vz, 20)
 			end
 
+			wispMoving = false
 			movementMessage = false
 		end
 		

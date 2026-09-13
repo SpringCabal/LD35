@@ -101,7 +101,7 @@ function ShowEndgameUI()
 				height = 50,
 				width = 80,
 				caption = "Leave",
-				OnClick = { function() Spring.SendCommands("quitforce") end },
+				OnClick = { function() Spring.SendCommands("reloadforce") end },
 			},
 -- 			Chili.Image:New {
 -- 				x = 0,

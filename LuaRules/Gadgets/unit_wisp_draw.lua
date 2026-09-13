@@ -129,8 +129,6 @@ function CreateShader()
 	  uniform float unitID;
 	  uniform float deathAmount;
 
-	  out vec4 gl_FragColor;
-
 	  float rand(vec2 n) { 
 		return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
 	  }
@@ -156,7 +154,7 @@ function CreateShader()
 		gl_FragColor.g *= rand(vec2(sin(unitID), cos(unitID)));
 		gl_FragColor.b *= rand(vec2(-cos(unitID), -sin(unitID)));
 		
-		gl_FragColor.rgba += dist * dist * dist / 1.2 * (1 - deathAmount/1.5);
+		gl_FragColor.rgba += dist * dist * dist / 1.2 * (1.0 - deathAmount/1.5);
 		//gl_FragColor.rgba -= deathAmount * rand(vec2(cos(unitID), sin(unitID))) / 2.0;
 		gl_FragColor.rgba *= spiritAmount;
       }

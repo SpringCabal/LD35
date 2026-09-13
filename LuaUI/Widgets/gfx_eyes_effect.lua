@@ -370,7 +370,7 @@ function widget:Initialize()
 				float weight = 1.0 / (2.50663 * bloomSigma);
 				float total_weight = weight;
 				S *= weight;
-				for (float r = 1.5; r < fragKernelRadius; r += 2)
+				for (float r = 1.5; r < fragKernelRadius; r += 2.0)
 				{
 					weight = exp(-((r*r)/(2.0 * bloomSigma * bloomSigma)))/(2.50663 * bloomSigma);
 					S += texture2D(texture0, C0 - vec2(r * inverseRX, 0.0)) * weight;
@@ -411,7 +411,7 @@ function widget:Initialize()
 				float weight = 1.0 / (2.50663 * bloomSigma);
 				float total_weight = weight;
 				S *= weight;
-				for (float r = 1.5; r < fragKernelRadius; r += 2)
+				for (float r = 1.5; r < fragKernelRadius; r += 2.0)
 				{
 					weight = exp(-((r*r)/(2.0 * bloomSigma * bloomSigma)))/(2.50663 * bloomSigma);
 					S += texture2D(texture0, C0 - vec2(0.0, r * inverseRY)) * weight;
