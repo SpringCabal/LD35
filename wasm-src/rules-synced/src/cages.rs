@@ -1,0 +1,45 @@
+//! Cages and the NPC wisps they hold, ported from `cage.lua`.
+
+use alloc::vec::Vec;
+
+use crate::endgame::mark_wisp_dying;
+use crate::state::Global;
+use crate::triggers::nearby;
+
+pub fn spawn_cage_wisp(cage: i32) {
+    let Ok(position) = spring::get_unit_position(cage, false, false) else {
+        return;
+    };
+    let Ok(def) = spring::get_unit_def_id_by_name("npcwisp") else {
+        return;
+    };
+    let _ = spring::create_unit(
+        spring::UnitDefRef {
+            name: "npcwisp",
+            id: def,
+        },
+        position,
+        0,
+        spring::CreateUnitOptions {
+            build: false,
+            flatten_ground: false,
+            unit_id: -1,
+            builder_id: -1,
+        },
+    );
+}
+
+pub fn activate_cage(global: &Global, cage: i32) {
+    let kill = spring::get_unit_rules_param_f32(cage, "do_kill") == Ok(1.0);
+    let nearby_wisps: Vec<i32> = global
+        .world
+        .access()
+        .npc_wisps
+        .iter()
+        .copied()
+        .filter(|wisp| nearby(cage, *wisp, 50.0))
+        .collect();
+    for wisp in nearby_wisps {
+        mark_wisp_dying(global, wisp, !kill);
+    }
+}

@@ -162,6 +162,35 @@ function SetAllPiecesInvisibleNoThread()
 	end
 end
 
+-- Numeric entrypoint for the Core WASM rules module.  The original gameplay
+-- uses the string-named helpers above; Core intentionally exposes only
+-- numeric unit-script arguments, so keep the authored behaviour here rather
+-- than approximating it with renderer-side piece toggles.
+-- Must live in the `script` table: LuaGadgets/Gadgets/unit_script.lua registers
+-- only `env.script` with CreateScript, so a bare global here was never callable
+-- and every SetWasmPieceMask call from the rules module was silently dropped.
+function script.SetWasmPieceMask(mask)
+	-- This Core entrypoint already runs in the unit-script context.  Starting a
+	-- separate Hide thread for every piece races the subsequent Show calls and
+	-- can leave the player with a fully assembled body after collecting only
+	-- eyes.  Apply the authored piece mask synchronously instead.
+	for _, pieceID in pairs(Spring.GetUnitPieceMap(unitID)) do
+		Hide(pieceID)
+	end
+	if mask < 0 then
+		return
+	end
+	SetPieceVisible("body", true)
+	SetPieceVisible("head", true)
+	if mask % 2 == 1 then SetPieceVisible("eyes", true) end
+	if math.floor(mask / 2) % 2 == 1 then SetPieceVisible("ears", true) end
+	if math.floor(mask / 4) % 2 == 1 then SetPieceVisible("arms", true) end
+	if math.floor(mask / 8) % 2 == 1 then SetPieceVisible("legs", true) end
+	if math.floor(mask / 16) % 2 == 1 then SetPieceVisible("nose", true) end
+	if math.floor(mask / 32) % 2 == 1 then SetPieceVisible("mouth", true) end
+end
+
+
 local function Walk()
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)

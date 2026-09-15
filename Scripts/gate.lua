@@ -10,13 +10,15 @@ end
 
 local signalMask = 1
 
+-- The Rust terrain controller owns what GG.AdjustWallTerrain did in the Lua
+-- build, so those calls are absent here; the sound and motion stay authored.
+
 local collisionData
 -- TODO: blocking/collision will be incosistent while it's pulling down/up
 function script.Activate()
     Spring.UnitScript.Signal(signalMask)
     StartThread(function()
         Spring.UnitScript.SetSignalMask(signalMask)
-        GG.AdjustWallTerrain(unitID, 0)
         Sleep(500)
         local x, y, z = Spring.GetUnitPosition(unitID)
         Spring.PlaySoundFile("sounds/gate.ogg", 40)
@@ -34,8 +36,9 @@ function script.Deactivate()
         Spring.PlaySoundFile("sounds/gate.ogg", 5, x, y, z)
         Move(gate, z_axis, 0, 190);
         WaitForMove(gate, z_axis);
-        Spring.SetUnitBlocking(unitID, true)
-        GG.AdjustWallTerrain(unitID, 1)
+        -- Rust owns the terrain wall and keeps this embedded model
+        -- non-blocking, so closing the animation must not re-enable a second
+        -- unit-sized blocker above the wall.
     end)
     return 0
 end

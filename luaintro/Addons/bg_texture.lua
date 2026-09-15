@@ -16,15 +16,13 @@ end
 
 local loadscreens = VFS.DirList("bitmaps/loadpictures/")
 local backgroundTexture
-for _, loadscreen in ipairs(loadscreens) do
-	if loadscreen:lower():find("partsneeded_gameplay", 1, true) then
-		backgroundTexture = loadscreen
+for i = 1, #loadscreens do
+	if loadscreens[i]:lower():find("partsneeded_gameplay", 1, true) then
+		backgroundTexture = loadscreens[i]
 		break
 	end
 end
-if not backgroundTexture then
-	backgroundTexture = loadscreens[1+(math.floor((1000*os.clock())%#loadscreens))] -- hacky hotfix for http://springrts.com/mantis/view.php?id=4572
-end
+backgroundTexture = backgroundTexture or loadscreens[1 + (math.floor((1000 * os.clock()) % #loadscreens))]
 local aspectRatio
 
 function addon.DrawLoadScreen()

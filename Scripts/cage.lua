@@ -19,6 +19,9 @@ end
 
 local npcWispDefID = UnitDefNames["npcwisp"].id
 
+-- GG is a Lua-gadget namespace with no counterpart in the WASM rules module;
+-- the kill/save decision lives there and is reached over RecvLuaMsg instead.
+
 -- TODO: blocking/collision will be incosistent while it's pulling down/up
 function script.Activate()
 	local do_kill = Spring.GetUnitRulesParam(unitID, "do_kill") or 0
@@ -33,9 +36,9 @@ function script.Activate()
 		for _, npcWispID in pairs(Spring.GetUnitsInCylinder(x, z, 50)) do
 			if Spring.GetUnitDefID(npcWispID) == npcWispDefID and Spring.GetUnitRulesParam(npcWispID, "is_dying") ~= 1 then
 				if do_kill == 1 then
-					GG.KillWisp(npcWispID)
+					Spring.SendLuaRulesMsg("npc_wisp|kill|" .. npcWispID)
 				else
-					GG.SaveWisp(npcWispID)
+					Spring.SendLuaRulesMsg("npc_wisp|save|" .. npcWispID)
 				end
 			end
 		end

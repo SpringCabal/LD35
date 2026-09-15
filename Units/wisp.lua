@@ -8,7 +8,6 @@ local Wisp = Unit:New {
 --     canRepeat           = false,
     category            = "INFANTRY",
 
-    --pushResistant       = true,
     collisionVolumeScales   = '37 40 37',
     collisionVolumeTest     = 1,
     collisionVolumeType     = 'CylY',

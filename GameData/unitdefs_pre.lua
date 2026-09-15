@@ -77,6 +77,8 @@ function Def:Append(newAttribs)
 end
 
 Unit = Def:New{
+	buildCostMetal          = 1, -- avoid zero-power/XP division diagnostics
+	buildTime               = 1,
 	showNanoFrame			= false,
 	showNanoSpray			= false,
 	objectName				= "<NAME>.dae",
