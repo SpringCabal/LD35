@@ -18,6 +18,8 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
             GuiHudWidget::new(),
         ]
     );
+    #[cfg(feature = "unit-script-probe")]
+    register_widgets!(handler, [UnitScriptProbeWidget::new()]);
     #[cfg(feature = "e2e")]
     register_widgets!(handler, [DbgE2eWidget::new()]);
 }

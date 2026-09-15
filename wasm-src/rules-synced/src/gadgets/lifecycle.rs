@@ -1,7 +1,7 @@
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::state::{Global, PUBLIC, param};
-use crate::wisp;
+use crate::{unit_scripts, wisp};
 
 /// A unitdef custom param, or None when it is absent or empty.
 ///
@@ -117,6 +117,7 @@ impl Gadget<Global> for LifecycleGadget {
         for id in units {
             if let Ok(def) = spring::get_unit_def_id(id) {
                 apply_authored_collisions(id, def.0);
+                unit_scripts::queue_unit_created(id, def.0);
             }
         }
     }
@@ -130,6 +131,7 @@ impl Gadget<Global> for LifecycleGadget {
         _builder: i32,
     ) {
         let global = ctx.global();
+        unit_scripts::queue_unit_created(id, def);
         if spring::get_unit_def_id_by_name("wisp").ok() == Some(def) {
             {
                 let mut wisp = global.wisp.access_mut();

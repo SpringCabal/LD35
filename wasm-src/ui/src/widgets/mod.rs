@@ -9,6 +9,8 @@ pub mod gui_wisp_control;
 pub mod hide_default_layout;
 pub mod setup;
 pub mod snd_ambience;
+#[cfg(feature = "unit-script-probe")]
+pub mod unit_script_probe;
 
 pub use api_sync::ApiSyncWidget;
 #[cfg(feature = "e2e")]
@@ -21,3 +23,5 @@ pub use gui_wisp_control::GuiWispControlWidget;
 pub use hide_default_layout::HideDefaultLayoutWidget;
 pub use setup::setup;
 pub use snd_ambience::SndAmbienceWidget;
+#[cfg(feature = "unit-script-probe")]
+pub use unit_script_probe::UnitScriptProbeWidget;

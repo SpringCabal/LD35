@@ -4,6 +4,15 @@ use crate::state::Global;
 use crate::wisp;
 
 /// Frames a movement message stays valid.
+///
+/// The visual conformance run deliberately sends through the real LuaUI/WasmUI
+/// boundary, but its software-rendered UI can pause for more than six synced
+/// frames between updates. Keep that harness from introducing a synthetic
+/// StopMoving/StartMoving transition; production retains the Lua-compatible
+/// six-frame timeout.
+#[cfg(feature = "unit-script-probe")]
+const MOVE_STALE_FRAMES: i32 = 120;
+#[cfg(not(feature = "unit-script-probe"))]
 const MOVE_STALE_FRAMES: i32 = 6;
 
 /// The player wisp controller, ported from `unit_wisp_controller.lua`.
@@ -52,11 +61,6 @@ impl Gadget<Global> for WispGadget {
             wisp.stop_issued = true;
             pending.stop_wisp = Some(wisp.id);
         }
-        let moving = wisp.id >= 0 && wisp.movement.is_some();
-        if moving != wisp.script_moving && wisp.id >= 0 {
-            pending.animation = Some((wisp.id, moving));
-        }
-        wisp.script_moving = moving;
         wisp::rotate_body_parts(&wisp);
 
         if wisp.pieces_dirty {

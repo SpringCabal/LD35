@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 
 [features]
 headless-integration = []
+unit-script-probe = []
 e2e = []
 
 [dependencies]

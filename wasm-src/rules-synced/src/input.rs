@@ -19,6 +19,10 @@ pub fn handle_message(global: &Global, data: &[u8]) {
         }
         let frame = global.clock.access().frame;
         match command {
+            #[cfg(feature = "unit-script-probe")]
+            Some("probe_begin") => {
+                global.unit_script_probe.access_mut().active = true;
+            }
             Some("movement") => {
                 let x = fields
                     .next()

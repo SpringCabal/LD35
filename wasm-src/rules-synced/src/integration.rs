@@ -229,6 +229,15 @@ pub fn update(global: &Global, frame: i32) {
                 spring::get_unit_piece_map(state.wisp.id).is_ok_and(|pieces| !pieces.is_empty()),
                 "wisp model pieces are available to the Rust visibility controller",
             );
+            let root_piece = spring::get_unit_root_piece(state.wisp.id).ok();
+            let root_name = root_piece
+                .and_then(|piece| spring::get_unit_piece_info(state.wisp.id, piece).ok())
+                .map(|info| info.info.name);
+            check(
+                t,
+                root_piece.is_some_and(|piece| piece >= 0),
+                &format!("wisp model root piece is available ({root_piece:?}, {root_name:?})"),
+            );
             check(
                 t,
                 count_units_named("gatesmoth") == 4,
@@ -257,6 +266,7 @@ pub fn update(global: &Global, frame: i32) {
         }
         if frame == 45 {
             let now_position = spring::get_unit_position(state.wisp.id, false, false).ok();
+            let heading = spring::rules_synced::units_info::get_unit_heading(state.wisp.id, true).ok();
             let displacement = match (t.wisp_position_at_15, now_position) {
                 (Some(before), Some(after)) => {
                     let dx = after.x - before.x;
@@ -273,6 +283,13 @@ pub fn update(global: &Global, frame: i32) {
                     format_position(t.wisp_position_at_15),
                     format_position(now_position),
                     spring::get_height_map_size().ok()
+                ),
+            );
+            check(
+                t,
+                heading.is_some_and(|value| (0.5..2.6).contains(&value)),
+                &format!(
+                    "the engine turns the wisp toward right while moving right (heading {heading:?} radians)"
                 ),
             );
             // The wisp has been walking since frame 20.  Scripts/wisp.lua drives

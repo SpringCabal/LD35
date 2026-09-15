@@ -25,7 +25,6 @@ impl Gadget<Global> for ReaperGadget {
             piece_hides,
             wisp_pieces,
             stop_wisp,
-            animation,
             cage_activations,
             spawn_level,
             cages,
@@ -37,7 +36,6 @@ impl Gadget<Global> for ReaperGadget {
                 core::mem::take(&mut pending.piece_hides),
                 pending.wisp_pieces.take(),
                 pending.stop_wisp.take(),
-                pending.animation.take(),
                 core::mem::take(&mut pending.cage_activations),
                 core::mem::take(&mut pending.spawn_level),
                 core::mem::take(&mut global.world.access_mut().cages),
@@ -54,14 +52,6 @@ impl Gadget<Global> for ReaperGadget {
         }
         if let Some(id) = stop_wisp {
             let _ = spring::give_order_to_unit(id, 0, &[], 0, 0);
-        }
-        if let Some((id, moving)) = animation {
-            let _ = spring::typed::call_unit_script(
-                id,
-                if moving { "StartMoving" } else { "StopMoving" },
-                &[],
-                0,
-            );
         }
         for cage in cage_activations {
             cages::activate_cage(global, cage);

@@ -41,11 +41,14 @@ impl Gadget<Global> for SetupGadget {
 }
 
 pub fn setup(handler: &mut GadgetHandler<Global>) {
+    register_gadgets!(handler, [SetupGadget::new(), LevelGadget::new(),]);
+
+    #[cfg(feature = "unit-script-probe")]
+    register_gadgets!(handler, [UnitScriptProbeGadget::new()]);
+
     register_gadgets!(
         handler,
         [
-            SetupGadget::new(),
-            LevelGadget::new(),
             WispGadget::new(),
             TriggersGadget::new(),
             EndgameGadget::new(),

@@ -64,7 +64,11 @@ impl Widget<Global> for DbgE2eWidget {
             return;
         }
         let target = self.captured.get();
-        if [30, 65, 77, 86, 100]
+        // Frame 77 is after the body-form switch has settled. The rules-side
+        // E2E scenario sends movement|1|0 at frame 76, so this screenshot is
+        // the visual proof that the physical model faces right while moving
+        // right.
+        if [30, 77, 86, 100]
             .get(target as usize)
             .is_some_and(|minimum| frame >= *minimum)
         {

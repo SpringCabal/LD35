@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 [features]
 e2e = []
 headless-integration = []
+unit-script-probe = []
 
 [dependencies]
 spring = { workspace = true }

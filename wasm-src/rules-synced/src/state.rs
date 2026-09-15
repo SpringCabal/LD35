@@ -24,7 +24,6 @@ pub struct Wisp {
     pub movement: Option<(f32, f32)>,
     pub movement_frame: i32,
     pub stop_issued: bool,
-    pub script_moving: bool,
     pub form_frame: i32,
     pub spirit: bool,
     pub has_eyes: bool,
@@ -83,8 +82,15 @@ pub struct Pending {
     pub spawn_level: bool,
     pub spawn_end_wisp: bool,
     pub stop_wisp: Option<i32>,
-    pub animation: Option<(i32, bool)>,
     pub wisp_pieces: Option<(i32, bool, Vec<String>)>,
+}
+
+/// State for the optional runtime unit-script conformance scenario. The UI
+/// only arms this scenario; its actual actions run at fixed synced frames so
+/// Lua and WASM are compared at the same animation phase.
+#[derive(Default)]
+pub struct UnitScriptProbe {
+    pub active: bool,
 }
 
 pub fn param(name: &str, value: f32) {
@@ -111,4 +117,5 @@ pub struct Global {
     pub endgame: Resource<Endgame>,
     pub clock: Resource<Clock>,
     pub pending: Resource<Pending>,
+    pub unit_script_probe: Resource<UnitScriptProbe>,
 }

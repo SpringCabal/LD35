@@ -21,6 +21,11 @@ impl Gadget<Global> for IntegrationGadget {
         let global = ctx.global();
         integration::update(global, frame);
         integration::update_ending_integration(global, frame);
+        // Keep the player moving right long enough for the engine's turn rate
+        // to settle before the physical-form screenshot at frame 86.
+        if (73..=86).contains(&frame) {
+            crate::input::handle_message(global, b"movement|1|0");
+        }
         match frame {
             20 => crate::input::handle_message(global, b"movement|1|0"),
             25 => {
@@ -76,10 +81,6 @@ impl Gadget<Global> for IntegrationGadget {
                     crate::input::handle_message(global, message.as_bytes());
                 }
             }
-            // Arms but no legs yet: Scripts/wisp.lua runs Float_Arms here, the
-            // swim stroke.  Keep the movement input fresh across the window the
-            // assertions sample.
-            73 | 76 => crate::input::handle_message(global, b"movement|1|0"),
             // Pull the same lever a second time: it has to toggle back off.
             78 => {
                 let target = (|| {

@@ -10,6 +10,7 @@ pub mod level;
 pub mod sound;
 pub mod state;
 pub mod triggers;
+pub mod unit_scripts;
 pub mod wisp;
 
 spring_addons::export_rules_gadgets! {
@@ -17,3 +18,5 @@ spring_addons::export_rules_gadgets! {
     setup: gadgets::setup,
     scratch: 4096,
 }
+
+spring::export_core_cus!(unit_scripts::PartsCusModule);
