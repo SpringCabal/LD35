@@ -141,4 +141,10 @@ pub fn current_frame() -> i32 {
 pub struct Global {
     pub player: Resource<Player>,
     pub npcs: Resource<Npcs>,
+    /// The lever the highlight glows on as of the last draw pass.
+    ///
+    /// The click handler uses it instead of tracing again: two TraceScreenRay
+    /// calls in one frame interfere, and the second returns no hit.  It also
+    /// guarantees a click lands on whatever is actually glowing.
+    pub hovered_lever: Resource<Option<i32>>,
 }

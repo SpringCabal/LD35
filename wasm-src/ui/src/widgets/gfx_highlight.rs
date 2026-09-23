@@ -8,7 +8,7 @@
 //! decoration.
 
 use alloc::string::String;
-use core::cell::{Cell, RefCell};
+use core::cell::RefCell;
 
 use partsneeded_shared::BodyPart;
 use spring::gfx::{GfxUnitDrawOptions, TextureCreateParams};
@@ -76,19 +76,9 @@ impl Default for Pipeline {
 }
 
 thread_local! {
+    /// Thread-local because `render_to_texture` takes a bare `fn` callback,
+    /// which has no other way to reach the pipeline.
     static PIPELINE: RefCell<Pipeline> = RefCell::new(Pipeline::default());
-    /// The lever under the cursor as of the last draw pass.
-    ///
-    /// The click handler reads this instead of tracing again: two
-    /// TraceScreenRay calls in one frame interfere, and the second returns no
-    /// hit -- which silently ate lever clicks.  Reusing the hover result also
-    /// guarantees a click lands on whatever is actually glowing.
-    static HOVERED: Cell<i32> = const { Cell::new(-1) };
-}
-
-/// The lever the highlight is currently drawn on, or -1.
-pub fn hovered_lever() -> i32 {
-    HOVERED.with(Cell::get)
 }
 
 /// The hovered unit, if it is a lever the player could pull right now.
@@ -350,7 +340,7 @@ impl Widget<Global> for GfxHighlightWidget {
         } else {
             find_hovered_lever(wisp)
         };
-        HOVERED.with(|hovered| hovered.set(target));
+        *ctx.global().hovered_lever.access_mut() = (target >= 0).then_some(target);
         if target < 0 {
             return;
         }

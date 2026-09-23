@@ -414,8 +414,8 @@ impl Widget<Global> for GuiWispControlWidget {
         // interferes with the first and comes back with no hit at all.  Falling
         // back to our own trace keeps clicks working if the glow never
         // initialised (no GL, or a shader that failed to build).
-        let hovered = crate::widgets::gfx_highlight::hovered_lever();
-        let unit_id = if hovered >= 0 {
+        let hovered = *ctx.global().hovered_lever.access();
+        let unit_id = if let Some(hovered) = hovered {
             hovered
         } else {
             let Ok(trace) = spring::camera::trace_screen_ray(

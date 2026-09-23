@@ -1,14 +1,18 @@
+use core::cell::RefCell;
+
 use spring_addons::ui::Widget;
 
-use crate::audio;
+use crate::audio::{self, Audio};
 use crate::state::Global;
 
 #[derive(Default)]
-pub struct SndAmbienceWidget;
+pub struct SndAmbienceWidget {
+    audio: RefCell<Audio>,
+}
 
 impl SndAmbienceWidget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -18,7 +22,10 @@ impl Widget<Global> for SndAmbienceWidget {
     }
 
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
-        let global = ctx.global().player.access();
-        audio::update(global.parts, global.spirit, global.wisp);
+        let (parts, spirit, wisp) = {
+            let player = ctx.global().player.access();
+            (player.parts, player.spirit, player.wisp)
+        };
+        audio::update(&mut self.audio.borrow_mut(), parts, spirit, wisp);
     }
 }

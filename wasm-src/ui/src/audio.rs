@@ -1,12 +1,15 @@
-use core::cell::{Cell, RefCell};
+//! The music and ambient sounds, ported from snd_music.lua and
+//! snd_ambient.lua.
 
 use partsneeded_shared::{BodyPart, BodyParts};
 
 const FULL_MUSIC: &str = "sounds/music.ogg";
 const MUFFLED_MUSIC: &str = "sounds/muffled.ogg";
 
+/// The next frame each ambient sound may play, and the UI-side random
+/// sequence that spaces and places them.
 #[derive(Default)]
-struct AmbientState {
+pub struct Ambient {
     initialized: bool,
     next_moan: i32,
     next_wind: i32,
@@ -16,15 +19,20 @@ struct AmbientState {
     sequence: u32,
 }
 
-thread_local! { static EARS_STATE: Cell<i8> = const { Cell::new(-1) }; static AMBIENT: RefCell<AmbientState> = RefCell::new(AmbientState::default()); }
+/// Everything the sound widget remembers between updates.
+#[derive(Default)]
+pub struct Audio {
+    /// Whether the unmuffled music is playing; `None` before the first update.
+    ears: Option<bool>,
+    ambient: Ambient,
+}
 
 /// Match snd_music.lua: the world is muffled until the player recovers ears.
-pub fn update(parts: BodyParts, spirit: bool, wisp: i32) {
+pub fn update(audio: &mut Audio, parts: BodyParts, spirit: bool, wisp: i32) {
     let has_ears = parts.contains(BodyPart::Ears);
-    let next = i8::from(has_ears);
-    let changed = EARS_STATE.with(|state| state.replace(next) != next);
+    let changed = audio.ears.replace(has_ears) != Some(has_ears);
     if !changed {
-        play_ambient(parts, spirit, wisp);
+        play_ambient(&mut audio.ambient, parts, spirit, wisp);
         return;
     }
     let _ = spring::sound::stop_sound_stream(0);
@@ -33,10 +41,10 @@ pub fn update(parts: BodyParts, spirit: bool, wisp: i32) {
         if has_ears { 1.0 } else { 0.6 },
         false,
     );
-    play_ambient(parts, spirit, wisp);
+    play_ambient(&mut audio.ambient, parts, spirit, wisp);
 }
 
-fn play_ambient(parts: BodyParts, spirit: bool, wisp: i32) {
+fn play_ambient(state: &mut Ambient, parts: BodyParts, spirit: bool, wisp: i32) {
     if wisp < 0 {
         return;
     }
@@ -48,8 +56,7 @@ fn play_ambient(parts: BodyParts, spirit: bool, wisp: i32) {
     let Some(position) = position else {
         return;
     };
-    AMBIENT.with(|state| {
-        let mut state = state.borrow_mut();
+    {
         if !state.initialized {
             // snd_ambient.lua establishes each random cooldown first, so the
             // level does not play every ambient sample on frame zero.
@@ -96,7 +103,7 @@ fn play_ambient(parts: BodyParts, spirit: bool, wisp: i32) {
             play_at("sounds/mouth.00.ogg", 10.0, position);
             state.next_mouth = frame + cooldown_frames(&mut state.sequence, 10, 35);
         }
-    });
+    }
 }
 
 fn play_at(name: &str, volume: f32, position: spring::Float3) {
