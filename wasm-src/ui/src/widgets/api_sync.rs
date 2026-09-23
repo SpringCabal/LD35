@@ -1,3 +1,4 @@
+use partsneeded_shared::BodyParts;
 use spring_addons::ui::Widget;
 
 use crate::state::Global;
@@ -83,7 +84,7 @@ impl Widget<Global> for ApiSyncWidget {
             player.remaining = remaining;
             player.game_over = game_over != 0;
             player.wisp = wisp;
-            player.body_mask = mask as u8;
+            player.parts = BodyParts::from_bits(mask as u8);
             player.ending_type = ending_type;
             player.game_over_sequence = game_over_sequence != 0;
             drop(player);

@@ -1,5 +1,6 @@
 use alloc::vec::Vec;
 
+use partsneeded_shared::BodyParts;
 use spring_addons::Resource;
 
 pub const FORM_CHANGE_FRAMES: i32 = 15;
@@ -23,7 +24,7 @@ pub struct Player {
     pub ending_type: i32,
     pub game_over_sequence: bool,
     pub wisp: i32,
-    pub body_mask: u8,
+    pub parts: BodyParts,
     pub form: FormTransition,
     /// Set once the player first presses space.  ui_wisp_control.lua shows its
     /// "Press Space" prompt as a one-shot hint that the first press dismisses,
@@ -56,7 +57,7 @@ impl Default for Player {
             ending_type: -1,
             game_over_sequence: false,
             wisp: -1,
-            body_mask: 0,
+            parts: BodyParts::NONE,
             form: FormTransition::default(),
             space_used: false,
             pending_spirit: None,

@@ -8,6 +8,7 @@ pub mod input;
 #[cfg(feature = "headless-integration")]
 pub mod integration;
 pub mod level;
+pub mod log;
 pub mod sound;
 pub mod state;
 pub mod triggers;

@@ -3,7 +3,7 @@ use spring_addons::ui::Widget;
 
 use crate::state::Global;
 
-use partsneeded_shared::FORM_COOLDOWN;
+use partsneeded_shared::{BodyPart, FORM_COOLDOWN};
 
 const KEY_A: i32 = b'a' as i32;
 const KEY_D: i32 = b'd' as i32;
@@ -25,86 +25,11 @@ const RESTART_PROMPT_BOTTOM: i32 = -12;
 // each other.
 const CAMERA_FOLLOW_TAU: f32 = 0.12;
 
-// SpringApp::Reload treats an empty script as "return to menu". The WASM menu
-// normally supplies this script when launching Parts Needed, so preserve that
-// same launch context for the in-game Restart action.
-const RESTART_SCRIPT: &str = r#"[GAME]
-{
-    MapName=LD35 map 0.1;
-    GameMode=0;
-    GameType=Parts Needed WASM 0.1.0-wasm;
-
-    NumTeams=2;
-    NumUsers=2;
-
-    HostIP=127.0.0.1;
-    HostPort=8452;
-    IsHost=1;
-    NumPlayers=1;
-    GameStartDelay=0;
-
-    StartMetal=1000;
-    StartEnergy=1000;
-
-    StartposType=3;
-    LimitDGun=0;
-    DiminishingMMs=0;
-    GhostedBuildings=1;
-    MyPlayerNum=1;
-    MyPlayerName=0;
-    NumRestrictions=0;
-    MaxSpeed=20;
-    MinSpeed=0.1;
-
-    [TEAM0]
-    {
-        AllyTeam=0;
-        Side=;
-        RGBColor=0.35294118523598 0.35294118523598 1;
-        TeamLeader=1;
-        Handicap=0;
-        StartPosX=0;
-        StartPosZ=0;
-    }
-    [PLAYER1]
-    {
-        Name=0;
-        Spectator=0;
-        Team=0;
-    }
-    [TEAM1]
-    {
-        AllyTeam=1;
-        Side=;
-        RGBColor=0.7843137383461 0 0;
-        TeamLeader=1;
-        Handicap=0;
-        StartPosX=0;
-        StartPosZ=0;
-    }
-    [AI1]
-    {
-        Name=1: NullAI;
-        ShortName=NullAI;
-        Team=1;
-        IsFromDemo=0;
-        Host=1;
-        [Options] {}
-    }
-    [ALLYTEAM0]
-    {
-        NumAllies=0;
-    }
-    [ALLYTEAM1]
-    {
-        NumAllies=0;
-    }
-    [MODOPTIONS]
-    {
-        gamemode=play;
-    }
-}
-"#;
+/// The start script the menu launches Parts Needed with.  launch/ in the
+/// springcabal-games checkout (this archive lives in its spring-linux/games/)
+/// is the single source of launch settings, and the menu compiles it in the
+/// same way.  Reload needs a script: an empty one returns to the menu.
+const RESTART_SCRIPT: &str = include_str!("../../../../../../../launch/games/partsneeded/wasm.txt");
 
 fn restart_current_game() {
     let _ = spring::reload(RESTART_SCRIPT);
@@ -389,7 +314,11 @@ impl Widget<Global> for GuiWispControlWidget {
         // Match ui_wisp_control.lua: only the embodied, armed player can pull a
         // nearby lever.  In particular, tracing a lever is not enough while the
         // player is a spirit or looking across the map.
-        if button != 1 || global.game_over || global.spirit || global.body_mask & 4 == 0 {
+        if button != 1
+            || global.game_over
+            || global.spirit
+            || !global.parts.contains(BodyPart::Arms)
+        {
             // Claim the middle button as well. The engine only gives its
             // camera receiver the drag when no input receiver handles the
             // press; handling it here disables camera rotation.

@@ -1,5 +1,7 @@
 use core::cell::{Cell, RefCell};
 
+use partsneeded_shared::{BodyPart, BodyParts};
+
 const FULL_MUSIC: &str = "sounds/music.ogg";
 const MUFFLED_MUSIC: &str = "sounds/muffled.ogg";
 
@@ -17,12 +19,12 @@ struct AmbientState {
 thread_local! { static EARS_STATE: Cell<i8> = const { Cell::new(-1) }; static AMBIENT: RefCell<AmbientState> = RefCell::new(AmbientState::default()); }
 
 /// Match snd_music.lua: the world is muffled until the player recovers ears.
-pub fn update(body_mask: u8, spirit: bool, wisp: i32) {
-    let has_ears = body_mask & 2 != 0;
+pub fn update(parts: BodyParts, spirit: bool, wisp: i32) {
+    let has_ears = parts.contains(BodyPart::Ears);
     let next = i8::from(has_ears);
     let changed = EARS_STATE.with(|state| state.replace(next) != next);
     if !changed {
-        play_ambient(body_mask, spirit, wisp);
+        play_ambient(parts, spirit, wisp);
         return;
     }
     let _ = spring::sound::stop_sound_stream(0);
@@ -31,17 +33,17 @@ pub fn update(body_mask: u8, spirit: bool, wisp: i32) {
         if has_ears { 1.0 } else { 0.6 },
         false,
     );
-    play_ambient(body_mask, spirit, wisp);
+    play_ambient(parts, spirit, wisp);
 }
 
-fn play_ambient(body_mask: u8, spirit: bool, wisp: i32) {
+fn play_ambient(parts: BodyParts, spirit: bool, wisp: i32) {
     if wisp < 0 {
         return;
     }
     let frame = crate::state::current_frame();
-    let has_ears = body_mask & 2 != 0;
-    let has_nose = body_mask & 16 != 0;
-    let has_mouth = body_mask & 32 != 0;
+    let has_ears = parts.contains(BodyPart::Ears);
+    let has_nose = parts.contains(BodyPart::Nose);
+    let has_mouth = parts.contains(BodyPart::Mouth);
     let position = spring::unit_rendering::get_unit_view_position(wisp, true).ok();
     let Some(position) = position else {
         return;

@@ -128,7 +128,7 @@ impl Gadget<Global> for LifecycleGadget {
             let _ = spring::set_unit_rules_param_f32(id, "selfMoveSpeedChange", 1.0, PUBLIC);
             global.pending.access_mut().piece_hides.push(id);
         }
-        if wisp::body_part_name(def).is_some() {
+        if wisp::body_part(def).is_some() {
             global.wisp.access_mut().body_parts.push(id);
         }
         apply_authored_collisions(id, def);

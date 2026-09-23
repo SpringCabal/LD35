@@ -54,7 +54,7 @@ impl Gadget<Global> for WispGadget {
 
         if wisp.pieces_dirty {
             wisp.pieces_dirty = false;
-            pending.wisp_pieces = Some((wisp.id, wisp.spirit, wisp.collected_parts.clone()));
+            pending.wisp_pieces = Some((wisp.id, wisp.spirit, wisp.collected_parts));
         }
     }
 }

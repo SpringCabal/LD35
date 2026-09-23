@@ -10,9 +10,7 @@ pub fn update_game_end(global: &Global) {
         let wisp = global.wisp.access();
         let endgame = global.endgame.access();
         let world = global.world.access();
-        let all_parts = ["eyes", "ears", "arms", "legs", "nose", "mouth"]
-            .into_iter()
-            .all(|part| wisp.collected_parts.iter().any(|found| found == part));
+        let all_parts = wisp.collected_parts.is_complete();
         // A rescued NPC remains in npc_wisps until its authored 1.5 second
         // death/cleanup delay expires. If every remaining NPC is already in
         // that saved/dead lifecycle, wait for the counters to settle instead
@@ -131,12 +129,16 @@ pub fn spawn_ending_wisp(global: &Global) {
     crate::wisp::hide_all_wisp_pieces(id);
     // Match game_end.lua: a normal MOVE order, so the engine's own movement
     // (acceleration, speed) carries each arrival to the player.
-    let _ = spring::give_order_to_unit(
+    crate::log::check(
+        "ending wisp MOVE order",
         id,
-        crate::cmd::MOVE,
-        &[position.x, position.y, position.z],
-        0,
-        0,
+        spring::give_order_to_unit(
+            id,
+            crate::cmd::MOVE,
+            &[position.x, position.y, position.z],
+            0,
+            0,
+        ),
     );
     // The original immediately marks each arrival as saved, then removes it
     // after the short death animation. That both gives the sprite a dissolving

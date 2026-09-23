@@ -1,3 +1,4 @@
+use partsneeded_shared::BodyParts;
 use spring_addons::rules::Gadget;
 
 use crate::state::Global;
@@ -45,7 +46,6 @@ impl Gadget<Global> for UnitScriptProbeGadget {
         } else if frame == 89 {
             let mut wisp = ctx.global().wisp.access_mut();
             wisp.spirit = false;
-            wisp.has_eyes = true;
             wisp.form_frame = frame;
             wisp.pieces_dirty = true;
             crate::state::param("spiritMode", 0.0);
@@ -72,24 +72,18 @@ fn assemble(global: &Global, frame: i32) {
             let Ok(def) = spring::get_unit_def_id(id) else {
                 continue;
             };
-            if let Some(name) = crate::wisp::body_part_name(def.0) {
-                parts.push((id, name));
+            if let Some(part) = crate::wisp::body_part(def.0) {
+                parts.push((id, part));
             }
         }
     }
 
-    let mut collected = alloc::vec::Vec::new();
-    let mut has_eyes = false;
-    for (_, name) in &parts {
-        if !collected.iter().any(|part| part == name) {
-            collected.push(alloc::string::String::from(*name));
-        }
-        if *name == "eyes" {
-            has_eyes = true;
-        }
-        crate::state::param(&alloc::format!("has_{name}"), 1.0);
+    let mut collected = BodyParts::NONE;
+    for &(_, part) in &parts {
+        collected.insert(part);
+        crate::state::param(&alloc::format!("has_{}", part.name()), 1.0);
     }
-    if collected.len() != 6 {
+    if !collected.is_complete() {
         let _ = spring::echo(
             &alloc::format!(
                 "[UnitScriptProbeAssembly] ERROR frame={frame} expected=6 found={}",
@@ -103,7 +97,6 @@ fn assemble(global: &Global, frame: i32) {
     {
         let mut wisp = global.wisp.access_mut();
         wisp.collected_parts = collected;
-        wisp.has_eyes = has_eyes;
         wisp.body_parts.clear();
         wisp.pieces_dirty = true;
     }

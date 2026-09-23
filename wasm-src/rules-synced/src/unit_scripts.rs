@@ -8,6 +8,7 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
+use partsneeded_shared::{BodyPart, BodyParts};
 use spring::UnitId;
 use spring::cus::core_module::{CoreCusCallResult, CoreCusModule};
 use spring::cus::wasm::WasmCus;
@@ -16,6 +17,8 @@ use spring::cus::{
     ScriptCapabilities, SignalMask, TaskDefinition, UnitCtx, UnitScript, UnitScriptCall,
     WreckLevel,
 };
+
+use crate::wisp::{WISP_PIECE_GROUPS, group_visible};
 
 // Signals are per unit and gates never walk, so the two share a bit.
 const SIG_GATE: SignalMask = SignalMask::new(1);
@@ -103,8 +106,8 @@ impl PieceResolver for EnginePieces {
 #[derive(Clone, Copy, Default)]
 struct WispPieces {
     all: [Piece; 22],
-    arms: [Piece; 6],
-    legs: [Piece; 6],
+    /// The shown pieces and the body part that shows each.
+    groups: [(Piece, Option<BodyPart>); WISP_PIECE_GROUPS.len()],
     body: Piece,
     head: Piece,
     eyes: Piece,
@@ -160,8 +163,7 @@ impl WispPieces {
                 hair3, hair4, hand_r, head, eyes, ears, hand_l, body, mouth, nose, thigh_l,
                 thigh_r,
             ],
-            arms: [arm_l, arm_r, forearm_l, forearm_r, hand_l, hand_r],
-            legs: [thigh_l, thigh_r, crus_l, crus_r, foot_l, foot_r],
+            groups: WISP_PIECE_GROUPS.map(|(name, group)| (p(name), group)),
             body,
             head,
             eyes,
@@ -190,7 +192,8 @@ impl WispPieces {
 
 struct WispAnimationState {
     pieces: WispPieces,
-    mask: i32,
+    /// The collected parts shown, or `None` while a spirit.
+    parts: Option<BodyParts>,
     moving: bool,
 }
 
@@ -208,7 +211,7 @@ impl UnitScript for PartsUnitScript {
             pieces,
             animation: Rc::new(RefCell::new(WispAnimationState {
                 pieces,
-                mask: -1,
+                parts: None,
                 moving: false,
             })),
         }
@@ -558,9 +561,9 @@ async fn wisp_idle(state: Rc<RefCell<WispAnimationState>>, ctx: UnitCtx) {
 }
 
 fn start_wisp_movement(ctx: &UnitCtx, state: Rc<RefCell<WispAnimationState>>) {
-    let mask = state.borrow().mask;
+    let parts = state.borrow().parts.unwrap_or_default();
     ctx.signal(SIG_WALK);
-    if mask >= 0 && mask & 8 != 0 {
+    if parts.contains(BodyPart::Legs) {
         ctx.signal(SIG_FLOAT);
         ctx.spawn(TaskDefinition::with_state(
             "partsneeded-wisp-walk-legs",
@@ -572,7 +575,7 @@ fn start_wisp_movement(ctx: &UnitCtx, state: Rc<RefCell<WispAnimationState>>) {
             state,
             wisp_walk_arms,
         ));
-    } else if mask >= 0 && mask & 4 != 0 {
+    } else if parts.contains(BodyPart::Arms) {
         ctx.spawn(TaskDefinition::with_state(
             "partsneeded-wisp-float-arms",
             state,
@@ -2207,39 +2210,22 @@ async fn cage_close(ctx: UnitCtx) {
 }
 
 impl PartsUnitScript {
-    fn set_piece_mask(&mut self, ctx: &UnitCtx, mask: i32) {
+    /// Show the pieces of the collected body parts (`None`: a spirit, fully
+    /// hidden), and switch to the gait the limbs allow.
+    fn set_piece_mask(&mut self, ctx: &UnitCtx, parts: Option<BodyParts>) {
         let p = self.pieces;
-        let old_mask = self.animation.borrow().mask;
+        let old_parts = self.animation.borrow().parts;
         for piece in p.all {
             ctx.hide(piece);
         }
-        self.animation.borrow_mut().mask = mask;
-        if mask < 0 {
+        self.animation.borrow_mut().parts = parts;
+        let Some(parts) = parts else {
             return;
-        }
-        ctx.show(p.body);
-        ctx.show(p.head);
-        if mask & 1 != 0 {
-            ctx.show(p.eyes);
-        }
-        if mask & 2 != 0 {
-            ctx.show(p.ears);
-        }
-        if mask & 4 != 0 {
-            for piece in p.arms {
+        };
+        for (piece, group) in p.groups {
+            if group_visible(group, Some(parts)) {
                 ctx.show(piece);
             }
-        }
-        if mask & 8 != 0 {
-            for piece in p.legs {
-                ctx.show(piece);
-            }
-        }
-        if mask & 16 != 0 {
-            ctx.show(p.nose);
-        }
-        if mask & 32 != 0 {
-            ctx.show(p.mouth);
         }
 
         // SetPieceVisible() in the Lua script calls updateMovement() whenever
@@ -2248,8 +2234,14 @@ impl PartsUnitScript {
         // a standing one to idle.  Without this, a wisp that gains arms while
         // already moving keeps its old animation, and the first spirit ->
         // corporal switch leaves the body frozen at its spirit-form pose.
-        let limbs_changed = old_mask < 0 || (old_mask ^ mask) & (4 | 8) != 0;
-        if self.kind == Some(ScriptKind::Wisp) && limbs_changed && (mask & (4 | 8)) != 0 {
+        let limbs = |parts: BodyParts| {
+            (
+                parts.contains(BodyPart::Arms),
+                parts.contains(BodyPart::Legs),
+            )
+        };
+        let limbs_changed = old_parts.is_none_or(|old| limbs(old) != limbs(parts));
+        if self.kind == Some(ScriptKind::Wisp) && limbs_changed && limbs(parts) != (false, false) {
             if self.animation.borrow().moving {
                 start_wisp_movement(ctx, Rc::clone(&self.animation));
             } else {
@@ -2266,7 +2258,7 @@ impl PartsUnitScript {
 
 thread_local! {
     static PENDING_UNITS: RefCell<Vec<(i32, i32)>> = const { RefCell::new(Vec::new()) };
-    static PENDING_MASKS: RefCell<Vec<(i32, i32)>> = const { RefCell::new(Vec::new()) };
+    static PENDING_MASKS: RefCell<Vec<(i32, Option<BodyParts>)>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Queue a wisp piece mask (wisp.lua's SetPieceVisible groups) for the next
@@ -2274,9 +2266,9 @@ thread_local! {
 /// through the engine (`call_unit_script`) is a nested call into a module that
 /// is already running a gadget callin; the engine rejects it (ApiError 1) and
 /// the mask never arrived, leaving the wisp's animation state in spirit form.
-pub fn queue_piece_mask(unit: i32, mask: i32) {
+pub fn queue_piece_mask(unit: i32, parts: Option<BodyParts>) {
     if unit >= 0 {
-        PENDING_MASKS.with(|pending| pending.borrow_mut().push((unit, mask)));
+        PENDING_MASKS.with(|pending| pending.borrow_mut().push((unit, parts)));
     }
 }
 
@@ -2335,14 +2327,14 @@ impl PartsCusModule {
 
     fn apply_pending_masks(&mut self) {
         let pending = PENDING_MASKS.with(|masks| core::mem::take(&mut *masks.borrow_mut()));
-        for (unit_id, mask) in pending {
+        for (unit_id, parts) in pending {
             let Some(handle) = self.handles.get(&instance_id(UnitId(unit_id))).copied() else {
                 continue;
             };
             self.sync_instance_frame(handle);
             let _ = self.registry.with(handle, |instance| {
                 let ctx = instance.context();
-                instance.with_state(|script| script.set_piece_mask(&ctx, mask));
+                instance.with_state(|script| script.set_piece_mask(&ctx, parts));
             });
         }
     }
@@ -2428,10 +2420,12 @@ impl CoreCusModule for PartsCusModule {
         // not the previous frame at which the module happened to be ticked.
         self.sync_instance_frame(handle);
         if call == UnitScriptCall::RawCall {
-            let mask = arguments.first().copied().unwrap_or(-1.0) as i32;
+            // The argument is the part bits, or negative for a spirit.
+            let mask = arguments.first().copied().unwrap_or(-1.0);
+            let parts = (mask >= 0.0).then(|| BodyParts::from_bits(mask as u8));
             let _ = self.registry.with(handle, |instance| {
                 let ctx = instance.context();
-                instance.with_state(|script| script.set_piece_mask(&ctx, mask));
+                instance.with_state(|script| script.set_piece_mask(&ctx, parts));
             });
         } else {
             let _ = self.registry.with(handle, |instance| {

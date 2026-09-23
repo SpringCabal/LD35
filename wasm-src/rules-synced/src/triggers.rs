@@ -1,7 +1,11 @@
 //! Levers, plates and the doors they drive.
 
+use partsneeded_shared::BodyPart;
+
 use crate::cmd;
-use crate::state::{Global, PUBLIC, Pending, World};
+use alloc::vec::Vec;
+
+use crate::state::{Global, PUBLIC, World};
 
 /// The four gate rectangles from map_customs.lua.  These are terrain walls,
 /// not just decoration: the authored Lua game raises the height map while a
@@ -37,6 +41,9 @@ pub const LEVER_GATE: i32 = 20;
 pub const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
     [(29318, true), (23884, false), (14619, true), (19115, true)];
 
+/// unit_plate.lua's radius: a plate is pressed by a player standing this close.
+const PLATE_RADIUS: f32 = 60.0;
+
 pub fn update_triggers(global: &Global) {
     // This is the Rust counterpart of `unit_plate.lua` and the link tables in
     // `game_custom_spawn.lua`.  The map IDs are stable content IDs; only the
@@ -44,47 +51,89 @@ pub fn update_triggers(global: &Global) {
     let (has_legs, spirit, wisp_id) = {
         let wisp = global.wisp.access();
         (
-            wisp.collected_parts.iter().any(|part| part == "legs"),
+            wisp.collected_parts.contains(BodyPart::Legs),
             wisp.spirit,
             wisp.id,
         )
     };
-    let mut world = global.world.access_mut();
-    let mut pending = global.pending.access_mut();
-    for key in PLATES {
-        let Some(plate) = level_id(&world, key) else {
-            continue;
-        };
-        let active = has_legs && !spirit && wisp_id >= 0 && nearby(wisp_id, plate, 60.0);
-        set_trigger(&mut world, plate, active);
-    }
-    for link in LINKS {
-        let Some(source) = level_id(&world, link.source) else {
-            continue;
-        };
-        let Some(target) = level_id(&world, link.target) else {
-            continue;
-        };
-        // The corridor plates are one-way progression switches.  Their
-        // authored Lua link opens the gate on the rising edge and does not
-        // issue a closing command when the player walks away.  Keep the gate
-        // open once it has been opened; the lever-controlled gates remain
-        // reversible because gate 20 is handled by its bitmap below.
-        let active = is_trigger_active(&world, source)
-            || (ONE_WAY_GATES.contains(&link.target)
-                && world.active_triggerables.contains(&target));
-        set_triggerable_active(&mut world, &mut pending, target, active);
-        if link.kill && active {
-            let _ = spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC);
+    // The ONOFF orders go out after the world borrow ends: an order can raise
+    // AllowCommand and other callins synchronously.
+    let changes = {
+        let mut world = global.world.access_mut();
+        let mut changes = Vec::new();
+        for key in PLATES {
+            let Some(plate) = level_id(&world, key) else {
+                continue;
+            };
+            let active =
+                has_legs && !spirit && wisp_id >= 0 && nearby(wisp_id, plate, PLATE_RADIUS);
+            set_trigger(&mut world, plate, active);
+        }
+        for link in LINKS {
+            let Some(source) = level_id(&world, link.source) else {
+                continue;
+            };
+            let Some(target) = level_id(&world, link.target) else {
+                continue;
+            };
+            // The corridor plates are one-way progression switches.  Their
+            // authored Lua link opens the gate on the rising edge and does not
+            // issue a closing command when the player walks away.  Keep the
+            // gate open once it has been opened; the lever-controlled gate
+            // stays reversible because it is handled by its combination below.
+            let active = is_trigger_active(&world, source)
+                || (ONE_WAY_GATES.contains(&link.target)
+                    && world.active_triggerables.contains(&target));
+            if set_triggerable_active(&mut world, target, active) {
+                changes.push((target, active));
+            }
+            if link.kill && active {
+                let _ = spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC);
+            }
+        }
+        if let Some(gate) = level_id(&world, LEVER_GATE) {
+            let open = LEVER_GATE_COMBINATION.into_iter().all(|(key, expected)| {
+                level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
+            });
+            if set_triggerable_active(&mut world, gate, open) {
+                changes.push((gate, open));
+            }
+        }
+        changes
+            .into_iter()
+            .map(|(id, active)| (id, active, gate_area(&world, id)))
+            .collect::<Vec<_>>()
+    };
+    for (id, active, gate) in changes {
+        if let Some((_, x1, z1, x2, z2)) = gate {
+            // Unlike cages, gates are reversible: send both edges so the unit
+            // script and the terrain collision stay in sync.
+            set_gate_physics(id, x1, z1, x2, z2, active);
+            give_onoff(id, active);
+        } else if active {
+            // Cages only receive their rising edge; replaying their release
+            // animation would re-trigger the prisoner lifecycle.
+            give_onoff(id, true);
+            if spring::get_unit_def_id_by_name("cage")
+                .ok()
+                .is_some_and(|cage| {
+                    spring::get_unit_def_id(id)
+                        .ok()
+                        .is_some_and(|def| def.0 == cage)
+                })
+            {
+                global.pending.access_mut().cage_activations.push(id);
+            }
         }
     }
-    let Some(gate) = level_id(&world, LEVER_GATE) else {
-        return;
-    };
-    let bitmap_open = LEVER_GATE_COMBINATION.into_iter().all(|(key, expected)| {
-        level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
-    });
-    set_triggerable_active(&mut world, &mut pending, gate, bitmap_open);
+}
+
+fn give_onoff(id: i32, on: bool) {
+    crate::log::check(
+        "ONOFF order",
+        id,
+        spring::give_order_to_unit(id, cmd::ONOFF, &[if on { 1.0 } else { 0.0 }], 0, 0),
+    );
 }
 
 /// Apply the initial closed state after the level units have been created.
@@ -121,10 +170,11 @@ pub fn set_trigger(world: &mut World, id: i32, active: bool) {
     }
 }
 
-pub fn set_triggerable_active(world: &mut World, pending: &mut Pending, id: i32, active: bool) {
+/// Record a triggerable's state; true if it changed.
+fn set_triggerable_active(world: &mut World, id: i32, active: bool) -> bool {
     let was_active = world.active_triggerables.contains(&id);
     if was_active == active {
-        return;
+        return false;
     }
     if active {
         world.active_triggerables.push(id);
@@ -133,26 +183,7 @@ pub fn set_triggerable_active(world: &mut World, pending: &mut Pending, id: i32,
             .active_triggerables
             .retain(|candidate| *candidate != id);
     }
-    if let Some((_, x1, z1, x2, z2)) = gate_area(world, id) {
-        // Unlike cages, gates are reversible: send both edges so the unit
-        // script and the terrain collision stay in sync.
-        set_gate_physics(id, x1, z1, x2, z2, active);
-        let _ = spring::give_order_to_unit(id, cmd::ONOFF, &[if active { 1.0 } else { 0.0 }], 0, 0);
-    } else if active {
-        // Cages still only receive their rising edge; replaying their release
-        // animation every frame would re-trigger the prisoner lifecycle.
-        let _ = spring::give_order_to_unit(id, cmd::ONOFF, &[1.0], 0, 0);
-        if spring::get_unit_def_id_by_name("cage")
-            .ok()
-            .is_some_and(|cage| {
-                spring::get_unit_def_id(id)
-                    .ok()
-                    .is_some_and(|def| def.0 == cage)
-            })
-        {
-            pending.cage_activations.push(id);
-        }
-    }
+    true
 }
 
 fn gate_area(world: &World, id: i32) -> Option<(i32, f32, f32, f32, f32)> {

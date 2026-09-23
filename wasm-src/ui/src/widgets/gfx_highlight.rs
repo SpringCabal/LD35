@@ -10,6 +10,7 @@
 use alloc::string::String;
 use core::cell::{Cell, RefCell};
 
+use partsneeded_shared::BodyPart;
 use spring::gfx::{GfxUnitDrawOptions, TextureCreateParams};
 use spring::gl;
 use spring_addons::event::ViewGeometry;
@@ -345,7 +346,7 @@ impl Widget<Global> for GfxHighlightWidget {
             let player = ctx.global().player.access();
             (
                 player.spirit,
-                player.body_mask & 4 != 0,
+                player.parts.contains(BodyPart::Arms),
                 player.wisp,
                 player.game_over,
             )

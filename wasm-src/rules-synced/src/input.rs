@@ -1,5 +1,7 @@
 //! Player commands arriving from the UI over `RecvLuaMsg`.
 
+use partsneeded_shared::BodyPart;
+
 use crate::state::{FORM_COOLDOWN, Global, param};
 use crate::triggers::nearby;
 use crate::{cmd, endgame};
@@ -45,7 +47,7 @@ pub fn handle_message(global: &Global, data: &[u8]) {
                     wisp.form_frame = frame;
                     // Leaving spirit form needs eyes; otherwise the switch
                     // always returns to it.
-                    wisp.spirit = !(wisp.spirit && wisp.has_eyes);
+                    wisp.spirit = !(wisp.spirit && wisp.collected_parts.contains(BodyPart::Eyes));
                     wisp.pieces_dirty = true;
                     wisp.spirit
                 };
@@ -59,7 +61,7 @@ pub fn handle_message(global: &Global, data: &[u8]) {
                     let (has_arms, spirit, wisp_id) = {
                         let wisp = global.wisp.access();
                         (
-                            wisp.collected_parts.iter().any(|part| part == "arms"),
+                            wisp.collected_parts.contains(BodyPart::Arms),
                             wisp.spirit,
                             wisp.id,
                         )
@@ -88,7 +90,11 @@ pub fn handle_message(global: &Global, data: &[u8]) {
                         }
                         i32::from(world.active_triggers.contains(&id)) as f32
                     };
-                    let _ = spring::give_order_to_unit(id, cmd::ONOFF, &[enabled], 0, 0);
+                    crate::log::check(
+                        "lever ONOFF order",
+                        id,
+                        spring::give_order_to_unit(id, cmd::ONOFF, &[enabled], 0, 0),
+                    );
                 }
             }
             Some("npc_wisp") => {

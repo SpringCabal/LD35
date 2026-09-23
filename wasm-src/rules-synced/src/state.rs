@@ -5,6 +5,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use partsneeded_shared::BodyParts;
 use spring_addons::Resource;
 
 pub const PUBLIC: i32 = 32;
@@ -26,9 +27,9 @@ pub struct Wisp {
     pub stop_issued: bool,
     pub form_frame: i32,
     pub spirit: bool,
-    pub has_eyes: bool,
+    /// The body-part pickups still lying in the level.
     pub body_parts: Vec<i32>,
-    pub collected_parts: Vec<String>,
+    pub collected_parts: BodyParts,
     pub pieces_dirty: bool,
 }
 
@@ -78,7 +79,7 @@ pub struct Pending {
     pub spawn_level: bool,
     pub spawn_end_wisp: bool,
     pub stop_wisp: Option<i32>,
-    pub wisp_pieces: Option<(i32, bool, Vec<String>)>,
+    pub wisp_pieces: Option<(i32, bool, BodyParts)>,
 }
 
 /// State for the optional runtime unit-script conformance scenario. The UI

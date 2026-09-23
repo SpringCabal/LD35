@@ -1,6 +1,8 @@
 use alloc::format;
 use core::cell::RefCell;
 
+use partsneeded_shared::BodyPart;
+
 use crate::endgame::{game_over_type, mark_wisp_dying};
 use crate::state::{Endgame, Global, Wisp, World, param};
 use crate::triggers::{LEVER_GATE, level_id};
@@ -245,7 +247,7 @@ pub fn update(global: &Global, frame: i32) {
                     count_units_named("gatesmoth")
                 ),
             );
-            for part in ["eyes", "ears", "arms", "legs", "nose", "mouth"] {
+            for part in BodyPart::ALL.map(BodyPart::name) {
                 check(
                     t,
                     count_units_named(part) == 1,
@@ -359,7 +361,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 65 {
             check(
                 t,
-                state.wisp.has_eyes,
+                state.wisp.collected_parts.contains(BodyPart::Eyes),
                 "engine-positioned player collects eyes body part",
             );
             check(
@@ -377,7 +379,7 @@ pub fn update(global: &Global, frame: i32) {
             let lever = level_id(state.world, TEST_LEVER);
             check(
                 t,
-                state.wisp.collected_parts.iter().any(|part| part == "arms")
+                state.wisp.collected_parts.contains(BodyPart::Arms)
                     && lever.is_some_and(|id| state.world.active_triggers.contains(&id)),
                 "nearby armed body can toggle a lever after form change",
             );
@@ -490,7 +492,7 @@ pub fn update(global: &Global, frame: i32) {
             let plate = level_id(state.world, TEST_PLATE);
             check(
                 t,
-                state.wisp.collected_parts.iter().any(|part| part == "legs")
+                state.wisp.collected_parts.contains(BodyPart::Legs)
                     && plate.is_some_and(|id| state.world.active_triggers.contains(&id)),
                 "embodied player with legs activates an authored standing plate",
             );

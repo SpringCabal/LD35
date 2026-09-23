@@ -19,6 +19,6 @@ impl Widget<Global> for SndAmbienceWidget {
 
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
         let global = ctx.global().player.access();
-        audio::update(global.body_mask, global.spirit, global.wisp);
+        audio::update(global.parts, global.spirit, global.wisp);
     }
 }

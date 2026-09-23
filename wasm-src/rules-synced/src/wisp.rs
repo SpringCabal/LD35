@@ -2,8 +2,10 @@
 //!
 //! Ported from `unit_wisp_controller.lua`.
 
-use alloc::string::String;
+use alloc::format;
 use alloc::vec::Vec;
+
+use partsneeded_shared::{BodyPart, BodyParts};
 
 use crate::state::{Wisp, param};
 
@@ -88,11 +90,6 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
         return Vec::new();
     };
     let mut collected = Vec::new();
-    // The loop reads `body_parts`, so the newly collected names are staged
-    // here and merged after it ends.
-    let mut collected_names: Vec<String> = Vec::new();
-    let mut pieces_dirty = false;
-    let mut has_eyes = false;
     for id in &wisp.body_parts {
         let Ok(part_position) = spring::get_unit_position(*id, false, false) else {
             continue;
@@ -102,34 +99,27 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
         if dx * dx + dz * dz > PICKUP_RADIUS * PICKUP_RADIUS {
             continue;
         }
-        let Ok(def) = spring::get_unit_def_id(*id) else {
+        let Some(part) = spring::get_unit_def_id(*id)
+            .ok()
+            .and_then(|def| body_part(def.0))
+        else {
             continue;
         };
-        let Some(name) = body_part_name(def.0) else {
-            continue;
-        };
-        let mut key = String::from("has_");
-        key.push_str(name);
-        param(&key, 1.0);
-        if !wisp.collected_parts.iter().any(|part| part == name)
-            && !collected_names.iter().any(|part| part == name)
-        {
-            collected_names.push(String::from(name));
-            pieces_dirty = true;
-        }
-        if name == "eyes" {
-            has_eyes = true;
-        }
-        collected.push(*id);
+        param(&format!("has_{}", part.name()), 1.0);
+        collected.push((*id, part));
     }
-    wisp.collected_parts.append(&mut collected_names);
-    wisp.pieces_dirty |= pieces_dirty;
-    wisp.has_eyes |= has_eyes;
-    wisp.body_parts.retain(|id| !collected.contains(id));
+    for &(_, part) in &collected {
+        if !wisp.collected_parts.contains(part) {
+            wisp.collected_parts.insert(part);
+            wisp.pieces_dirty = true;
+        }
+    }
+    wisp.body_parts
+        .retain(|id| !collected.iter().any(|(collected, _)| collected == id));
     collected
         .into_iter()
         // Reclaimed: a pickup vanishes at once, with no death animation.
-        .map(|id| (id, true, wisp.id))
+        .map(|(id, _)| (id, true, wisp.id))
         .collect()
 }
 
@@ -147,66 +137,65 @@ pub fn rotate_body_parts(wisp: &Wisp) {
     }
 }
 
-pub fn body_part_name(def: i32) -> Option<&'static str> {
-    ["eyes", "ears", "arms", "legs", "nose", "mouth"]
+pub fn body_part(def: i32) -> Option<BodyPart> {
+    BodyPart::ALL
         .into_iter()
-        .find(|name| spring::get_unit_def_id_by_name(name).ok() == Some(def))
+        .find(|part| spring::get_unit_def_id_by_name(part.name()).ok() == Some(def))
+}
+
+/// wisp.lua's piece groups: the body part that shows each piece.  Body and
+/// Head (`None`) show whenever the wisp is embodied; pieces not listed here,
+/// the hair, never do.
+pub const WISP_PIECE_GROUPS: [(&str, Option<BodyPart>); 18] = [
+    ("Body", None),
+    ("Head", None),
+    ("Eyes", Some(BodyPart::Eyes)),
+    ("Ears", Some(BodyPart::Ears)),
+    ("ArmL", Some(BodyPart::Arms)),
+    ("ArmR", Some(BodyPart::Arms)),
+    ("ForeArmL", Some(BodyPart::Arms)),
+    ("ForeArmR", Some(BodyPart::Arms)),
+    ("HandL", Some(BodyPart::Arms)),
+    ("HandR", Some(BodyPart::Arms)),
+    ("ThighL", Some(BodyPart::Legs)),
+    ("ThighR", Some(BodyPart::Legs)),
+    ("CrusL", Some(BodyPart::Legs)),
+    ("CrusR", Some(BodyPart::Legs)),
+    ("FootL", Some(BodyPart::Legs)),
+    ("FootR", Some(BodyPart::Legs)),
+    ("Nose", Some(BodyPart::Nose)),
+    ("Mouth", Some(BodyPart::Mouth)),
+];
+
+/// Whether a group's pieces show for a wisp embodied with `parts`
+/// (`None`: a spirit, with every piece hidden).
+pub fn group_visible(group: Option<BodyPart>, parts: Option<BodyParts>) -> bool {
+    parts.is_some_and(|parts| group.is_none_or(|part| parts.contains(part)))
 }
 
 pub fn hide_all_wisp_pieces(id: i32) {
-    crate::unit_scripts::queue_piece_mask(id, -1);
+    crate::unit_scripts::queue_piece_mask(id, None);
 }
 
-pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: &[String]) {
+pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: BodyParts) {
     if id < 0 {
         return;
     }
-    // Preserve the original wisp.lua piece groups and animation state. This
-    // is deliberately a unit-script call, not a renderer approximation.
-    let mask = if spirit {
-        -1
-    } else {
-        ["eyes", "ears", "arms", "legs", "nose", "mouth"]
-            .into_iter()
-            .enumerate()
-            .filter(|(_, part)| collected_parts.iter().any(|owned| owned == *part))
-            .fold(0, |mask, (bit, _)| mask | (1 << bit))
-    };
-    crate::unit_scripts::queue_piece_mask(id, mask);
+    // The unit script owns the piece groups and the gait they select.
+    let parts = (!spirit).then_some(collected_parts);
+    crate::unit_scripts::queue_piece_mask(id, parts);
     // Lua's Show(parent) semantics differ on the Core renderer: making the
     // body visible can implicitly re-enable children that Lua had hidden.
-    // Apply the exact authored mask at the engine piece level as well, while
-    // leaving the original unit script responsible for animation state.
+    // Apply the exact authored mask at the engine piece level as well.
     if let Ok(pieces) = spring::get_unit_piece_map(id) {
         for piece in pieces {
-            let visible = !spirit
-                && match piece.name.as_str() {
-                    "Body" | "Head" => true,
-                    "Eyes" => mask & 1 != 0,
-                    "Ears" => mask & 2 != 0,
-                    "ArmL" | "ArmR" | "ForeArmL" | "ForeArmR" | "HandL" | "HandR" => mask & 4 != 0,
-                    "ThighL" | "ThighR" | "CrusL" | "CrusR" | "FootL" | "FootR" => mask & 8 != 0,
-                    "Nose" => mask & 16 != 0,
-                    "Mouth" => mask & 32 != 0,
-                    _ => false,
-                };
+            let visible = WISP_PIECE_GROUPS
+                .iter()
+                .find(|(name, _)| *name == piece.name)
+                .is_some_and(|(_, group)| group_visible(*group, parts));
             // GetUnitPieceMap exposes Lua's one-based piece numbers; the Core
             // visibility call is zero-based.
             let _ = spring::unit_control::set_unit_piece_visible(id, piece.piece_num - 1, visible);
         }
     }
-}
-
-pub fn body_part_mask(wisp: &Wisp) -> u8 {
-    wisp.collected_parts.iter().fold(0, |mask, part| {
-        mask | match part.as_str() {
-            "eyes" => 1,
-            "ears" => 2,
-            "arms" => 4,
-            "legs" => 8,
-            "nose" => 16,
-            "mouth" => 32,
-            _ => 0,
-        }
-    })
 }

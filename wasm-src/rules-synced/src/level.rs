@@ -47,7 +47,7 @@ pub struct LevelUnit {
 /// Create a unit of the player's team at `position`.
 pub fn spawn_unit(name: &str, position: Float3) -> Option<i32> {
     let def = spring::get_unit_def_id_by_name(name).ok()?;
-    spring::create_unit(
+    let created = spring::create_unit(
         spring::UnitDefRef { name, id: def },
         position,
         0,
@@ -57,8 +57,15 @@ pub fn spawn_unit(name: &str, position: Float3) -> Option<i32> {
             unit_id: -1,
             builder_id: -1,
         },
-    )
-    .ok()
+    );
+    if let Err(error) = &created {
+        spring_addons::log::warning(&alloc::format!(
+            "creating {name} at ({:.0}, {:.0}) failed: {error:?}",
+            position.x,
+            position.z
+        ));
+    }
+    created.ok()
 }
 
 fn create(unit: &LevelUnit) -> Option<i32> {

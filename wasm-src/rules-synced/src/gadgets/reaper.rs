@@ -48,10 +48,14 @@ impl Gadget<Global> for ReaperGadget {
             wisp::hide_all_wisp_pieces(id);
         }
         if let Some((id, spirit, parts)) = wisp_pieces {
-            wisp::sync_wisp_pieces(id, spirit, &parts);
+            wisp::sync_wisp_pieces(id, spirit, parts);
         }
         if let Some(id) = stop_wisp {
-            let _ = spring::give_order_to_unit(id, crate::cmd::STOP, &[], 0, 0);
+            crate::log::check(
+                "STOP order",
+                id,
+                spring::give_order_to_unit(id, crate::cmd::STOP, &[], 0, 0),
+            );
         }
         for cage in cage_activations {
             cages::activate_cage(global, cage);
@@ -71,7 +75,7 @@ impl Gadget<Global> for ReaperGadget {
             endgame::spawn_ending_wisp(global);
         }
         for (id, reclaimed, attacker) in destroys {
-            let _ = spring::destroy_unit(
+            let result = spring::destroy_unit(
                 id,
                 spring::rules_synced::unit_control::DestroyUnitOptions {
                     selfd: false,
@@ -80,6 +84,7 @@ impl Gadget<Global> for ReaperGadget {
                     recycle_id: false,
                 },
             );
+            crate::log::check("destroy", id, result);
         }
     }
 }

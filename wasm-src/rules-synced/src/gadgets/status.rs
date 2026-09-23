@@ -4,7 +4,7 @@ use core::cell::RefCell;
 use spring_addons::rules::Gadget;
 
 use crate::state::Global;
-use crate::wisp;
+use partsneeded_shared::BodyPart;
 
 /// Heartbeat interval, so the UI still resyncs if a message is ever missed.
 const HEARTBEAT_FRAMES: i32 = 15;
@@ -31,11 +31,11 @@ impl Gadget<Global> for StatusGadget {
         let payload = alloc::format!(
             "PARTS_STATUS|{}|{}|{}|{}|{}|{}|{}|{}",
             i32::from(wisp.spirit),
-            i32::from(wisp.has_eyes),
+            i32::from(wisp.collected_parts.contains(BodyPart::Eyes)),
             wisp.body_parts.len(),
             i32::from(endgame.game_over),
             wisp.id,
-            wisp::body_part_mask(&wisp),
+            wisp.collected_parts.bits(),
             endgame.ending_type,
             i32::from(endgame.sequence_complete),
         );
