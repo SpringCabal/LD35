@@ -45,8 +45,7 @@ pub struct LevelUnit {
 }
 
 /// Create a unit of the player's team at `position`.
-pub fn spawn_unit(name: &str, position: Float3) -> Option<i32> {
-    let def = spring::get_unit_def_id_by_name(name).ok()?;
+pub fn spawn_unit(name: &str, def: i32, position: Float3) -> Option<i32> {
     let created = spring::create_unit(
         spring::UnitDefRef { name, id: def },
         position,
@@ -59,17 +58,19 @@ pub fn spawn_unit(name: &str, position: Float3) -> Option<i32> {
         },
     );
     if let Err(error) = &created {
-        spring_addons::log::warning(&alloc::format!(
+        spring::log_warning!(
+            crate::log::SECTION,
             "creating {name} at ({:.0}, {:.0}) failed: {error:?}",
             position.x,
             position.z
-        ));
+        );
     }
     created.ok()
 }
 
 fn create(unit: &LevelUnit) -> Option<i32> {
-    let id = spawn_unit(unit.name, Float3::new(unit.x, unit.y, unit.z))?;
+    let def = spring::get_unit_def_id_by_name(unit.name).ok()?;
+    let id = spawn_unit(unit.name, def, Float3::new(unit.x, unit.y, unit.z))?;
     // All authored static level geometry is placed at an explicit map height.
     // The player wisp is also an authored entry, but it must retain its normal
     // ground move type; putting it under MoveCtrl makes the walk animation run
@@ -125,12 +126,10 @@ fn adopt_map_gates(ids: &mut Vec<(i32, i32)>) {
     const MATCH_RADIUS_SQUARED: f32 = 64.0 * 64.0;
     let mut claimed = [false; GATES.len()];
 
-    if let (Ok(gate_def), Ok(units)) = (
-        spring::get_unit_def_id_by_name("gatesmoth"),
-        spring::get_all_units(),
-    ) {
+    let gate_def = crate::defs::defs().gate;
+    if let Ok(units) = spring::get_all_units() {
         for unit_id in units {
-            if spring::get_unit_def_id(unit_id).ok() != Some(spring::DefId(gate_def)) {
+            if crate::defs::unit_def(unit_id) != gate_def {
                 continue;
             }
             let Ok(position) = spring::get_unit_position(unit_id, false, false) else {

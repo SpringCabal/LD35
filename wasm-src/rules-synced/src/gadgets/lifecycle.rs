@@ -1,26 +1,14 @@
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
+use crate::defs::{collision, defs};
 use crate::state::{Global, PUBLIC, param};
-use crate::{unit_scripts, wisp};
-
-/// A unitdef custom param, or None when it is absent or empty.
-///
-/// The engine reports a missing key as an empty string, which Lua sees as nil.
-fn custom_param(def: i32, key: &str) -> Option<alloc::string::String> {
-    spring::unit_defs::get_unit_def_custom_param(def, key)
-        .ok()
-        .filter(|value| !value.is_empty())
-}
-
-fn enabled_custom_param(def: i32, key: &str) -> bool {
-    custom_param(def, key).is_some_and(|value| value != "false" && value != "0")
-}
+use crate::unit_scripts;
 
 /// Keep map-authored walls at the level's explicit floor height.  A map unit
 /// can predate the WASM rules module, so it does not necessarily pass through
 /// level::create(), where the same MoveCtrl pin is applied.
 fn pin_authored_wall_height(id: i32, def: i32) {
-    if !enabled_custom_param(def, "wall") {
+    if !collision(def).pinned_wall {
         return;
     }
     let Ok(position) = spring::get_unit_position(id, false, false) else {
@@ -57,15 +45,16 @@ fn apply_authored_collisions(id: i32, def: i32) {
     };
 
     // unit_collisions.lua
-    if custom_param(def, "wall").is_some() && custom_param(def, "wall_blocking").is_none() {
+    let rule = collision(def);
+    if rule.scenery_wall {
         clear_volume();
         clear_blocking(false);
         return;
     }
     // unit_plate.lua.  A lever keeps quad_map_rays so TraceScreenRay can still
     // find one to click; everything else loses its volume too.
-    if custom_param(def, "trigger").is_some() {
-        if spring::get_unit_def_id_by_name("lever").ok() == Some(def) {
+    if rule.trigger {
+        if def == defs().lever {
             clear_blocking(true);
         } else {
             clear_volume();
@@ -119,7 +108,8 @@ impl Gadget<Global> for LifecycleGadget {
     ) {
         let global = ctx.global();
         unit_scripts::queue_unit_created(id, def);
-        if spring::get_unit_def_id_by_name("wisp").ok() == Some(def) {
+        let defs = defs();
+        if def == defs.wisp {
             {
                 let mut wisp = global.wisp.access_mut();
                 wisp.id = id;
@@ -128,14 +118,14 @@ impl Gadget<Global> for LifecycleGadget {
             let _ = spring::set_unit_rules_param_f32(id, "selfMoveSpeedChange", 1.0, PUBLIC);
             global.pending.access_mut().piece_hides.push(id);
         }
-        if wisp::body_part(def).is_some() {
+        if defs.body_part(def).is_some() {
             global.wisp.access_mut().body_parts.push(id);
         }
         apply_authored_collisions(id, def);
-        if spring::get_unit_def_id_by_name("cage").ok() == Some(def) {
+        if def == defs.cage {
             global.world.access_mut().cages.push(id);
         }
-        if spring::get_unit_def_id_by_name("npcwisp").ok() == Some(def) {
+        if def == defs.npcwisp {
             let alive = {
                 let mut world = global.world.access_mut();
                 world.npc_wisps.push(id);

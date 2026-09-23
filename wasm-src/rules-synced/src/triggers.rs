@@ -1,8 +1,8 @@
 //! Levers, plates and the doors they drive.
 
 use partsneeded_shared::BodyPart;
+use spring::cmd;
 
-use crate::cmd;
 use alloc::vec::Vec;
 
 use crate::state::{Global, PUBLIC, World};
@@ -114,14 +114,7 @@ pub fn update_triggers(global: &Global) {
             // Cages only receive their rising edge; replaying their release
             // animation would re-trigger the prisoner lifecycle.
             give_onoff(id, true);
-            if spring::get_unit_def_id_by_name("cage")
-                .ok()
-                .is_some_and(|cage| {
-                    spring::get_unit_def_id(id)
-                        .ok()
-                        .is_some_and(|def| def.0 == cage)
-                })
-            {
+            if crate::defs::unit_def(id) == crate::defs::defs().cage {
                 global.pending.access_mut().cage_activations.push(id);
             }
         }

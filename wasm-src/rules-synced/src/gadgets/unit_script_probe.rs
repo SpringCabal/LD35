@@ -72,7 +72,7 @@ fn assemble(global: &Global, frame: i32) {
             let Ok(def) = spring::get_unit_def_id(id) else {
                 continue;
             };
-            if let Some(part) = crate::wisp::body_part(def.0) {
+            if let Some(part) = crate::defs::defs().body_part(def.0) {
                 parts.push((id, part));
             }
         }

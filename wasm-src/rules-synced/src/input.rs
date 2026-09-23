@@ -2,9 +2,10 @@
 
 use partsneeded_shared::BodyPart;
 
+use crate::endgame;
 use crate::state::{FORM_COOLDOWN, Global, param};
 use crate::triggers::nearby;
-use crate::{cmd, endgame};
+use spring::cmd;
 
 pub fn handle_message(global: &Global, data: &[u8]) {
     let Ok(message) = core::str::from_utf8(data) else {
@@ -66,14 +67,7 @@ pub fn handle_message(global: &Global, data: &[u8]) {
                             wisp.id,
                         )
                     };
-                    let is_lever =
-                        spring::get_unit_def_id_by_name("lever")
-                            .ok()
-                            .is_some_and(|lever| {
-                                spring::get_unit_def_id(id)
-                                    .ok()
-                                    .is_some_and(|def| def.0 == lever)
-                            });
+                    let is_lever = crate::defs::unit_def(id) == crate::defs::defs().lever;
                     if spirit || !has_arms || !is_lever || !nearby(wisp_id, id, 100.0) {
                         return;
                     }

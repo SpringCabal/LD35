@@ -54,7 +54,7 @@ impl Gadget<Global> for ReaperGadget {
             crate::log::check(
                 "STOP order",
                 id,
-                spring::give_order_to_unit(id, crate::cmd::STOP, &[], 0, 0),
+                spring::give_order_to_unit(id, spring::cmd::STOP, &[], 0, 0),
             );
         }
         for cage in cage_activations {

@@ -133,9 +133,7 @@ impl FormTransition {
 }
 
 pub fn current_frame() -> i32 {
-    spring::game::get_game_frame(0)
-        .map(|value| (value.low16 | (value.high16 << 16)) as i32)
-        .unwrap_or(0)
+    spring::game::frame().map_or(0, |frame| frame as i32)
 }
 
 /// The shared communication namespace for the UI module.

@@ -113,13 +113,7 @@ fn find_hovered_lever(player_wisp: i32) -> i32 {
         return -1;
     };
     let unit_id = trace.hit_id;
-    let Ok(lever_def) = spring::get_unit_def_id_by_name("lever") else {
-        return -1;
-    };
-    if spring::get_unit_def_id(unit_id)
-        .ok()
-        .is_none_or(|def| def.0 != lever_def)
-    {
+    if crate::defs::unit_def(unit_id) != crate::defs::defs().lever {
         return -1;
     }
     let (Ok(lever), Ok(wisp)) = (

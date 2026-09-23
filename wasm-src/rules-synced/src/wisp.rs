@@ -89,6 +89,7 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
     let Ok(position) = spring::get_unit_position(wisp.id, false, false) else {
         return Vec::new();
     };
+    let defs = crate::defs::defs();
     let mut collected = Vec::new();
     for id in &wisp.body_parts {
         let Ok(part_position) = spring::get_unit_position(*id, false, false) else {
@@ -99,10 +100,7 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
         if dx * dx + dz * dz > PICKUP_RADIUS * PICKUP_RADIUS {
             continue;
         }
-        let Some(part) = spring::get_unit_def_id(*id)
-            .ok()
-            .and_then(|def| body_part(def.0))
-        else {
+        let Some(part) = defs.body_part(crate::defs::unit_def(*id)) else {
             continue;
         };
         param(&format!("has_{}", part.name()), 1.0);
@@ -135,12 +133,6 @@ pub fn rotate_body_parts(wisp: &Wisp) {
             spring::Float3::new(rotation.pitch, rotation.yaw + 0.1, rotation.roll),
         );
     }
-}
-
-pub fn body_part(def: i32) -> Option<BodyPart> {
-    BodyPart::ALL
-        .into_iter()
-        .find(|part| spring::get_unit_def_id_by_name(part.name()).ok() == Some(def))
 }
 
 /// wisp.lua's piece groups: the body part that shows each piece.  Body and

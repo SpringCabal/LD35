@@ -1,6 +1,7 @@
 use spring_addons::event::{EventResult, KeyEvent};
 use spring_addons::ui::Widget;
 
+use crate::defs::{defs, unit_def};
 use crate::state::Global;
 
 use partsneeded_shared::{BodyPart, FORM_COOLDOWN};
@@ -24,6 +25,9 @@ const RESTART_PROMPT_BOTTOM: i32 = -12;
 // transition itself stays at zero so the two interpolation layers do not fight
 // each other.
 const CAMERA_FOLLOW_TAU: f32 = 0.12;
+
+/// Update ticks between scans for NPC wisps outside the ending.
+const NPC_SCAN_INTERVAL: i32 = 30;
 
 /// The start script the in-game restart reloads.  It mirrors
 /// springcabal-games' launch/games/partsneeded/wasm.txt, the script the menu
@@ -130,6 +134,8 @@ pub struct GuiWispControlWidget {
     last_form_change: core::cell::Cell<i32>,
     screen_width: core::cell::Cell<i32>,
     screen_height: core::cell::Cell<i32>,
+    /// NPC wisps and lights already set to no-draw, sorted.
+    hidden: core::cell::RefCell<Vec<i32>>,
     camera_tracking: core::cell::RefCell<CameraTracking>,
 }
 
@@ -218,21 +224,39 @@ impl GuiWispControlWidget {
             self.scan_ticks.set(self.scan_ticks.get() - 1);
             return;
         }
-        self.scan_ticks.set(if ending { 0 } else { 30 });
-        let (Ok(wisp_def), Ok(npc_def)) = (
-            spring::get_unit_def_id_by_name("wisp"),
-            spring::get_unit_def_id_by_name("npcwisp"),
-        ) else {
-            return;
-        };
+        self.scan_ticks
+            .set(if ending { 0 } else { NPC_SCAN_INTERVAL });
         let Ok(all_units) = spring::get_all_units() else {
             return;
         };
-        if let Some(player) = all_units
-            .iter()
-            .copied()
-            .find(|unit_id| spring::units_info::get_unit_def_id(*unit_id).ok() == Some(wisp_def))
-        {
+        let defs = defs();
+        let mut player = None;
+        let mut wisps = Vec::new();
+        let mut hidden = self.hidden.borrow_mut();
+        let mut still_hidden = Vec::with_capacity(hidden.len());
+        for unit_id in all_units {
+            let def = unit_def(unit_id);
+            if def == defs.wisp {
+                player.get_or_insert(unit_id);
+                continue;
+            }
+            if def == defs.npcwisp {
+                wisps.push(unit_id);
+            } else if def != defs.light {
+                continue;
+            }
+            // NPC wisps are drawn as billboards, and unit_wisp_draw.lua hides
+            // every light unit: they exist to place a deferred light.  Hide
+            // each one once, when it first shows up.
+            if hidden.binary_search(&unit_id).is_err() {
+                let _ = spring::unsynced_ctrl::set_unit_no_draw(unit_id, true);
+            }
+            still_hidden.push(unit_id);
+        }
+        still_hidden.sort_unstable();
+        *hidden = still_hidden;
+        drop(hidden);
+        if let Some(player) = player {
             let spirit = {
                 let mut state = ctx.global().player.access_mut();
                 state.wisp = player;
@@ -241,24 +265,6 @@ impl GuiWispControlWidget {
             if spirit {
                 let _ = spring::unsynced_ctrl::set_unit_no_draw(player, true);
             }
-        }
-        // unit_wisp_draw.lua hides every light unit: they exist to place a
-        // deferred light, their model is never meant to be seen.  Leaving them
-        // drawn scattered visible props through the level.
-        if let Ok(light_def) = spring::get_unit_def_id_by_name("light") {
-            for unit_id in all_units
-                .iter()
-                .filter(|id| spring::units_info::get_unit_def_id(**id).ok() == Some(light_def))
-            {
-                let _ = spring::unsynced_ctrl::set_unit_no_draw(*unit_id, true);
-            }
-        }
-        let wisps: Vec<i32> = all_units
-            .into_iter()
-            .filter(|unit_id| spring::units_info::get_unit_def_id(*unit_id).ok() == Some(npc_def))
-            .collect();
-        for unit_id in &wisps {
-            let _ = spring::unsynced_ctrl::set_unit_no_draw(*unit_id, true);
         }
         ctx.global().npcs.access_mut().wisps = wisps;
     }
@@ -284,7 +290,10 @@ impl Widget<Global> for GuiWispControlWidget {
         }
         self.refresh_npc_wisps(ctx);
         self.lock_camera(ctx, dt);
-        let _ = spring::selection::select_unit_array(&[], false);
+        // The player never selects anything: the wisp is steered directly.
+        if spring::selection::get_selected_units_count(0).unwrap_or(0) > 0 {
+            let _ = spring::selection::select_unit_array(&[], false);
+        }
     }
 
     fn draw_screen(&self, _ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
@@ -424,13 +433,7 @@ impl Widget<Global> for GuiWispControlWidget {
             };
             trace.hit_id
         };
-        let Ok(lever_def) = spring::get_unit_def_id_by_name("lever") else {
-            return EventResult::Handled;
-        };
-        if spring::get_unit_def_id(unit_id)
-            .ok()
-            .is_none_or(|def| def.0 != lever_def)
-        {
+        if unit_def(unit_id) != defs().lever {
             return EventResult::Handled;
         }
         let wisp = global.wisp;

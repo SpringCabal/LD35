@@ -121,7 +121,8 @@ pub fn spawn_ending_wisp(global: &Global) {
     let dx = ending_offset(index, 0x243f_6a88);
     let dz = ending_offset(index, 0x85a3_08d3);
     let spawn_position = spring::Float3::new(position.x + dx, position.y, position.z + dz);
-    let Some(id) = crate::level::spawn_unit("npcwisp", spawn_position) else {
+    let Some(id) = crate::level::spawn_unit("npcwisp", crate::defs::defs().npcwisp, spawn_position)
+    else {
         return;
     };
     // The UI draws these as spirit billboards; hide the physical model before
@@ -134,7 +135,7 @@ pub fn spawn_ending_wisp(global: &Global) {
         id,
         spring::give_order_to_unit(
             id,
-            crate::cmd::MOVE,
+            spring::cmd::MOVE,
             &[position.x, position.y, position.z],
             0,
             0,

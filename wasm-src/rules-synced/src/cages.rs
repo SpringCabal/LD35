@@ -10,7 +10,7 @@ pub fn spawn_cage_wisp(cage: i32) {
     let Ok(position) = spring::get_unit_position(cage, false, false) else {
         return;
     };
-    let _ = crate::level::spawn_unit("npcwisp", position);
+    let _ = crate::level::spawn_unit("npcwisp", crate::defs::defs().npcwisp, position);
 }
 
 pub fn activate_cage(global: &Global, cage: i32) {

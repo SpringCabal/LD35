@@ -36,25 +36,20 @@ enum ScriptKind {
 }
 
 fn script_kind_for_def(def: i32) -> Option<ScriptKind> {
-    let matches = |name: &str| spring::get_unit_def_id_by_name(name).ok() == Some(def);
-    if matches("wisp") || matches("npcwisp") {
+    let defs = crate::defs::defs();
+    if def < 0 {
+        None
+    } else if def == defs.wisp || def == defs.npcwisp {
         Some(ScriptKind::Wisp)
-    } else if matches("gatesmoth") {
+    } else if def == defs.gate {
         Some(ScriptKind::Gate)
-    } else if matches("lever") {
+    } else if def == defs.lever {
         Some(ScriptKind::Lever)
-    } else if matches("plate") {
+    } else if def == defs.plate {
         Some(ScriptKind::Plate)
-    } else if matches("cage") {
+    } else if def == defs.cage {
         Some(ScriptKind::Cage)
-    } else if matches("eyes")
-        || matches("ears")
-        || matches("nose")
-        || matches("mouth")
-        || matches("arms")
-        || matches("legs")
-        || matches("light")
-    {
+    } else if def == defs.light || defs.body_part(def).is_some() {
         Some(ScriptKind::Trigger)
     } else {
         None
@@ -200,6 +195,7 @@ struct WispAnimationState {
 struct PartsUnitScript {
     kind: Option<ScriptKind>,
     pieces: WispPieces,
+    props: Props,
     animation: Rc<RefCell<WispAnimationState>>,
 }
 
@@ -209,6 +205,7 @@ impl UnitScript for PartsUnitScript {
         Self {
             kind: None,
             pieces,
+            props: Rc::new(RefCell::new(PropPieces::from_init(ctx))),
             animation: Rc::new(RefCell::new(WispAnimationState {
                 pieces,
                 parts: None,
@@ -232,11 +229,7 @@ impl UnitScript for PartsUnitScript {
                 ));
             }
             Some(ScriptKind::Lever) => {
-                ctx.turn_now(
-                    unit_piece(ctx.unit(), "Base_001"),
-                    Axis::X,
-                    Angle::radians(0.6),
-                );
+                ctx.turn_now(props(&self.props).lever, Axis::X, Angle::radians(0.6));
             }
             _ => {}
         }
@@ -274,16 +267,32 @@ impl UnitScript for PartsUnitScript {
         match self.kind {
             Some(ScriptKind::Gate) => {
                 ctx.signal(SIG_GATE);
-                ctx.spawn(TaskDefinition::new("partsneeded-gate-open", gate_open));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-gate-open",
+                    Rc::clone(&self.props),
+                    gate_open,
+                ));
             }
             Some(ScriptKind::Lever) => {
-                ctx.spawn(TaskDefinition::new("partsneeded-lever-on", lever_on));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-lever-on",
+                    Rc::clone(&self.props),
+                    lever_on,
+                ));
             }
             Some(ScriptKind::Plate) => {
-                ctx.spawn(TaskDefinition::new("partsneeded-plate-on", plate_on));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-plate-on",
+                    Rc::clone(&self.props),
+                    plate_on,
+                ));
             }
             Some(ScriptKind::Cage) => {
-                ctx.spawn(TaskDefinition::new("partsneeded-cage-open", cage_open));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-cage-open",
+                    Rc::clone(&self.props),
+                    cage_open,
+                ));
             }
             _ => {}
         }
@@ -293,16 +302,32 @@ impl UnitScript for PartsUnitScript {
         match self.kind {
             Some(ScriptKind::Gate) => {
                 ctx.signal(SIG_GATE);
-                ctx.spawn(TaskDefinition::new("partsneeded-gate-close", gate_close));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-gate-close",
+                    Rc::clone(&self.props),
+                    gate_close,
+                ));
             }
             Some(ScriptKind::Lever) => {
-                ctx.spawn(TaskDefinition::new("partsneeded-lever-off", lever_off));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-lever-off",
+                    Rc::clone(&self.props),
+                    lever_off,
+                ));
             }
             Some(ScriptKind::Plate) => {
-                ctx.spawn(TaskDefinition::new("partsneeded-plate-off", plate_off));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-plate-off",
+                    Rc::clone(&self.props),
+                    plate_off,
+                ));
             }
             Some(ScriptKind::Cage) => {
-                ctx.spawn(TaskDefinition::new("partsneeded-cage-close", cage_close));
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-cage-close",
+                    Rc::clone(&self.props),
+                    cage_close,
+                ));
             }
             _ => {}
         }
@@ -2136,77 +2161,80 @@ async fn wisp_float_arms(state: Rc<RefCell<WispAnimationState>>, ctx: UnitCtx) {
     }
 }
 
-fn unit_piece(unit: UnitId, name: &str) -> Piece {
-    spring::get_unit_piece_map(unit.0)
-        .ok()
-        .and_then(|pieces| {
-            pieces
-                .into_iter()
-                .find(|piece| piece.name == name)
-                .map(|piece| Piece(piece.piece_num - 1))
-        })
-        .unwrap_or(Piece::INVALID)
+/// The one moving piece of each prop's model.
+#[derive(Clone, Copy, Default)]
+struct PropPieces {
+    gate: Piece,
+    lever: Piece,
+    button: Piece,
+    bars: Piece,
 }
 
-async fn gate_open(ctx: UnitCtx) {
+impl PropPieces {
+    fn from_init(ctx: &InitCtx<'_>) -> Self {
+        Self {
+            gate: ctx.piece("Cube41_extract45_GATE"),
+            lever: ctx.piece("Base_001"),
+            button: ctx.piece("Button"),
+            bars: ctx.piece("BarsFront"),
+        }
+    }
+}
+
+type Props = Rc<RefCell<PropPieces>>;
+
+fn props(state: &Props) -> PropPieces {
+    *state.borrow()
+}
+
+async fn gate_open(state: Props, ctx: UnitCtx) {
     ctx.set_signal_mask(SIG_GATE);
     ctx.sleep(Duration::from_millis(500)).await;
     crate::sound::play_unit_sound("sounds/gate.ogg", 40.0, ctx.unit().0);
-    ctx.move_piece(
-        unit_piece(ctx.unit(), "Cube41_extract45_GATE"),
-        Axis::Z,
-        -168.0,
-        180.0,
-    );
+    ctx.move_piece(props(&state).gate, Axis::Z, -168.0, 180.0);
 }
 
-async fn gate_close(ctx: UnitCtx) {
+async fn gate_close(state: Props, ctx: UnitCtx) {
     ctx.set_signal_mask(SIG_GATE);
     crate::sound::play_unit_sound("sounds/gate.ogg", 5.0, ctx.unit().0);
-    let gate = unit_piece(ctx.unit(), "Cube41_extract45_GATE");
+    let gate = props(&state).gate;
     ctx.move_piece(gate, Axis::Z, 0.0, 190.0);
     ctx.wait_for_move(gate, Axis::Z).await;
 }
 
-async fn lever_on(ctx: UnitCtx) {
+async fn lever_on(state: Props, ctx: UnitCtx) {
     crate::sound::play_unit_sound("sounds/lever.ogg", 0.6, ctx.unit().0);
-    turn(
-        &ctx,
-        unit_piece(ctx.unit(), "Base_001"),
-        Axis::X,
-        -0.6,
-        15.0,
-    );
+    turn(&ctx, props(&state).lever, Axis::X, -0.6, 15.0);
 }
 
-async fn lever_off(ctx: UnitCtx) {
+async fn lever_off(state: Props, ctx: UnitCtx) {
     crate::sound::play_unit_sound("sounds/lever.ogg", 0.6, ctx.unit().0);
-    turn(&ctx, unit_piece(ctx.unit(), "Base_001"), Axis::X, 0.6, 15.0);
+    turn(&ctx, props(&state).lever, Axis::X, 0.6, 15.0);
 }
 
-async fn plate_on(ctx: UnitCtx) {
+async fn plate_on(state: Props, ctx: UnitCtx) {
     crate::sound::play_unit_sound("sounds/plate.01.ogg", 1.0, ctx.unit().0);
-    ctx.move_piece(unit_piece(ctx.unit(), "Button"), Axis::Z, -2.0, 15.0);
+    ctx.move_piece(props(&state).button, Axis::Z, -2.0, 15.0);
 }
 
-async fn plate_off(ctx: UnitCtx) {
+async fn plate_off(state: Props, ctx: UnitCtx) {
     crate::sound::play_unit_sound("sounds/plate.01.ogg", 1.0, ctx.unit().0);
-    ctx.move_piece(unit_piece(ctx.unit(), "Button"), Axis::Z, 0.0, 15.0);
+    ctx.move_piece(props(&state).button, Axis::Z, 0.0, 15.0);
 }
 
-async fn cage_open(ctx: UnitCtx) {
+async fn cage_open(state: Props, ctx: UnitCtx) {
     if spring::get_unit_rules_param_f32(ctx.unit().0, "do_kill") == Ok(1.0) {
         return;
     }
     crate::sound::play_unit_sound("sounds/cage.02.ogg", 1.0, ctx.unit().0);
-    let bars = unit_piece(ctx.unit(), "BarsFront");
+    let bars = props(&state).bars;
     ctx.move_piece(bars, Axis::Z, -200.0, 150.0);
     ctx.wait_for_move(bars, Axis::Z).await;
 }
 
-async fn cage_close(ctx: UnitCtx) {
+async fn cage_close(state: Props, ctx: UnitCtx) {
     crate::sound::play_unit_sound("sounds/cage.02.ogg", 1.0, ctx.unit().0);
-    ctx.move_piece(unit_piece(ctx.unit(), "BarsFront"), Axis::Z, 0.0, 150.0);
+    ctx.move_piece(props(&state).bars, Axis::Z, 0.0, 150.0);
 }
 
 impl PartsUnitScript {
@@ -2339,14 +2367,8 @@ impl PartsCusModule {
         }
     }
 
-    fn current_game_frame() -> u64 {
-        spring::game::get_game_frame(0)
-            .map(|value| (value.low16 | (value.high16 << 16)) as u64)
-            .unwrap_or(0)
-    }
-
     fn sync_instance_frame(&mut self, handle: CusHandle) {
-        let frame = Self::current_game_frame();
+        let frame = spring::game::frame().map_or(0, u64::from);
         let _ = self.registry.with(handle, |instance| instance.tick(frame));
     }
 }
