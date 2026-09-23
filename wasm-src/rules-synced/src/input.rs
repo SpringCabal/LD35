@@ -19,12 +19,8 @@ pub fn handle_message(global: &Global, data: &[u8]) {
         {
             return;
         }
-        let frame = global.clock.access().frame;
+        let frame = crate::state::frame();
         match command {
-            #[cfg(feature = "unit-script-probe")]
-            Some("probe_begin") => {
-                global.unit_script_probe.access_mut().active = true;
-            }
             Some("movement") => {
                 let x = fields
                     .next()

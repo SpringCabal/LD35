@@ -23,6 +23,12 @@ impl Gadget<Global> for EndgameGadget {
         "Endgame"
     }
 
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        param("game_over", 0.0);
+        param("saved_wisps", 0.0);
+        param("killed_wisps", 0.0);
+    }
+
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
         let expired = endgame::expire_dying_wisps(global);

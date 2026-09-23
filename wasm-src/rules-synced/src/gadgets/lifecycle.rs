@@ -83,6 +83,10 @@ impl Gadget<Global> for LifecycleGadget {
     /// Apply the authored collision rules to the units the map itself placed.
     ///
     /// UnitCreated does not reach them: they exist before this module loads.
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        param("alive_wisps", 0.0);
+    }
+
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         if self.swept.replace(true) {
             return;
@@ -123,7 +127,7 @@ impl Gadget<Global> for LifecycleGadget {
         }
         apply_authored_collisions(id, def);
         if def == defs.cage {
-            global.world.access_mut().cages.push(id);
+            global.pending.access_mut().cage_wisps.push(id);
         }
         if def == defs.npcwisp {
             let alive = {
@@ -152,7 +156,6 @@ impl Gadget<Global> for LifecycleGadget {
         }
         let alive = {
             let mut world = global.world.access_mut();
-            world.cages.retain(|cage| *cage != id);
             world.npc_wisps.retain(|wisp| *wisp != id);
             world.npc_wisps.len() as f32
         };

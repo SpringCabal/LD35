@@ -9,11 +9,13 @@ use crate::state::Global;
 /// happen at fixed game frames, which removes render/update cadence from the
 /// pose comparison while still exercising the normal unit and CUS callbacks.
 #[derive(Default)]
-pub struct UnitScriptProbeGadget;
+pub struct UnitScriptProbeGadget {
+    active: core::cell::Cell<bool>,
+}
 
 impl UnitScriptProbeGadget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -22,8 +24,21 @@ impl Gadget<Global> for UnitScriptProbeGadget {
         "UnitScriptProbe"
     }
 
+    fn handle_lua_msg(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _player_id: i32,
+        _script: i32,
+        _mode: i32,
+        data: &[u8],
+    ) {
+        if data == b"probe_begin" {
+            self.active.set(true);
+        }
+    }
+
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        if !ctx.global().unit_script_probe.access().active {
+        if !self.active.get() {
             return;
         }
 

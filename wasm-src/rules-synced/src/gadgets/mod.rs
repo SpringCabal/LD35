@@ -19,7 +19,7 @@ pub use integration::IntegrationGadget;
 pub use level::LevelGadget;
 pub use lifecycle::LifecycleGadget;
 pub use reaper::ReaperGadget;
-pub use setup::{SetupGadget, setup};
+pub use setup::setup;
 pub use status::StatusGadget;
 pub use triggers::TriggersGadget;
 #[cfg(feature = "unit-script-probe")]

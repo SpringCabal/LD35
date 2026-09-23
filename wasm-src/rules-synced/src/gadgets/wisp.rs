@@ -1,6 +1,6 @@
 use spring_addons::rules::Gadget;
 
-use crate::state::Global;
+use crate::state::{Global, param};
 use crate::wisp;
 
 /// Frames a movement message stays valid.  The UI resends it every frame
@@ -23,6 +23,13 @@ impl Gadget<Global> for WispGadget {
         "Wisp"
     }
 
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        param("spiritMode", 1.0);
+    }
+
+    /// The callouts made while the wisp is borrowed (positions, move goal,
+    /// velocity, rotation, rules params) raise no callins; the orders and
+    /// piece changes go through the reaper.
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
         let mut wisp = global.wisp.access_mut();
@@ -45,16 +52,23 @@ impl Gadget<Global> for WispGadget {
         if wisp.movement.is_some() && frame > wisp.movement_frame + MOVE_STALE_FRAMES {
             wisp.movement = None;
         }
-        let mut pending = global.pending.access_mut();
-        if wisp.id >= 0 && wisp.movement.is_none() && !wisp.stop_issued {
-            wisp.stop_issued = true;
-            pending.stop_wisp = Some(wisp.id);
-        }
         wisp::rotate_body_parts(&wisp);
+        let stop = wisp.id >= 0 && wisp.movement.is_none() && !wisp.stop_issued;
+        wisp.stop_issued |= stop;
+        let pieces = core::mem::take(&mut wisp.pieces_dirty).then_some((
+            wisp.id,
+            wisp.spirit,
+            wisp.collected_parts,
+        ));
+        let id = wisp.id;
+        drop(wisp);
 
-        if wisp.pieces_dirty {
-            wisp.pieces_dirty = false;
-            pending.wisp_pieces = Some((wisp.id, wisp.spirit, wisp.collected_parts));
+        let mut pending = global.pending.access_mut();
+        if stop {
+            pending.stop_wisp = Some(id);
+        }
+        if pieces.is_some() {
+            pending.wisp_pieces = pieces;
         }
     }
 }

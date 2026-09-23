@@ -142,11 +142,7 @@ pub fn initialize_gate_terrain(world: &World) {
 }
 
 pub fn level_id(world: &World, key: i32) -> Option<i32> {
-    world
-        .level_ids
-        .iter()
-        .find(|(candidate, _)| *candidate == key)
-        .map(|(_, id)| *id)
+    world.level_ids.get(&key).copied()
 }
 
 pub fn is_trigger_active(world: &World, id: i32) -> bool {

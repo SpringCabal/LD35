@@ -1,7 +1,6 @@
-//! Shared rules state.
-//!
-//! Everything the gadgets read and write lives here; the handler owns it.
+//! Rules state that more than one gadget reads or writes.
 
+use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -19,7 +18,6 @@ pub const ENDING_WISP_DESTROY_DELAY: i32 = 180;
 
 /// The player wisp: its identity, how it is currently moving, and which body
 /// parts it has collected.
-#[derive(Default)]
 pub struct Wisp {
     pub id: i32,
     pub movement: Option<(f32, f32)>,
@@ -33,13 +31,28 @@ pub struct Wisp {
     pub pieces_dirty: bool,
 }
 
-/// The level: cages, the NPC wisps inside them, and the trigger network.
+impl Default for Wisp {
+    fn default() -> Self {
+        Self {
+            id: -1,
+            movement: None,
+            movement_frame: 0,
+            stop_issued: false,
+            form_frame: 0,
+            spirit: true,
+            body_parts: Vec::new(),
+            collected_parts: BodyParts::NONE,
+            pieces_dirty: false,
+        }
+    }
+}
+
+/// The level: the NPC wisps and the trigger network.
 #[derive(Default)]
 pub struct World {
-    pub cages: Vec<i32>,
     pub npc_wisps: Vec<i32>,
-    pub level_requested: bool,
-    pub level_ids: Vec<(i32, i32)>,
+    /// Engine unit id by map_customs.lua content key.
+    pub level_ids: BTreeMap<i32, i32>,
     pub active_triggers: Vec<i32>,
     pub active_triggerables: Vec<i32>,
 }
@@ -62,17 +75,12 @@ pub struct Endgame {
     pub sequence_complete: bool,
 }
 
-/// Frame bookkeeping.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Clock {
-    pub initialized: bool,
-    pub frame: i32,
-}
-
 /// Engine callouts deferred to the reaper gadget, which runs them at the end
 /// of the frame while no resource is borrowed.
 #[derive(Default)]
 pub struct Pending {
+    /// Cages whose prisoner still has to be spawned.
+    pub cage_wisps: Vec<i32>,
     pub cage_activations: Vec<i32>,
     pub piece_hides: Vec<i32>,
     pub destroys: Vec<(i32, bool, i32)>,
@@ -80,14 +88,6 @@ pub struct Pending {
     pub spawn_end_wisp: bool,
     pub stop_wisp: Option<i32>,
     pub wisp_pieces: Option<(i32, bool, BodyParts)>,
-}
-
-/// State for the optional runtime unit-script conformance scenario. The UI
-/// only arms this scenario; its actual actions run at fixed synced frames so
-/// Lua and WASM are compared at the same animation phase.
-#[derive(Default)]
-pub struct UnitScriptProbe {
-    pub active: bool,
 }
 
 pub fn param(name: &str, value: f32) {
@@ -103,6 +103,11 @@ pub fn param(name: &str, value: f32) {
     );
 }
 
+/// The current simulation frame.
+pub fn frame() -> i32 {
+    spring::game::frame().map_or(0, |frame| frame as i32)
+}
+
 /// The shared communication namespace.
 ///
 /// Each subsystem is an independently borrowable [`Resource`], so a nested
@@ -112,7 +117,5 @@ pub struct Global {
     pub wisp: Resource<Wisp>,
     pub world: Resource<World>,
     pub endgame: Resource<Endgame>,
-    pub clock: Resource<Clock>,
     pub pending: Resource<Pending>,
-    pub unit_script_probe: Resource<UnitScriptProbe>,
 }

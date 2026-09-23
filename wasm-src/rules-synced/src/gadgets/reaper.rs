@@ -3,6 +3,11 @@ use spring_addons::rules::Gadget;
 use crate::state::Global;
 use crate::{cages, endgame, level, triggers, wisp};
 
+/// Performs the engine callouts the other gadgets queued in [`Pending`] this
+/// frame: creating, destroying and ordering units raises callins
+/// synchronously, so they run here, last, while no resource is borrowed.
+///
+/// [`Pending`]: crate::state::Pending
 #[derive(Default)]
 pub struct ReaperGadget;
 
@@ -38,7 +43,7 @@ impl Gadget<Global> for ReaperGadget {
                 pending.stop_wisp.take(),
                 core::mem::take(&mut pending.cage_activations),
                 core::mem::take(&mut pending.spawn_level),
-                core::mem::take(&mut global.world.access_mut().cages),
+                core::mem::take(&mut pending.cage_wisps),
                 core::mem::take(&mut pending.spawn_end_wisp),
                 core::mem::take(&mut pending.destroys),
             )
@@ -64,7 +69,7 @@ impl Gadget<Global> for ReaperGadget {
             let ids = level::spawn();
             {
                 let mut world = global.world.access_mut();
-                world.level_ids = ids;
+                world.level_ids = ids.into_iter().collect();
                 triggers::initialize_gate_terrain(&world);
             }
         }

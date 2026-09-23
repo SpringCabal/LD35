@@ -154,15 +154,11 @@ pub fn spawn_ending_wisp(global: &Global) {
 
 /// Drop ending wisps that no longer exist from the tracking list.
 pub fn move_ending_wisps(global: &Global) {
-    let wisps = global.endgame.access().ending_wisps.clone();
-    let mut still_alive = Vec::new();
-    for (id, target) in wisps {
-        if spring::get_unit_position(id, false, false).is_err() {
-            continue;
-        }
-        still_alive.push((id, target));
-    }
-    global.endgame.access_mut().ending_wisps = still_alive;
+    global
+        .endgame
+        .access_mut()
+        .ending_wisps
+        .retain(|(id, _)| spring::get_unit_position(*id, false, false).is_ok());
 }
 
 pub fn mark_wisp_dying(global: &Global, id: i32, saved: bool) {
@@ -173,7 +169,7 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
     if !global.world.access().npc_wisps.contains(&id) {
         return;
     }
-    let frame = global.clock.access().frame;
+    let frame = crate::state::frame();
     let destroy_frame = frame + delay;
     {
         let mut endgame = global.endgame.access_mut();
@@ -209,7 +205,7 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
 }
 
 pub fn expire_dying_wisps(global: &Global) -> Vec<(i32, bool, i32)> {
-    let now = global.clock.access().frame;
+    let now = crate::state::frame();
     let mut expired = Vec::new();
     let mut endgame = global.endgame.access_mut();
     endgame.dying_wisps.retain(|(id, saved, frame)| {

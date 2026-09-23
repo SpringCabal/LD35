@@ -1,17 +1,29 @@
-use alloc::string::String;
-use core::cell::RefCell;
+use core::cell::Cell;
 
+use partsneeded_shared::{BodyPart, BodyParts};
 use spring_addons::rules::Gadget;
 
 use crate::state::Global;
-use partsneeded_shared::BodyPart;
 
 /// Heartbeat interval, so the UI still resyncs if a message is ever missed.
 const HEARTBEAT_FRAMES: i32 = 15;
 
+/// What the UI is told about the player and the ending.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Status {
+    spirit: bool,
+    parts_left: usize,
+    game_over: bool,
+    wisp: i32,
+    parts: BodyParts,
+    ending_type: i32,
+    sequence_complete: bool,
+}
+
+/// Sends the status to the UI whenever it changes, and on a heartbeat.
 #[derive(Default)]
 pub struct StatusGadget {
-    last_sent: RefCell<String>,
+    last_sent: Cell<Option<Status>>,
 }
 
 impl StatusGadget {
@@ -26,29 +38,36 @@ impl Gadget<Global> for StatusGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        let wisp = ctx.global().wisp.access();
-        let endgame = ctx.global().endgame.access();
+        let status = {
+            let wisp = ctx.global().wisp.access();
+            let endgame = ctx.global().endgame.access();
+            Status {
+                spirit: wisp.spirit,
+                parts_left: wisp.body_parts.len(),
+                game_over: endgame.game_over,
+                wisp: wisp.id,
+                parts: wisp.collected_parts,
+                ending_type: endgame.ending_type,
+                sequence_complete: endgame.sequence_complete,
+            }
+        };
+        // Send on change, not only on the heartbeat: the UI's lever-click
+        // guard must see a form change at once.
+        if self.last_sent.get() == Some(status) && frame % HEARTBEAT_FRAMES != 0 {
+            return;
+        }
+        self.last_sent.set(Some(status));
         let payload = alloc::format!(
             "PARTS_STATUS|{}|{}|{}|{}|{}|{}|{}|{}",
-            i32::from(wisp.spirit),
-            i32::from(wisp.collected_parts.contains(BodyPart::Eyes)),
-            wisp.body_parts.len(),
-            i32::from(endgame.game_over),
-            wisp.id,
-            wisp.collected_parts.bits(),
-            endgame.ending_type,
-            i32::from(endgame.sequence_complete),
+            i32::from(status.spirit),
+            i32::from(status.parts.contains(BodyPart::Eyes)),
+            status.parts_left,
+            i32::from(status.game_over),
+            status.wisp,
+            status.parts.bits(),
+            status.ending_type,
+            i32::from(status.sequence_complete),
         );
-
-        // Send on change, not just on the heartbeat.  At one message every
-        // fifteen frames the UI's copy of spiritMode/body_mask could be half a
-        // second out of date, which was long enough for the lever-click guard
-        // to refuse a legitimate click right after taking body form.
-        let mut last = self.last_sent.borrow_mut();
-        if *last != payload || frame % HEARTBEAT_FRAMES == 0 {
-            let _ = spring::send_to_unsynced(&payload);
-            last.clear();
-            last.push_str(&payload);
-        }
+        let _ = spring::send_to_unsynced(&payload);
     }
 }

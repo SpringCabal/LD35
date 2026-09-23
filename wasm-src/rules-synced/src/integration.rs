@@ -370,13 +370,9 @@ fn cages_hold(t: &mut Tracker, state: &Snapshot<'_>) {
 fn before_pickups(t: &mut Tracker, state: &Snapshot<'_>) {
     check(
         t,
-        [20, 21, 22, 23].iter().all(|key| {
-            state
-                .world
-                .level_ids
-                .iter()
-                .any(|(candidate, _)| candidate == key)
-        }),
+        [20, 21, 22, 23]
+            .iter()
+            .all(|key| state.world.level_ids.contains_key(key)),
         "trigger gate IDs mapped",
     );
     check(
@@ -585,7 +581,7 @@ fn after_game_over(t: &mut Tracker, state: &Snapshot<'_>) {
             .world
             .level_ids
             .iter()
-            .filter(|(key, _)| [27468, 27489, 22389, 4736, 18744, 30249].contains(key))
+            .filter(|(key, _)| [27468, 27489, 22389, 4736, 18744, 30249].contains(*key))
             .all(|(_, id)| spring::get_unit_def_id(*id).is_err()),
         "collected pickup units are removed without stale render models",
     );
