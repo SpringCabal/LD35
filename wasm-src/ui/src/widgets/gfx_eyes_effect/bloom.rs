@@ -1,0 +1,244 @@
+//! gfx_eyes_effect.lua's screen treatment: bright pass, separable Gaussian
+//! blur, then the combine that grades, vignettes and grains the scene.  The
+//! wisp's halo is the bloom picking the sprite up as a glow source, not
+//! anything the sprite shader draws.
+
+use alloc::string::String;
+use spring::gl;
+
+use crate::shader;
+
+const EYES_EFFECT_FRAGMENT: &str = include_str!("../../shaders/eyes_effect.frag");
+const BLOOM_BRIGHT_FRAGMENT: &str = include_str!("../../shaders/bloom_bright.frag");
+const BLOOM_BLUR_H_FRAGMENT: &str = include_str!("../../shaders/bloom_blur_h.frag");
+const BLOOM_BLUR_V_FRAGMENT: &str = include_str!("../../shaders/bloom_blur_v.frag");
+
+/// gfx_eyes_effect.lua's option defaults.  The plain locals above them in that
+/// file are dead: OnchangeFunc() overwrites all three from the options table
+/// before the widget ever draws.
+const MAX_BRIGHTNESS: f32 = 0.22;
+const ILLUM_THRESHOLD: f32 = 0.33;
+const BLUR_PASSES: i32 = 2;
+
+/// GL_RGB16F_ARB, the float format gfx_eyes_effect.lua asks for so the bright
+/// pass can hold values above 1.0 without clipping.
+const GL_RGB16F_ARB: u32 = 0x881B;
+
+/// The combine pass's inputs for one frame.
+pub struct ScreenAmounts {
+    pub spirit: f32,
+    pub noise: f32,
+    pub game_over: f32,
+    /// Game time in seconds.
+    pub time: f32,
+}
+
+/// The bloom chain's GL handles.
+#[derive(Default)]
+pub struct Bloom {
+    width: i32,
+    height: i32,
+    screen_tex: String,
+    bright_tex_1: String,
+    bright_tex_2: String,
+    bright_shader: u32,
+    blur_h_shader: u32,
+    blur_v_shader: u32,
+    combine_shader: u32,
+    loc_bright_illum: i32,
+    loc_bright_inv_rx: i32,
+    loc_bright_inv_ry: i32,
+    loc_blur_h_inv_rx: i32,
+    loc_blur_h_radius: i32,
+    loc_blur_v_inv_ry: i32,
+    loc_blur_v_radius: i32,
+    loc_combine_illum: i32,
+    loc_combine_max: i32,
+    loc_combine_time: i32,
+    loc_combine_spirit: i32,
+    loc_combine_noise: i32,
+    loc_combine_game_over: i32,
+    loc_combine_debug: i32,
+    initialized: bool,
+}
+
+/// `gl.RenderToTexture(tex, fn)` equivalent of the Lua helper: draw a
+/// full-target quad and let the bound shader and texture do the work.
+fn blit_pass() {
+    let _ = spring::gfx::matrix_mode(gl::TEXTURE);
+    let _ = spring::gfx::load_identity(0);
+    let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
+    let _ = spring::gfx::tex_rect(-1.0, 1.0, 1.0, -1.0, 0.0, 1.0, 1.0, 0.0);
+}
+
+fn create_texture(width: i32, height: i32, format: u32, fbo: bool) -> String {
+    spring::gfx::create_texture(
+        width,
+        height,
+        0,
+        spring::gfx::TextureCreateParams {
+            target: gl::TEXTURE_2D,
+            format,
+            border: 0,
+            min_filter: gl::LINEAR,
+            mag_filter: gl::LINEAR,
+            wrap_s: gl::CLAMP,
+            wrap_t: gl::CLAMP,
+            fbo,
+            ..Default::default()
+        },
+    )
+    .unwrap_or_default()
+}
+
+impl Bloom {
+    fn ensure(&mut self, width: i32, height: i32) {
+        if self.width != width || self.height != height {
+            if !self.screen_tex.is_empty() {
+                let _ = spring::gfx::delete_texture(&self.screen_tex);
+            }
+            for texture in [&self.bright_tex_1, &self.bright_tex_2] {
+                if !texture.is_empty() {
+                    let _ = spring::gfx::delete_texture_fbo(texture);
+                }
+            }
+            self.width = width;
+            self.height = height;
+            self.screen_tex = create_texture(width, height, 0, false);
+            // Quarter resolution, as authored: the blur is wide enough that the
+            // lost detail never shows, and it is what makes the pass cheap.
+            self.bright_tex_1 = create_texture(width / 4, height / 4, GL_RGB16F_ARB, true);
+            self.bright_tex_2 = create_texture(width / 4, height / 4, GL_RGB16F_ARB, true);
+        }
+
+        if self.initialized {
+            return;
+        }
+        self.initialized = true;
+        if let Some(id) = shader::create(BLOOM_BRIGHT_FRAGMENT, &["texture0"]) {
+            self.bright_shader = id;
+            self.loc_bright_illum = shader::location(id, "illuminationThreshold");
+            self.loc_bright_inv_rx = shader::location(id, "inverseRX");
+            self.loc_bright_inv_ry = shader::location(id, "inverseRY");
+        }
+        if let Some(id) = shader::create(BLOOM_BLUR_H_FRAGMENT, &["texture0"]) {
+            self.blur_h_shader = id;
+            self.loc_blur_h_inv_rx = shader::location(id, "inverseRX");
+            self.loc_blur_h_radius = shader::location(id, "fragKernelRadius");
+        }
+        if let Some(id) = shader::create(BLOOM_BLUR_V_FRAGMENT, &["texture0"]) {
+            self.blur_v_shader = id;
+            self.loc_blur_v_inv_ry = shader::location(id, "inverseRY");
+            self.loc_blur_v_radius = shader::location(id, "fragKernelRadius");
+        }
+        if let Some(id) = shader::create(EYES_EFFECT_FRAGMENT, &["texture0", "texture1"]) {
+            self.combine_shader = id;
+            self.loc_combine_illum = shader::location(id, "illuminationThreshold");
+            self.loc_combine_max = shader::location(id, "fragMaxBrightness");
+            self.loc_combine_time = shader::location(id, "time");
+            self.loc_combine_spirit = shader::location(id, "spiritAmount");
+            self.loc_combine_noise = shader::location(id, "noiseAmount");
+            self.loc_combine_game_over = shader::location(id, "gameOverAmount");
+            self.loc_combine_debug = shader::location(id, "debugDraw");
+        }
+    }
+
+    pub fn draw(&mut self, width: i32, height: i32, amounts: &ScreenAmounts) {
+        if width <= 1 || height <= 1 {
+            return;
+        }
+        self.ensure(width, height);
+        if self.screen_tex.is_empty() || self.combine_shader == 0 {
+            return;
+        }
+        let screen_tex = &self.screen_tex;
+        if spring::gfx::copy_to_texture(screen_tex, 0, 0, 0, 0, width, height, gl::TEXTURE_2D, 0)
+            .is_err()
+        {
+            return;
+        }
+
+        let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
+        let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
+            enable: false,
+            set_func: false,
+            func: 0,
+        });
+        let _ = spring::gfx::depth_mask(false);
+        let _ = spring::gfx::blending(true);
+        let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        let _ = spring::gfx::color(1.0, 1.0, 1.0, 1.0);
+        let _ = spring::gfx::matrix_mode(gl::PROJECTION);
+        let _ = spring::gfx::push_matrix(0);
+        let _ = spring::gfx::load_identity(0);
+        let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
+        let _ = spring::gfx::push_matrix(0);
+        let _ = spring::gfx::load_identity(0);
+        let _ = spring::gfx::matrix_mode(gl::TEXTURE);
+        let _ = spring::gfx::load_identity(0);
+
+        // The bloom chain only runs when every stage built; a missing FBO would
+        // otherwise leave texture1 sampling whatever happened to be bound.
+        let bloomed = !self.bright_tex_1.is_empty()
+            && !self.bright_tex_2.is_empty()
+            && self.bright_shader != 0
+            && self.blur_h_shader != 0
+            && self.blur_v_shader != 0;
+        if bloomed {
+            let inverse_rx = 1.0 / width as f32;
+            let inverse_ry = 1.0 / height as f32;
+            // kernelRadius comes from the *view height* in the Lua widget: its
+            // `vsx / 36.0` initialiser is overwritten by ViewResize with
+            // vsy / 36.0 before the first draw.
+            let kernel_radius = height as f32 / 36.0;
+
+            let _ = spring::gfx::use_shader(self.bright_shader);
+            let _ = spring::gfx::uniform(self.loc_bright_inv_rx, &[inverse_rx], 1);
+            let _ = spring::gfx::uniform(self.loc_bright_inv_ry, &[inverse_ry], 1);
+            let _ = spring::gfx::uniform(self.loc_bright_illum, &[ILLUM_THRESHOLD], 1);
+            let _ = spring::gfx::bind_texture(screen_tex, 0, true);
+            let _ = spring::gfx::render_to_texture(&self.bright_tex_1, blit_pass);
+
+            for _ in 0..BLUR_PASSES {
+                let _ = spring::gfx::use_shader(self.blur_h_shader);
+                let _ = spring::gfx::uniform(self.loc_blur_h_inv_rx, &[inverse_rx], 1);
+                let _ = spring::gfx::uniform(self.loc_blur_h_radius, &[kernel_radius], 1);
+                let _ = spring::gfx::bind_texture(&self.bright_tex_1, 0, true);
+                let _ = spring::gfx::render_to_texture(&self.bright_tex_2, blit_pass);
+
+                let _ = spring::gfx::use_shader(self.blur_v_shader);
+                let _ = spring::gfx::uniform(self.loc_blur_v_inv_ry, &[inverse_ry], 1);
+                let _ = spring::gfx::uniform(self.loc_blur_v_radius, &[kernel_radius], 1);
+                let _ = spring::gfx::bind_texture(&self.bright_tex_2, 0, true);
+                let _ = spring::gfx::render_to_texture(&self.bright_tex_1, blit_pass);
+            }
+        }
+
+        let _ = spring::gfx::use_shader(self.combine_shader);
+        let _ = spring::gfx::uniform_int(self.loc_combine_debug, &[0], 1);
+        let _ = spring::gfx::uniform(self.loc_combine_illum, &[ILLUM_THRESHOLD], 1);
+        // With no bloom texture, zero the contribution rather than scale an
+        // undefined sampler.
+        let max_brightness = if bloomed { MAX_BRIGHTNESS } else { 0.0 };
+        let _ = spring::gfx::uniform(self.loc_combine_max, &[max_brightness], 1);
+        let _ = spring::gfx::uniform(self.loc_combine_time, &[amounts.time], 1);
+        let _ = spring::gfx::uniform(self.loc_combine_spirit, &[amounts.spirit], 1);
+        let _ = spring::gfx::uniform(self.loc_combine_noise, &[amounts.noise], 1);
+        let _ = spring::gfx::uniform(self.loc_combine_game_over, &[amounts.game_over], 1);
+        let _ = spring::gfx::bind_texture(screen_tex, 0, true);
+        if bloomed {
+            let _ = spring::gfx::bind_texture(&self.bright_tex_1, 1, true);
+        }
+        let _ = spring::gfx::tex_rect(-1.0, 1.0, 1.0, -1.0, 0.0, 1.0, 1.0, 0.0);
+        if bloomed {
+            let _ = spring::gfx::bind_texture(&self.bright_tex_1, 1, false);
+        }
+        let _ = spring::gfx::bind_texture(screen_tex, 0, false);
+        let _ = spring::gfx::use_shader(0);
+        let _ = spring::gfx::matrix_mode(gl::PROJECTION);
+        let _ = spring::gfx::pop_matrix(0);
+        let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
+        let _ = spring::gfx::pop_matrix(0);
+        let _ = spring::gfx::pop_attrib(0);
+    }
+}

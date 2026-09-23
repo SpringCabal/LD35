@@ -1,3 +1,8 @@
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+
 use spring::gl;
 use spring_addons::ui::Widget;
 
@@ -150,28 +155,22 @@ const DECALS: &[Decal] = &[
 /// Lift the quad off the floor so it does not z-fight with the floor units.
 const GROUND_OFFSET: f32 = 1.5;
 
-/// The floor markers that tell you which levers to pull, ported from
-/// `gfx_blood.lua`.
-#[derive(Default)]
-pub struct GfxBloodWidget;
+/// A decal ready to draw: its texture and its quad draped on the ground.
+struct Quad {
+    spirit: bool,
+    texture: String,
+    vertices: Vec<spring::gfx::GfxVertexData>,
+}
 
-impl GfxBloodWidget {
-    pub fn new() -> Self {
-        Self
-    }
-
-    fn draw_decal(decal: &Decal) {
-        let texture = alloc::format!("LuaUI/images/ground/{}.png", decal.texture);
-        if spring::gfx::bind_texture(&texture, 0, true).is_err() {
-            return;
-        }
+impl Quad {
+    fn new(decal: &Decal) -> Self {
         let corners = [
             (decal.x1, decal.z1, 0.0, 0.0),
             (decal.x2, decal.z1, 1.0, 0.0),
             (decal.x2, decal.z2, 1.0, 1.0),
             (decal.x1, decal.z2, 0.0, 1.0),
         ];
-        let vertices: Vec<spring::gfx::GfxVertexData> = corners
+        let vertices = corners
             .iter()
             .map(|(x, z, u, v)| {
                 let y = spring::get_ground_height(*x, *z).unwrap_or(0.0) + GROUND_OFFSET;
@@ -187,8 +186,33 @@ impl GfxBloodWidget {
                 }
             })
             .collect();
-        let _ = spring::gfx::shape(gl::TRIANGLE_FAN, &vertices);
-        let _ = spring::gfx::bind_texture(&texture, 0, false);
+        Self {
+            spirit: decal.spirit,
+            texture: format!("LuaUI/images/ground/{}.png", decal.texture),
+            vertices,
+        }
+    }
+
+    fn draw(&self) {
+        if spring::gfx::bind_texture(&self.texture, 0, true).is_err() {
+            return;
+        }
+        let _ = spring::gfx::shape(gl::TRIANGLE_FAN, &self.vertices);
+        let _ = spring::gfx::bind_texture(&self.texture, 0, false);
+    }
+}
+
+/// The floor markers that tell you which levers to pull, ported from
+/// `gfx_blood.lua`.  None of them lies on a gate, the only terrain that
+/// changes, so their geometry is built once.
+#[derive(Default)]
+pub struct GfxBloodWidget {
+    quads: RefCell<Vec<Quad>>,
+}
+
+impl GfxBloodWidget {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -199,6 +223,10 @@ impl Widget<Global> for GfxBloodWidget {
 
     fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
         let spirit = ctx.global().player.access().spirit;
+        let mut quads = self.quads.borrow_mut();
+        if quads.is_empty() {
+            *quads = DECALS.iter().map(Quad::new).collect();
+        }
         let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
         let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
             enable: true,
@@ -209,8 +237,8 @@ impl Widget<Global> for GfxBloodWidget {
         // gfx_blood.lua draws these additively so they glow on the dark floor.
         let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE);
         let _ = spring::gfx::use_shader(0);
-        for decal in DECALS.iter().filter(|decal| decal.spirit == spirit) {
-            Self::draw_decal(decal);
+        for quad in quads.iter().filter(|quad| quad.spirit == spirit) {
+            quad.draw();
         }
         let _ = spring::gfx::pop_attrib(0);
     }
