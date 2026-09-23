@@ -16,6 +16,7 @@ e2e = []
 [dependencies]
 spring = { workspace = true }
 spring-addons = { workspace = true }
+partsneeded-shared = { path = "../shared" }
 
 [lints]
 workspace = true

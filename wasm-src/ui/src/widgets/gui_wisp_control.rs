@@ -3,13 +3,22 @@ use spring_addons::ui::Widget;
 
 use crate::state::Global;
 
-const KEY_SPACE: i32 = 32;
-/// Must match FORM_COOLDOWN in the rules module.
-const FORM_COOLDOWN: i32 = 60;
-const KEY_Q_LOWER: i32 = 113;
-const KEY_Q_UPPER: i32 = 81;
-const KEY_R_LOWER: i32 = 114;
-const KEY_R_UPPER: i32 = 82;
+use partsneeded_shared::FORM_COOLDOWN;
+
+const KEY_A: i32 = b'a' as i32;
+const KEY_D: i32 = b'd' as i32;
+const KEY_S: i32 = b's' as i32;
+const KEY_W: i32 = b'w' as i32;
+const KEY_UP: i32 = 273;
+const KEY_DOWN: i32 = 274;
+const KEY_RIGHT: i32 = 275;
+const KEY_LEFT: i32 = 276;
+
+/// The clickable band around the end screen's "Click or press R to restart"
+/// line, relative to the screen centre.
+const RESTART_PROMPT_HALF_WIDTH: i32 = 190;
+const RESTART_PROMPT_TOP: i32 = -52;
+const RESTART_PROMPT_BOTTOM: i32 = -12;
 
 // Match camera_control.lua. The target is smoothed in the widget; the engine
 // transition itself stays at zero so the two interpolation layers do not fight
@@ -144,10 +153,10 @@ impl GuiWispControlWidget {
 
     fn update_movement(&self, key: i32, pressed: bool) -> EventResult {
         match key {
-            97 | 276 => self.left.set(pressed),
-            100 | 275 => self.right.set(pressed),
-            119 | 273 => self.up.set(pressed),
-            115 | 274 => self.down.set(pressed),
+            KEY_A | KEY_LEFT => self.left.set(pressed),
+            KEY_D | KEY_RIGHT => self.right.set(pressed),
+            KEY_W | KEY_UP => self.up.set(pressed),
+            KEY_S | KEY_DOWN => self.down.set(pressed),
             _ => return EventResult::Ignored,
         }
         let (x, z) = self.movement();
@@ -160,9 +169,8 @@ impl GuiWispControlWidget {
         if wisp < 0 {
             return;
         }
-        // camera_control.lua follows the unit's view position, not the raw
-        // physics position. The latter includes body/terrain corrections and
-        // made the WASM camera inherit every small simulation step.
+        // camera_control.lua follows the unit's view position: the raw physics
+        // position moves in simulation steps and would make the camera jitter.
         let Ok(position) = spring::unit_rendering::get_unit_view_position(wisp, false) else {
             return;
         };
@@ -288,22 +296,20 @@ impl Widget<Global> for GuiWispControlWidget {
         ctx: &spring_addons::AddonContext<'_, Global>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
-        if (event.key_code == KEY_R_LOWER || event.key_code == KEY_R_UPPER)
-            && ctx.global().player.access().game_over_sequence
-        {
+        if event.matches("r") && ctx.global().player.access().game_over_sequence {
             // The Lua endgame's Restart button reloads the current game.
             // Use the Core lifecycle API so this resets the WASM module
             // and synced state without leaving the WASM menu.
             restart_current_game();
             return EventResult::Handled;
         }
-        if event.ctrl && (event.key_code == KEY_Q_LOWER || event.key_code == KEY_Q_UPPER) {
+        if event.ctrl && event.matches("q") {
             // Return to the WASM menu in the current engine process.  Calling
             // system_control::quit exits the process, which skips the menu.
             let _ = spring::send_commands("reloadforce", "");
             return EventResult::Handled;
         }
-        if event.key_code == KEY_SPACE {
+        if event.matches("space") {
             let _ = spring::send_lua_rules_msg("switch_form");
             let mut player = ctx.global().player.access_mut();
             // Only dismiss the hint once it is actually on screen.  Latching on
@@ -369,14 +375,11 @@ impl Widget<Global> for GuiWispControlWidget {
         y: i32,
         button: i32,
     ) -> EventResult {
-        let global = ctx.global().player.access();
-        let in_restart_prompt = global.game_over_sequence
+        let (center_x, center_y) = (self.screen_width.get() / 2, self.screen_height.get() / 2);
+        let in_restart_prompt = ctx.global().player.access().game_over_sequence
             && button == 1
-            && x >= self.screen_width.get() / 2 - 190
-            && x <= self.screen_width.get() / 2 + 190
-            && y >= self.screen_height.get() / 2 - 52
-            && y <= self.screen_height.get() / 2 - 12;
-        drop(global);
+            && (x - center_x).abs() <= RESTART_PROMPT_HALF_WIDTH
+            && (center_y + RESTART_PROMPT_TOP..=center_y + RESTART_PROMPT_BOTTOM).contains(&y);
         if in_restart_prompt {
             // Match the Lua endgame Restart button as well as the R shortcut.
             restart_current_game();
@@ -386,11 +389,6 @@ impl Widget<Global> for GuiWispControlWidget {
         // Match ui_wisp_control.lua: only the embodied, armed player can pull a
         // nearby lever.  In particular, tracing a lever is not enough while the
         // player is a spirit or looking across the map.
-        //
-        // These read this widget's copy of the synced state, which the status
-        // gadget now pushes on change rather than every fifteenth frame -- at
-        // the old rate it could be half a second stale, long enough to refuse a
-        // legitimate click just after taking body form.
         if button != 1 || global.game_over || global.spirit || global.body_mask & 4 == 0 {
             // Claim the middle button as well. The engine only gives its
             // camera receiver the drag when no input receiver handles the

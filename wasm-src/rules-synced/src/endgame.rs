@@ -114,7 +114,7 @@ fn ending_offset(index: u32, salt: u32) -> f32 {
     }
 }
 
-pub fn spawn_ending_wisp(global: &Global, _frame: i32) {
+pub fn spawn_ending_wisp(global: &Global) {
     let wisp_id = global.wisp.access().id;
     let Some(position) = spring::get_unit_position(wisp_id, false, false).ok() else {
         return;
@@ -123,50 +123,21 @@ pub fn spawn_ending_wisp(global: &Global, _frame: i32) {
     let dx = ending_offset(index, 0x243f_6a88);
     let dz = ending_offset(index, 0x85a3_08d3);
     let spawn_position = spring::Float3::new(position.x + dx, position.y, position.z + dz);
-    let Ok(def) = spring::get_unit_def_id_by_name("npcwisp") else {
+    let Some(id) = crate::level::spawn_unit("npcwisp", spawn_position) else {
         return;
     };
-    let Ok(id) = spring::create_unit(
-        spring::UnitDefRef {
-            name: "npcwisp",
-            id: def,
-        },
-        spawn_position,
-        0,
-        spring::CreateUnitOptions {
-            build: false,
-            flatten_ground: false,
-            unit_id: -1,
-            builder_id: -1,
-        },
-    ) else {
-        return;
-    };
-    // Hide the physical wisp model before the next render pass. The UI draws
-    // these as spirit billboards; leaving the default model visible for a
-    // frame is the source of the brief corporal flashes in the old ending.
+    // The UI draws these as spirit billboards; hide the physical model before
+    // the next render pass.
     crate::wisp::hide_all_wisp_pieces(id);
-    // Match game_end.lua: let the engine's normal Wisp movement handle the
-    // approach. The old WASM port MoveCtrl-teleported these one fixed step at
-    // a time, which changed acceleration and made the stream visibly unlike
-    // Lua. CMD_MOVE is the engine's stable numeric MOVE command.
-    let _ = spring::give_order_to_unit(id, 10, &[position.x, position.y, position.z], 0, 0);
-
-    // UnitCreated normally adds this NPC to the authoritative alive set. Add
-    // it explicitly as well because the Core callout may be delivered after
-    // create_unit returns; the contains check prevents a duplicate either way.
-    let added_alive = {
-        let mut world = global.world.access_mut();
-        if !world.npc_wisps.contains(&id) {
-            world.npc_wisps.push(id);
-            Some(world.npc_wisps.len() as f32)
-        } else {
-            None
-        }
-    };
-    if let Some(alive) = added_alive {
-        param("alive_wisps", alive);
-    }
+    // Match game_end.lua: a normal MOVE order, so the engine's own movement
+    // (acceleration, speed) carries each arrival to the player.
+    let _ = spring::give_order_to_unit(
+        id,
+        crate::cmd::MOVE,
+        &[position.x, position.y, position.z],
+        0,
+        0,
+    );
     // The original immediately marks each arrival as saved, then removes it
     // after the short death animation. That both gives the sprite a dissolving
     // lifecycle and prevents 500 lingering units after the ending.
@@ -178,9 +149,7 @@ pub fn spawn_ending_wisp(global: &Global, _frame: i32) {
         .push((id, position));
 }
 
-/// Keep the tracking list in sync with the engine-owned movement. The Lua
-/// version gives each arrival a normal MOVE order and lets the engine advance
-/// it; manually setting positions here changed its speed and pathing.
+/// Drop ending wisps that no longer exist from the tracking list.
 pub fn move_ending_wisps(global: &Global) {
     let wisps = global.endgame.access().ending_wisps.clone();
     let mut still_alive = Vec::new();
@@ -223,8 +192,7 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
     );
     let _ = spring::set_unit_rules_param_f32(id, "killed_frame", frame as f32, PUBLIC);
     let _ = spring::set_unit_rules_param_f32(id, "destroy_frame", destroy_frame as f32, PUBLIC);
-    // unit_wisp_death.lua used to own this lifecycle.  Preserve its audible
-    // feedback now that the timing and bookkeeping are implemented here.
+    // unit_wisp_death.lua's audible feedback.
     if saved {
         let volume = if global.endgame.access().game_over {
             3.0
@@ -258,10 +226,8 @@ pub fn expire_dying_wisps(global: &Global) -> Vec<(i32, bool, i32)> {
         }
     }
     drop(endgame);
-    // A normal engine destruction waits for the legacy wisp script's death
-    // completion.  That script is intentionally not executed by the Core
-    // port, so remove the controller state and model immediately just as the
-    // original completed callback would have done.
+    // Leave the alive set now, as the original death callback did, rather
+    // than when the queued destruction reaches UnitDestroyed.
     let mut world = global.world.access_mut();
     world
         .npc_wisps

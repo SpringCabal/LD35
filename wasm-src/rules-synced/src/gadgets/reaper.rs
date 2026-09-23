@@ -17,7 +17,7 @@ impl Gadget<Global> for ReaperGadget {
         "Reaper"
     }
 
-    fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+    fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         let global = ctx.global();
         // Take every queued action first: the callouts below re-enter callins
         // that need this same state.
@@ -51,7 +51,7 @@ impl Gadget<Global> for ReaperGadget {
             wisp::sync_wisp_pieces(id, spirit, &parts);
         }
         if let Some(id) = stop_wisp {
-            let _ = spring::give_order_to_unit(id, 0, &[], 0, 0);
+            let _ = spring::give_order_to_unit(id, crate::cmd::STOP, &[], 0, 0);
         }
         for cage in cage_activations {
             cages::activate_cage(global, cage);
@@ -68,7 +68,7 @@ impl Gadget<Global> for ReaperGadget {
             cages::spawn_cage_wisp(cage);
         }
         if spawn_end_wisp {
-            endgame::spawn_ending_wisp(global, frame);
+            endgame::spawn_ending_wisp(global);
         }
         for (id, reclaimed, attacker) in destroys {
             let _ = spring::destroy_unit(

@@ -38,9 +38,7 @@ fn play_ambient(body_mask: u8, spirit: bool, wisp: i32) {
     if wisp < 0 {
         return;
     }
-    let frame = spring::game::get_game_frame(0)
-        .map(|value| (value.low16 | (value.high16 << 16)) as i32)
-        .unwrap_or(0);
+    let frame = crate::state::current_frame();
     let has_ears = body_mask & 2 != 0;
     let has_nose = body_mask & 16 != 0;
     let has_mouth = body_mask & 32 != 0;

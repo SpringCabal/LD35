@@ -2,6 +2,26 @@ use alloc::vec::Vec;
 
 use spring::Float3;
 
+/// The dungeon floor height every authored unit stands on.
+pub const FLOOR_Y: f32 = 411.499_02;
+
+/// Take a unit out of the collision world.  Levers keep `quad_map_rays` so a
+/// screen trace can still find them to click.
+pub fn clear_blocking(id: i32, quad_map_rays: bool) {
+    let _ = spring::set_unit_blocking(
+        id,
+        spring::rules_synced::unit_control::SetUnitBlockingOptions {
+            blocking: false,
+            solid_objects: false,
+            projectiles: false,
+            quad_map_rays,
+            crushable: false,
+            block_enemy_pushing: false,
+            block_height_changes: false,
+        },
+    );
+}
+
 #[derive(Clone, Copy)]
 pub struct LevelUnit {
     pub key: i32,
@@ -24,14 +44,12 @@ pub struct LevelUnit {
     pub aim: Option<spring::Float3>,
 }
 
-fn create(unit: &LevelUnit) -> Option<i32> {
-    let def = spring::get_unit_def_id_by_name(unit.name).ok()?;
-    let id = spring::create_unit(
-        spring::UnitDefRef {
-            name: unit.name,
-            id: def,
-        },
-        Float3::new(unit.x, unit.y, unit.z),
+/// Create a unit of the player's team at `position`.
+pub fn spawn_unit(name: &str, position: Float3) -> Option<i32> {
+    let def = spring::get_unit_def_id_by_name(name).ok()?;
+    spring::create_unit(
+        spring::UnitDefRef { name, id: def },
+        position,
         0,
         spring::CreateUnitOptions {
             build: false,
@@ -40,7 +58,11 @@ fn create(unit: &LevelUnit) -> Option<i32> {
             builder_id: -1,
         },
     )
-    .ok()?;
+    .ok()
+}
+
+fn create(unit: &LevelUnit) -> Option<i32> {
+    let id = spawn_unit(unit.name, Float3::new(unit.x, unit.y, unit.z))?;
     // All authored static level geometry is placed at an explicit map height.
     // The player wisp is also an authored entry, but it must retain its normal
     // ground move type; putting it under MoveCtrl makes the walk animation run
@@ -49,12 +71,7 @@ fn create(unit: &LevelUnit) -> Option<i32> {
         configure_fixed_height(id, Float3::new(unit.x, unit.y, unit.z));
     }
     // game_custom_spawn.lua restores these through s11n's unit bridge, which
-    // replays every serialised field.  This port only replayed the position, so
-    // the six body-part pickups -- the only entries with a real rotation -- all
-    // stood facing north.  The mid/aim entries turn out to match what the cage
-    // and lever models already provide, so replaying them changes nothing
-    // today; they are here because the bridge replays them and a future edit to
-    // map_customs.lua should not silently stop working.
+    // replays every serialised field, rotation and mid/aim positions included.
     let _ = spring::set_unit_rotation(id, unit.rot);
     if let (Some(mid), Some(aim)) = (unit.mid, unit.aim) {
         let _ = spring::set_unit_mid_and_aim_pos(id, mid, aim, true);
@@ -87,29 +104,15 @@ fn configure_gate(unit_id: i32, floor_y: f32) {
             spring::Float3::new(position.x, floor_y, position.z),
         );
     }
-    let _ = spring::set_unit_blocking(
-        unit_id,
-        spring::rules_synced::unit_control::SetUnitBlockingOptions {
-            blocking: false,
-            solid_objects: false,
-            projectiles: false,
-            quad_map_rays: false,
-            crushable: false,
-            block_enemy_pushing: false,
-            block_height_changes: false,
-        },
-    );
+    clear_blocking(unit_id, false);
 }
 
 /// Claim the four gates the map's featureplacer has already built.
 ///
 /// game_custom_spawn.lua destroyed the map's gates and rebuilt them, purely so
-/// they were registered with s11n.  Doing the rebuild half without the destroy
-/// half left eight gates stacked in four places, and since the guest
-/// create_unit() takes no facing argument the new ones all pointed north --
-/// two gates crossed at ninety degrees.  The map's own gates are already in
-/// the right places facing the right way, so adopt them and only build one if
-/// the map somehow did not.
+/// they were registered with s11n.  The map's own gates are already in the
+/// right places facing the right way, so adopt them and only build one if the
+/// map somehow did not.
 fn adopt_map_gates(ids: &mut Vec<(i32, i32)>) {
     // A gate slot is only ever matched by a gate standing essentially on it.
     const MATCH_RADIUS_SQUARED: f32 = 64.0 * 64.0;

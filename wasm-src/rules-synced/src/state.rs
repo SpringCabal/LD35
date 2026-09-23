@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 use spring_addons::Resource;
 
 pub const PUBLIC: i32 = 32;
-pub const FORM_COOLDOWN: i32 = 60;
+pub use partsneeded_shared::FORM_COOLDOWN;
 pub const WISP_DESTROY_DELAY: i32 = 45;
 // The Lua death gadget uses 45 frames for ordinary rescues. Ending wisps are
 // spawned hundreds of elmos away and must be allowed to reach the player before
@@ -68,12 +68,8 @@ pub struct Clock {
     pub frame: i32,
 }
 
-/// Work deferred out of a nested callin and drained by the reaper gadget.
-///
-/// Core applies a unit's ON/OFF state but does not dispatch the legacy
-/// COB/Lua Activate callback, so those callbacks are queued here; `cage.lua`
-/// can then send its `npc_wisp` result back through RecvLuaMsg without a
-/// borrow still being held.
+/// Engine callouts deferred to the reaper gadget, which runs them at the end
+/// of the frame while no resource is borrowed.
 #[derive(Default)]
 pub struct Pending {
     pub cage_activations: Vec<i32>,

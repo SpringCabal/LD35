@@ -3,16 +3,9 @@ use spring_addons::rules::Gadget;
 use crate::state::Global;
 use crate::wisp;
 
-/// Frames a movement message stays valid.
-///
-/// The visual conformance run deliberately sends through the real LuaUI/WasmUI
-/// boundary, but its software-rendered UI can pause for more than six synced
-/// frames between updates. Keep that harness from introducing a synthetic
-/// StopMoving/StartMoving transition; production retains the Lua-compatible
-/// six-frame timeout.
-#[cfg(feature = "unit-script-probe")]
-const MOVE_STALE_FRAMES: i32 = 120;
-#[cfg(not(feature = "unit-script-probe"))]
+/// Frames a movement message stays valid.  The UI resends it every frame
+/// while a key is held; this bounds how long a lost release keeps the wisp
+/// moving.
 const MOVE_STALE_FRAMES: i32 = 6;
 
 /// The player wisp controller, ported from `unit_wisp_controller.lua`.
@@ -30,9 +23,8 @@ impl Gadget<Global> for WispGadget {
         "Wisp"
     }
 
-    fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
+    fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
-        let frame = global.clock.access().frame;
         let mut wisp = global.wisp.access_mut();
         if wisp.id >= 0 {
             wisp::cancel_upward_velocity(&wisp);
@@ -50,9 +42,6 @@ impl Gadget<Global> for WispGadget {
             let collected = wisp::collect_body_parts(&mut wisp);
             global.pending.access_mut().destroys.extend(collected);
         }
-        // The UI samples one message per frame but they arrive through the
-        // network layer, so a 2 frame window dropped inputs whenever delivery
-        // hiccuped and the wisp stuttered to a halt.
         if wisp.movement.is_some() && frame > wisp.movement_frame + MOVE_STALE_FRAMES {
             wisp.movement = None;
         }

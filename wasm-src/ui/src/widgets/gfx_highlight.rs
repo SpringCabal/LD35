@@ -10,11 +10,12 @@
 use alloc::string::String;
 use core::cell::{Cell, RefCell};
 
-use spring::gfx::{GfxUnitDrawOptions, ShaderCreateParams, TextureCreateParams};
+use spring::gfx::{GfxUnitDrawOptions, TextureCreateParams};
 use spring::gl;
 use spring_addons::event::ViewGeometry;
 use spring_addons::ui::Widget;
 
+use crate::shader;
 use crate::state::Global;
 
 const DEPTH_FRAGMENT: &str = include_str!("../shaders/highlight_depth.frag");
@@ -211,43 +212,18 @@ fn ensure_initialized(state: &mut Pipeline) {
         return;
     }
     state.initialized = true;
-    if let Ok(shader) = spring::gfx::create_shader(ShaderCreateParams {
-        fragment: DEPTH_FRAGMENT,
-        ..Default::default()
-    }) {
-        state.depth_shader = shader.shader_id;
-        state.loc_screen_xy =
-            spring::gfx::get_uniform_location(shader.shader_id, "screenXY").unwrap_or(-1);
-        let _ = spring::gfx::use_shader(shader.shader_id);
-        if let Ok(loc) = spring::gfx::get_uniform_location(shader.shader_id, "tex0") {
-            let _ = spring::gfx::uniform_int(loc, &[0], 1);
-        }
+    if let Some(id) = shader::create(DEPTH_FRAGMENT, &["tex0"]) {
+        state.depth_shader = id;
+        state.loc_screen_xy = shader::location(id, "screenXY");
     }
-    if let Ok(shader) = spring::gfx::create_shader(ShaderCreateParams {
-        fragment: BLUR_H_FRAGMENT,
-        ..Default::default()
-    }) {
-        state.blur_h_shader = shader.shader_id;
-        state.loc_screen_x =
-            spring::gfx::get_uniform_location(shader.shader_id, "screenX").unwrap_or(-1);
-        let _ = spring::gfx::use_shader(shader.shader_id);
-        if let Ok(loc) = spring::gfx::get_uniform_location(shader.shader_id, "tex0") {
-            let _ = spring::gfx::uniform_int(loc, &[0], 1);
-        }
+    if let Some(id) = shader::create(BLUR_H_FRAGMENT, &["tex0"]) {
+        state.blur_h_shader = id;
+        state.loc_screen_x = shader::location(id, "screenX");
     }
-    if let Ok(shader) = spring::gfx::create_shader(ShaderCreateParams {
-        fragment: BLUR_V_FRAGMENT,
-        ..Default::default()
-    }) {
-        state.blur_v_shader = shader.shader_id;
-        state.loc_screen_y =
-            spring::gfx::get_uniform_location(shader.shader_id, "screenY").unwrap_or(-1);
-        let _ = spring::gfx::use_shader(shader.shader_id);
-        if let Ok(loc) = spring::gfx::get_uniform_location(shader.shader_id, "tex0") {
-            let _ = spring::gfx::uniform_int(loc, &[0], 1);
-        }
+    if let Some(id) = shader::create(BLUR_V_FRAGMENT, &["tex0"]) {
+        state.blur_v_shader = id;
+        state.loc_screen_y = shader::location(id, "screenY");
     }
-    let _ = spring::gfx::use_shader(0);
     recreate_textures(state);
 }
 

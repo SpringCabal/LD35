@@ -3,6 +3,15 @@ use core::cell::RefCell;
 
 use crate::endgame::{game_over_type, mark_wisp_dying};
 use crate::state::{Endgame, Global, Wisp, World, param};
+use crate::triggers::{LEVER_GATE, level_id};
+
+/// The lever that opens cage 23261; the scenario pulls it twice.
+pub const TEST_LEVER: i32 = 14725;
+/// A standing plate linked to two cages; the embodied player with legs stands
+/// on it.
+pub const TEST_PLATE: i32 = 12701;
+/// The last room's one-way plate, which opens gate 23.
+pub const LAST_ROOM_PLATE: i32 = 11688;
 
 /// How many live units of a given unitdef exist right now.
 fn count_units_named(name: &str) -> usize {
@@ -28,12 +37,7 @@ const ANIMATED_PIECE: &str = "ForeArmR";
 /// Scripts/lever.lua Turns the piece about its own pivot, which leaves its
 /// position unchanged -- only the direction moves, so that is what to sample.
 fn lever_piece_offset(state: &Snapshot<'_>) -> Option<f32> {
-    let lever = state
-        .world
-        .level_ids
-        .iter()
-        .find(|(key, _)| *key == 14725)
-        .map(|(_, id)| *id)?;
+    let lever = level_id(state.world, TEST_LEVER)?;
     let piece_number = spring::get_unit_piece_map(lever)
         .ok()?
         .into_iter()
@@ -114,12 +118,7 @@ fn worst_wisp_cage_distance(state: &Snapshot<'_>) -> f32 {
 /// actually opened: the Rust-side trigger bookkeeping can say "open" while the
 /// unit script never ran.
 fn gate_piece_offset(state: &Snapshot<'_>, key: i32) -> Option<f32> {
-    let gate = state
-        .world
-        .level_ids
-        .iter()
-        .find(|(candidate, _)| *candidate == key)
-        .map(|(_, id)| *id)?;
+    let gate = level_id(state.world, key)?;
     let piece_number = spring::get_unit_piece_map(gate)
         .ok()?
         .into_iter()
@@ -350,12 +349,7 @@ pub fn update(global: &Global, frame: i32) {
             );
         }
         if frame == 31 {
-            let lever = state
-                .world
-                .level_ids
-                .iter()
-                .find(|(key, _)| *key == 14725)
-                .map(|(_, id)| *id);
+            let lever = level_id(state.world, TEST_LEVER);
             check(
                 t,
                 lever.is_some_and(|id| !state.world.active_triggers.contains(&id)),
@@ -380,12 +374,7 @@ pub fn update(global: &Global, frame: i32) {
                 !state.wisp.spirit,
                 "form-switch Lua message enters body form after eyes are collected",
             );
-            let lever = state
-                .world
-                .level_ids
-                .iter()
-                .find(|(key, _)| *key == 14725)
-                .map(|(_, id)| *id);
+            let lever = level_id(state.world, TEST_LEVER);
             check(
                 t,
                 state.wisp.collected_parts.iter().any(|part| part == "arms")
@@ -394,9 +383,8 @@ pub fn update(global: &Global, frame: i32) {
             );
         }
         if frame == 78 {
-            // The form must stay switched.  A prediction/snapshot race used to
-            // put the player straight back into spirit form a few frames later,
-            // which also swallowed lever clicks (they are refused for spirits).
+            // The form must stay switched: the UI's prediction must not race
+            // the status snapshot back into spirit form.
             check(
                 t,
                 !state.wisp.spirit,
@@ -430,7 +418,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 77 {
             // Sampled before the combination is set, as the baseline for the
             // frame-140 check.
-            t.gate_piece = gate_piece_offset(state, 20);
+            t.gate_piece = gate_piece_offset(state, LEVER_GATE);
             check(
                 t,
                 t.gate_piece.is_some(),
@@ -443,7 +431,7 @@ pub fn update(global: &Global, frame: i32) {
             //
             // Reading the negative ids in game_custom_spawn.lua as "must be
             // off" inverts all four levers and leaves this door unopenable.
-            let now = gate_piece_offset(state, 20);
+            let now = gate_piece_offset(state, LEVER_GATE);
             let opened = match (t.gate_piece, now) {
                 (Some(before), Some(after)) => (before - after).abs() > 1.0,
                 _ => false,
@@ -458,12 +446,7 @@ pub fn update(global: &Global, frame: i32) {
             // Levers are toggles in ui_wisp_control.lua / unit_wisp_controller.lua:
             // a second click flips them back off.  A one-shot lever would strand
             // the player behind any door they opened by mistake.
-            let lever = state
-                .world
-                .level_ids
-                .iter()
-                .find(|(key, _)| *key == 14725)
-                .map(|(_, id)| *id);
+            let lever = level_id(state.world, TEST_LEVER);
             check(
                 t,
                 lever.is_some_and(|id| !state.world.active_triggers.contains(&id)),
@@ -504,12 +487,7 @@ pub fn update(global: &Global, frame: i32) {
             );
         }
         if frame == 85 {
-            let plate = state
-                .world
-                .level_ids
-                .iter()
-                .find(|(key, _)| *key == 12701)
-                .map(|(_, id)| *id);
+            let plate = level_id(state.world, TEST_PLATE);
             check(
                 t,
                 state.wisp.collected_parts.iter().any(|part| part == "legs")
@@ -552,12 +530,7 @@ pub fn update(global: &Global, frame: i32) {
             );
         }
         if frame == 120 {
-            let gate = state
-                .world
-                .level_ids
-                .iter()
-                .find(|(key, _)| *key == 23)
-                .map(|(_, id)| *id);
+            let gate = level_id(state.world, 23);
             check(
                 t,
                 gate.is_some_and(|id| state.world.active_triggerables.contains(&id)),

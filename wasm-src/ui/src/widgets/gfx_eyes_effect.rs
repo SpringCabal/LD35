@@ -3,15 +3,13 @@ use alloc::vec::Vec;
 use spring::gl;
 use spring_addons::ui::Widget;
 
-use crate::state::Global;
+use crate::shader;
+use crate::state::{GAME_END_DURATION, Global, current_frame};
 
 // The full gfx_eyes_effect.lua pipeline: bright pass, separable Gaussian blur,
-// then the combine that grades, vignettes and grains the scene.
-//
-// This port used to run the combine alone.  That is what made the WASM build
-// read darker than the Lua one and cost the wisp its halo -- the soft white
-// bleed around it is the bloom picking the sprite up as a glow source, not
-// anything the sprite shader draws.
+// then the combine that grades, vignettes and grains the scene.  The wisp's
+// halo is the bloom picking the sprite up as a glow source, not anything the
+// sprite shader draws.
 const EYES_EFFECT_FRAGMENT: &str = include_str!("../shaders/eyes_effect.frag");
 const BLOOM_BRIGHT_FRAGMENT: &str = include_str!("../shaders/bloom_bright.frag");
 const BLOOM_BLUR_H_FRAGMENT: &str = include_str!("../shaders/bloom_blur_h.frag");
@@ -29,7 +27,6 @@ const BLUR_PASSES: i32 = 2;
 const WISP_SPRITE_SIZE: f32 = 40.0;
 const TRAIL_PARTICLE_LIFETIME: f32 = 24.0;
 const MAX_TRAIL_PARTICLES: usize = 64;
-const GAME_END_DURATION: i32 = 80;
 
 /// The bloom chain's GL handles.
 ///
@@ -59,6 +56,7 @@ struct Bloom {
     loc_combine_spirit: i32,
     loc_combine_noise: i32,
     loc_combine_game_over: i32,
+    loc_combine_debug: i32,
     initialized: bool,
 }
 
@@ -176,72 +174,32 @@ fn ensure_bloom(width: i32, height: i32) {
         }
         bloom.initialized = true;
 
-        if let Ok(shader) = spring::gfx::create_shader(spring::gfx::ShaderCreateParams {
-            fragment: BLOOM_BRIGHT_FRAGMENT,
-            ..Default::default()
-        }) {
-            let id = shader.shader_id;
+        if let Some(id) = shader::create(BLOOM_BRIGHT_FRAGMENT, &["texture0"]) {
             bloom.bright_shader = id;
-            bloom.loc_bright_illum =
-                spring::gfx::get_uniform_location(id, "illuminationThreshold").unwrap_or(-1);
-            bloom.loc_bright_inv_rx =
-                spring::gfx::get_uniform_location(id, "inverseRX").unwrap_or(-1);
-            bloom.loc_bright_inv_ry =
-                spring::gfx::get_uniform_location(id, "inverseRY").unwrap_or(-1);
-            let _ = spring::gfx::use_shader(id);
-            if let Ok(location) = spring::gfx::get_uniform_location(id, "texture0") {
-                let _ = spring::gfx::uniform_int(location, &[0], 1);
-            }
+            bloom.loc_bright_illum = shader::location(id, "illuminationThreshold");
+            bloom.loc_bright_inv_rx = shader::location(id, "inverseRX");
+            bloom.loc_bright_inv_ry = shader::location(id, "inverseRY");
         }
-        if let Ok(shader) = spring::gfx::create_shader(spring::gfx::ShaderCreateParams {
-            fragment: BLOOM_BLUR_H_FRAGMENT,
-            ..Default::default()
-        }) {
-            let id = shader.shader_id;
+        if let Some(id) = shader::create(BLOOM_BLUR_H_FRAGMENT, &["texture0"]) {
             bloom.blur_h_shader = id;
-            bloom.loc_blur_h_inv_rx =
-                spring::gfx::get_uniform_location(id, "inverseRX").unwrap_or(-1);
-            bloom.loc_blur_h_radius =
-                spring::gfx::get_uniform_location(id, "fragKernelRadius").unwrap_or(-1);
-            let _ = spring::gfx::use_shader(id);
-            if let Ok(location) = spring::gfx::get_uniform_location(id, "texture0") {
-                let _ = spring::gfx::uniform_int(location, &[0], 1);
-            }
+            bloom.loc_blur_h_inv_rx = shader::location(id, "inverseRX");
+            bloom.loc_blur_h_radius = shader::location(id, "fragKernelRadius");
         }
-        if let Ok(shader) = spring::gfx::create_shader(spring::gfx::ShaderCreateParams {
-            fragment: BLOOM_BLUR_V_FRAGMENT,
-            ..Default::default()
-        }) {
-            let id = shader.shader_id;
+        if let Some(id) = shader::create(BLOOM_BLUR_V_FRAGMENT, &["texture0"]) {
             bloom.blur_v_shader = id;
-            bloom.loc_blur_v_inv_ry =
-                spring::gfx::get_uniform_location(id, "inverseRY").unwrap_or(-1);
-            bloom.loc_blur_v_radius =
-                spring::gfx::get_uniform_location(id, "fragKernelRadius").unwrap_or(-1);
-            let _ = spring::gfx::use_shader(id);
-            if let Ok(location) = spring::gfx::get_uniform_location(id, "texture0") {
-                let _ = spring::gfx::uniform_int(location, &[0], 1);
-            }
+            bloom.loc_blur_v_inv_ry = shader::location(id, "inverseRY");
+            bloom.loc_blur_v_radius = shader::location(id, "fragKernelRadius");
         }
-        if let Ok(shader) = spring::gfx::create_shader(spring::gfx::ShaderCreateParams {
-            fragment: EYES_EFFECT_FRAGMENT,
-            ..Default::default()
-        }) {
-            let id = shader.shader_id;
+        if let Some(id) = shader::create(EYES_EFFECT_FRAGMENT, &["texture0", "texture1"]) {
             bloom.combine_shader = id;
-            bloom.loc_combine_illum =
-                spring::gfx::get_uniform_location(id, "illuminationThreshold").unwrap_or(-1);
-            bloom.loc_combine_max =
-                spring::gfx::get_uniform_location(id, "fragMaxBrightness").unwrap_or(-1);
-            bloom.loc_combine_time = spring::gfx::get_uniform_location(id, "time").unwrap_or(-1);
-            bloom.loc_combine_spirit =
-                spring::gfx::get_uniform_location(id, "spiritAmount").unwrap_or(-1);
-            bloom.loc_combine_noise =
-                spring::gfx::get_uniform_location(id, "noiseAmount").unwrap_or(-1);
-            bloom.loc_combine_game_over =
-                spring::gfx::get_uniform_location(id, "gameOverAmount").unwrap_or(-1);
+            bloom.loc_combine_illum = shader::location(id, "illuminationThreshold");
+            bloom.loc_combine_max = shader::location(id, "fragMaxBrightness");
+            bloom.loc_combine_time = shader::location(id, "time");
+            bloom.loc_combine_spirit = shader::location(id, "spiritAmount");
+            bloom.loc_combine_noise = shader::location(id, "noiseAmount");
+            bloom.loc_combine_game_over = shader::location(id, "gameOverAmount");
+            bloom.loc_combine_debug = shader::location(id, "debugDraw");
         }
-        let _ = spring::gfx::use_shader(0);
     });
 }
 
@@ -393,21 +351,11 @@ impl GfxEyesEffectWidget {
                 amount
             }
         };
-        let time = spring::game::get_game_frame(0)
-            .map(|value| (value.low16 | (value.high16 << 16)) as f32 / 30.0)
-            .unwrap_or(0.0);
+        let time = current_frame() as f32 / 30.0;
 
         let _ = spring::gfx::use_shader(combine);
-        if let Ok(location) = spring::gfx::get_uniform_location(combine, "texture0") {
-            let _ = spring::gfx::uniform_int(location, &[0], 1);
-        }
-        if let Ok(location) = spring::gfx::get_uniform_location(combine, "texture1") {
-            let _ = spring::gfx::uniform_int(location, &[1], 1);
-        }
-        if let Ok(location) = spring::gfx::get_uniform_location(combine, "debugDraw") {
-            let _ = spring::gfx::uniform_int(location, &[0], 1);
-        }
         BLOOM.with_borrow(|bloom| {
+            let _ = spring::gfx::uniform_int(bloom.loc_combine_debug, &[0], 1);
             let _ = spring::gfx::uniform(bloom.loc_combine_illum, &[ILLUM_THRESHOLD], 1);
             // With no bloom texture, zero the contribution rather than scale an
             // undefined sampler.
@@ -441,10 +389,6 @@ impl GfxEyesEffectWidget {
     /// The wisp billboard, ported from `DrawWisp` in unit_wisp_draw.lua.
     ///
     /// The original draws a 40x40 elmo quad in world space with gl.Billboard.
-    /// Projecting a world-space offset to screen instead -- as this port did --
-    /// squashed it: at this camera's pitch, twenty elmos of world Y cover far
-    /// fewer screen pixels than twenty elmos of world X, so the sprite came out
-    /// wide and flat and much smaller than the authored one.
     fn draw_wisp_sprite(&self, unit_id: i32, opacity: f32) {
         // unit_wisp_draw.lua calls Spring.GetUnitViewPosition(unitID) with no
         // second argument, i.e. the unit's base position.  Asking for midPos
@@ -458,9 +402,7 @@ impl GfxEyesEffectWidget {
             return;
         }
         if self.sprite_time.get() >= 0 {
-            let frame = spring::game::get_game_frame(0)
-                .map(|value| (value.low16 | (value.high16 << 16)) as f32 / 30.0)
-                .unwrap_or(0.0);
+            let frame = current_frame() as f32 / 30.0;
             // unit_wisp_draw.lua quantises its time to a tenth of a second, so
             // the per-pixel noise resamples in visible steps instead of
             // shimmering every frame.
@@ -521,19 +463,11 @@ impl GfxEyesEffectWidget {
         if self.sprite_shader.get() != 0 {
             return;
         }
-        if let Ok(shader) = spring::gfx::create_shader(spring::gfx::ShaderCreateParams {
-            fragment: WISP_SPRITE_FRAGMENT,
-            ..Default::default()
-        }) {
-            let id = shader.shader_id;
-            self.sprite_time
-                .set(spring::gfx::get_uniform_location(id, "time").unwrap_or(-1));
-            self.sprite_spirit
-                .set(spring::gfx::get_uniform_location(id, "spiritAmount").unwrap_or(-1));
-            self.sprite_unit
-                .set(spring::gfx::get_uniform_location(id, "unitID").unwrap_or(-1));
-            self.sprite_death
-                .set(spring::gfx::get_uniform_location(id, "deathAmount").unwrap_or(-1));
+        if let Some(id) = shader::create(WISP_SPRITE_FRAGMENT, &[]) {
+            self.sprite_time.set(shader::location(id, "time"));
+            self.sprite_spirit.set(shader::location(id, "spiritAmount"));
+            self.sprite_unit.set(shader::location(id, "unitID"));
+            self.sprite_death.set(shader::location(id, "deathAmount"));
             self.sprite_shader.set(id);
         }
     }

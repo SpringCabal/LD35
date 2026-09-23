@@ -1,6 +1,7 @@
 extern crate alloc;
 
 pub mod audio;
+pub mod shader;
 pub mod state;
 pub mod widgets;
 

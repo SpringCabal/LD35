@@ -15,6 +15,8 @@ const MOVE_LOOKAHEAD: f32 = 120.0;
 // artificial margin makes the authored start position (2000, 2000) sit on the
 // movement boundary on this map, so one half of WASD appears completely dead.
 const MAP_EDGE_CLEARANCE: f32 = 1.0;
+/// unit_powerup_controller.lua picks a part up within 50 elmos.
+const PICKUP_RADIUS: f32 = 50.0;
 
 /// Shorten an offset until it lands inside the map, preserving its heading.
 /// Clamping x and z independently would turn a diagonal into a cardinal.
@@ -97,7 +99,7 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
         };
         let dx = position.x - part_position.x;
         let dz = position.z - part_position.z;
-        if dx * dx + dz * dz > 2500.0 {
+        if dx * dx + dz * dz > PICKUP_RADIUS * PICKUP_RADIUS {
             continue;
         }
         let Ok(def) = spring::get_unit_def_id(*id) else {
@@ -126,10 +128,7 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
     wisp.body_parts.retain(|id| !collected.contains(id));
     collected
         .into_iter()
-        // The original trigger script's Killed callback is a no-op.  Core
-        // does not run that legacy callback, so normal destruction would keep
-        // its model alive while waiting for a script completion that cannot
-        // arrive.  Reclaim removal gives the intended immediate pickup.
+        // Reclaimed: a pickup vanishes at once, with no death animation.
         .map(|id| (id, true, wisp.id))
         .collect()
 }

@@ -1,11 +1,7 @@
 //! Levers, plates and the doors they drive.
 
+use crate::cmd;
 use crate::state::{Global, PUBLIC, Pending, World};
-
-/// `CMD.ONOFF`.  unit_plate.lua and unit_wisp_controller.lua drive every
-/// trigger through this, and the engine turns it into the unit script's
-/// Activate/Deactivate -- which is where lever.lua and friends live.
-pub const CMD_ONOFF: i32 = 85;
 
 /// The four gate rectangles from map_customs.lua.  These are terrain walls,
 /// not just decoration: the authored Lua game raises the height map while a
@@ -21,6 +17,26 @@ const GATE_AREAS: &[(i32, f32, f32, f32, f32)] = &[
 const GATE_CLOSED_HEIGHT: f32 = 499.0;
 const GATE_OPEN_HEIGHT: f32 = 411.5;
 
+/// The standing plates, by level key.  A plate is pressed while an embodied
+/// player with legs stands on it.
+const PLATES: [i32; 8] = [26492, 31488, 12701, 12688, 13688, 14688, 15688, 11688];
+
+/// The corridor gates.  Plates open them one way: they stay open once opened.
+const ONE_WAY_GATES: [i32; 3] = [21, 22, 23];
+
+/// Gate 20 opens from a lever combination instead of a link.
+pub const LEVER_GATE: i32 = 20;
+
+/// game_custom_spawn.lua: `["20"] = {-29318, 23884, -14619, -19115}`.
+///
+/// The sign is *not* "must be off".  A negative id sets `reverseEff`, which
+/// BitmaskLink stores as the second tuple element, and unit_plate.lua then
+/// fails the mask on `triggerObj[2] ~= active` -- so a negative id means the
+/// lever must be ON, and the one positive id means it must be OFF.  The floor
+/// markers in that room show the same three circles and one cross.
+pub const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
+    [(29318, true), (23884, false), (14619, true), (19115, true)];
+
 pub fn update_triggers(global: &Global) {
     // This is the Rust counterpart of `unit_plate.lua` and the link tables in
     // `game_custom_spawn.lua`.  The map IDs are stable content IDs; only the
@@ -35,7 +51,7 @@ pub fn update_triggers(global: &Global) {
     };
     let mut world = global.world.access_mut();
     let mut pending = global.pending.access_mut();
-    for key in [26492, 31488, 12701, 12688, 13688, 14688, 15688, 11688] {
+    for key in PLATES {
         let Some(plate) = level_id(&world, key) else {
             continue;
         };
@@ -55,29 +71,19 @@ pub fn update_triggers(global: &Global) {
         // open once it has been opened; the lever-controlled gates remain
         // reversible because gate 20 is handled by its bitmap below.
         let active = is_trigger_active(&world, source)
-            || (matches!(link.target, 21..=23) && world.active_triggerables.contains(&target));
+            || (ONE_WAY_GATES.contains(&link.target)
+                && world.active_triggerables.contains(&target));
         set_triggerable_active(&mut world, &mut pending, target, active);
         if link.kill && active {
             let _ = spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC);
         }
     }
-    let Some(gate) = level_id(&world, 20) else {
+    let Some(gate) = level_id(&world, LEVER_GATE) else {
         return;
     };
-    // game_custom_spawn.lua: `["20"] = {-29318, 23884, -14619, -19115}`.
-    //
-    // The sign is *not* "must be off".  A negative id sets `reverseEff`, which
-    // BitmaskLink stores as the second tuple element, and unit_plate.lua then
-    // fails the mask on `triggerObj[2] ~= active` -- so a negative id means the
-    // lever must be ON, and the one positive id means it must be OFF.  Reading
-    // the minus sign the obvious way inverted all four and made the first door
-    // unopenable: it wanted exactly the combination the floor markers tell you
-    // not to set.
-    let bitmap_open = [(29318, true), (23884, false), (14619, true), (19115, true)]
-        .into_iter()
-        .all(|(key, expected)| {
-            level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
-        });
+    let bitmap_open = LEVER_GATE_COMBINATION.into_iter().all(|(key, expected)| {
+        level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
+    });
     set_triggerable_active(&mut world, &mut pending, gate, bitmap_open);
 }
 
@@ -128,15 +134,14 @@ pub fn set_triggerable_active(world: &mut World, pending: &mut Pending, id: i32,
             .retain(|candidate| *candidate != id);
     }
     if let Some((_, x1, z1, x2, z2)) = gate_area(world, id) {
-        // Unlike cages, gates are reversible.  The old port only sent the ON
-        // edge, which left the visual script and the collision state out of
-        // sync after the first lever change.
+        // Unlike cages, gates are reversible: send both edges so the unit
+        // script and the terrain collision stay in sync.
         set_gate_physics(id, x1, z1, x2, z2, active);
-        let _ = spring::give_order_to_unit(id, CMD_ONOFF, &[if active { 1.0 } else { 0.0 }], 0, 0);
+        let _ = spring::give_order_to_unit(id, cmd::ONOFF, &[if active { 1.0 } else { 0.0 }], 0, 0);
     } else if active {
         // Cages still only receive their rising edge; replaying their release
         // animation every frame would re-trigger the prisoner lifecycle.
-        let _ = spring::give_order_to_unit(id, CMD_ONOFF, &[1.0], 0, 0);
+        let _ = spring::give_order_to_unit(id, cmd::ONOFF, &[1.0], 0, 0);
         if spring::get_unit_def_id_by_name("cage")
             .ok()
             .is_some_and(|cage| {
@@ -166,18 +171,7 @@ fn set_gate_physics(id: i32, x1: f32, z1: f32, x2: f32, z2: f32, open: bool) {
     let _ = spring::level_height_map(x1, z1, x2, z2, height);
     // The terrain is the gate's collision. The model itself stays embedded in
     // the wall and must never become a second, offset blocker.
-    let _ = spring::set_unit_blocking(
-        id,
-        spring::rules_synced::unit_control::SetUnitBlockingOptions {
-            blocking: false,
-            solid_objects: false,
-            projectiles: false,
-            quad_map_rays: false,
-            crushable: false,
-            block_enemy_pushing: false,
-            block_height_changes: false,
-        },
-    );
+    crate::level::clear_blocking(id, false);
     let _ = spring::force_unit_collision_update(id);
 }
 

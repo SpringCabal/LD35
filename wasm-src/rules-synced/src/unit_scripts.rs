@@ -1,9 +1,7 @@
 //! Parts Needed's unit scripts, implemented on top of the portable CUS API.
 //!
-//! The Lua archive still contains the original scripts as a reference, but
-//! this module is the runtime owner for the WASM game. Keeping the CUS
-//! instance registry here is important: a named unit-script call only carries
-//! the CUS instance id, not the engine unit id.
+//! The CUS instance registry lives here because a named unit-script call only
+//! carries the CUS instance id, not the engine unit id.
 
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
@@ -19,6 +17,7 @@ use spring::cus::{
     WreckLevel,
 };
 
+// Signals are per unit and gates never walk, so the two share a bit.
 const SIG_GATE: SignalMask = SignalMask::new(1);
 const SIG_WALK: SignalMask = SignalMask::new(1);
 const SIG_FLOAT: SignalMask = SignalMask::new(4);

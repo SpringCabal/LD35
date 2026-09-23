@@ -1,8 +1,6 @@
 use spring_addons::ui::Widget;
 
-use crate::state::Global;
-
-const GAME_END_DURATION: i32 = 80;
+use crate::state::{GAME_END_DURATION, Global};
 
 pub struct GuiHudWidget {
     sequence_start: core::cell::Cell<i32>,

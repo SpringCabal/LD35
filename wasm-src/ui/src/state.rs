@@ -4,6 +4,10 @@ use spring_addons::Resource;
 
 pub const FORM_CHANGE_FRAMES: i32 = 15;
 
+/// gfx_eyes_effect.lua's GAME_END_DURATION: the ending fades the screen for
+/// this many frames, holds it as long again, then shows the end screen.
+pub const GAME_END_DURATION: i32 = 80;
+
 /// gfx_eyes_effect.lua writes `3.14` rather than `math.pi` in its transition
 /// curves.  Substituting the real constant would change the authored shape of
 /// the noise burst, so keep the literal the widget actually uses.

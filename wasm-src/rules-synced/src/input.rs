@@ -1,9 +1,8 @@
 //! Player commands arriving from the UI over `RecvLuaMsg`.
 
-use crate::endgame;
 use crate::state::{FORM_COOLDOWN, Global, param};
-use crate::triggers::CMD_ONOFF;
 use crate::triggers::nearby;
+use crate::{cmd, endgame};
 
 pub fn handle_message(global: &Global, data: &[u8]) {
     let Ok(message) = core::str::from_utf8(data) else {
@@ -40,20 +39,17 @@ pub fn handle_message(global: &Global, data: &[u8]) {
                 }
             }
             Some("switch_form") if frame - global.wisp.access().form_frame > FORM_COOLDOWN => {
-                let wisp_id = {
+                // The form-change sound is unsynced-only; the UI module plays it.
+                let spirit = {
                     let mut wisp = global.wisp.access_mut();
                     wisp.form_frame = frame;
                     // Leaving spirit form needs eyes; otherwise the switch
                     // always returns to it.
                     wisp.spirit = !(wisp.spirit && wisp.has_eyes);
                     wisp.pieces_dirty = true;
-                    param("spiritMode", if wisp.spirit { 1.0 } else { 0.0 });
-                    wisp.id
+                    wisp.spirit
                 };
-                // unit_wisp_controller.lua plays this when the form actually
-                // changes.  Playing it here does nothing -- sound is
-                // unsynced-only -- so the UI module does it off the spirit flip.
-                let _ = wisp_id;
+                param("spiritMode", if spirit { 1.0 } else { 0.0 });
             }
             Some("pull_lever") => {
                 if let Some(id) = fields.next().and_then(|value| value.parse::<i32>().ok()) {
@@ -92,7 +88,7 @@ pub fn handle_message(global: &Global, data: &[u8]) {
                         }
                         i32::from(world.active_triggers.contains(&id)) as f32
                     };
-                    let _ = spring::give_order_to_unit(id, CMD_ONOFF, &[enabled], 0, 0);
+                    let _ = spring::give_order_to_unit(id, cmd::ONOFF, &[enabled], 0, 0);
                 }
             }
             Some("npc_wisp") => {

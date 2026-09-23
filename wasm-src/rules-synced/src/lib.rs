@@ -1,6 +1,7 @@
 extern crate alloc;
 
 pub mod cages;
+pub mod cmd;
 pub mod endgame;
 pub mod gadgets;
 pub mod input;

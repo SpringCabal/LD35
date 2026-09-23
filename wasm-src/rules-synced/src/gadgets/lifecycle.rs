@@ -28,7 +28,10 @@ fn pin_authored_wall_height(id: i32, def: i32) {
     };
     let _ = spring::move_ctrl::move_ctrl(id, true);
     let _ = spring::move_ctrl::set_move_ctrl_gravity(id, 0.0);
-    let _ = spring::set_unit_position(id, spring::Float3::new(position.x, 411.499_02, position.z));
+    let _ = spring::set_unit_position(
+        id,
+        spring::Float3::new(position.x, crate::level::FLOOR_Y, position.z),
+    );
 }
 
 /// Everything unit_collisions.lua and unit_plate.lua do to a unit's collision
@@ -37,25 +40,11 @@ fn pin_authored_wall_height(id: i32, def: i32) {
 /// The dungeon's walls, levers and plates are scenery: the real barriers are
 /// the map's terrain, and the authored gadgets take all three out of the
 /// collision world.  Leaving them solid means the player is shoved around by
-/// decoration, and it pushed the caged wisps out through the bars -- a
-/// prisoner spawned at its cage is displaced to the nearest free spot, and a
-/// neighbouring wall made that spot outside the cell.
+/// decoration, and a prisoner spawned at its cage would be displaced to the
+/// nearest free spot, which a neighbouring wall can put outside the cell.
 fn apply_authored_collisions(id: i32, def: i32) {
     pin_authored_wall_height(id, def);
-    let clear_blocking = |quad_map_rays: bool| {
-        let _ = spring::set_unit_blocking(
-            id,
-            spring::rules_synced::unit_control::SetUnitBlockingOptions {
-                blocking: false,
-                solid_objects: false,
-                projectiles: false,
-                quad_map_rays,
-                crushable: false,
-                block_enemy_pushing: false,
-                block_height_changes: false,
-            },
-        );
-    };
+    let clear_blocking = |quad_map_rays: bool| crate::level::clear_blocking(id, quad_map_rays);
     let clear_volume = || {
         let _ = spring::set_unit_collision_volume_data(
             id,
@@ -104,9 +93,7 @@ impl Gadget<Global> for LifecycleGadget {
 
     /// Apply the authored collision rules to the units the map itself placed.
     ///
-    /// UnitCreated does not reach them: they exist before this module loads, so
-    /// only the ~130 units the rules module spawns itself came through that
-    /// path, and the map's two hundred walls stayed solid.
+    /// UnitCreated does not reach them: they exist before this module loads.
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         if self.swept.replace(true) {
             return;

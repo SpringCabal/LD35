@@ -1,7 +1,8 @@
 use spring_addons::rules::Gadget;
 
-use crate::integration;
+use crate::integration::{self, LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
 use crate::state::Global;
+use crate::triggers::LEVER_GATE_COMBINATION;
 
 #[derive(Default)]
 pub struct IntegrationGadget;
@@ -29,7 +30,7 @@ impl Gadget<Global> for IntegrationGadget {
         match frame {
             20 => crate::input::handle_message(global, b"movement|1|0"),
             25 => {
-                let lever = crate::triggers::level_id(&global.world.access(), 14725);
+                let lever = crate::triggers::level_id(&global.world.access(), TEST_LEVER);
                 if let Some(lever) = lever {
                     let message = alloc::format!("pull_lever|{lever}");
                     crate::input::handle_message(global, message.as_bytes());
@@ -71,7 +72,7 @@ impl Gadget<Global> for IntegrationGadget {
             72 => {
                 let target = (|| {
                     Some((
-                        crate::triggers::level_id(&global.world.access(), 14725)?,
+                        crate::triggers::level_id(&global.world.access(), TEST_LEVER)?,
                         spring::get_unit_position(global.wisp.access().id, false, false).ok()?,
                     ))
                 })();
@@ -85,7 +86,7 @@ impl Gadget<Global> for IntegrationGadget {
             78 => {
                 let target = (|| {
                     Some((
-                        crate::triggers::level_id(&global.world.access(), 14725)?,
+                        crate::triggers::level_id(&global.world.access(), TEST_LEVER)?,
                         spring::get_unit_position(global.wisp.access().id, false, false).ok()?,
                     ))
                 })();
@@ -95,15 +96,12 @@ impl Gadget<Global> for IntegrationGadget {
                     crate::input::handle_message(global, message.as_bytes());
                 }
             }
-            // The first door's lever combination.  game_custom_spawn.lua asks
-            // for 29318, 14619 and 19115 ON and 23884 left OFF -- the floor
-            // markers in that room spell out the same three circles and one
-            // cross.
+            // Set the first door's lever combination.
             79 => {
-                for key in [29318, 14619, 19115] {
+                for (key, _) in LEVER_GATE_COMBINATION.iter().filter(|(_, on)| *on) {
                     let target = (|| {
                         Some((
-                            crate::triggers::level_id(&global.world.access(), key)?,
+                            crate::triggers::level_id(&global.world.access(), *key)?,
                             spring::get_unit_position(global.wisp.access().id, false, false)
                                 .ok()?,
                         ))
@@ -120,7 +118,7 @@ impl Gadget<Global> for IntegrationGadget {
                 let target = (|| {
                     Some((
                         global.wisp.access().id,
-                        crate::triggers::level_id(&global.world.access(), 12701)?,
+                        crate::triggers::level_id(&global.world.access(), TEST_PLATE)?,
                     ))
                 })();
                 if let Some((wisp, plate)) = target
@@ -148,7 +146,8 @@ impl Gadget<Global> for IntegrationGadget {
             // the pickup sequence being tested above.
             110 => {
                 let wisp = global.wisp.access().id;
-                if let Some(plate) = crate::triggers::level_id(&global.world.access(), 11688)
+                if let Some(plate) =
+                    crate::triggers::level_id(&global.world.access(), LAST_ROOM_PLATE)
                     && let Ok(position) = spring::get_unit_position(plate, false, false)
                 {
                     let _ = spring::set_unit_position(wisp, position);

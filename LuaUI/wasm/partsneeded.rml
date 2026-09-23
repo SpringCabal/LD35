@@ -1,7 +1,0 @@
-<rml>
-  <head><link type="text/rcss" href="partsneeded.rcss" /><title>Parts Needed</title></head>
-  <body>
-    <div id="space-prompt" class="hidden">Press Space</div>
-    <div id="ending" class="hidden"></div>
-  </body>
-</rml>

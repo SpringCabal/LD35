@@ -1,9 +1,8 @@
 // The combine pass from gfx_eyes_effect.lua: the bloom composite, the spirit
 // colour grade, the vignette and the grain, in the authored order.
 //
-// texture1 is the blurred bright-pass.  Dropping it -- as this port did at
-// first -- costs the wisp its halo and leaves the whole scene noticeably
-// darker than the Lua build, because every highlight loses its bloom.
+// texture1 is the blurred bright-pass: the wisp's halo and every highlight's
+// bloom.
 uniform sampler2D texture0;
 uniform sampler2D texture1;
 uniform float illuminationThreshold;
