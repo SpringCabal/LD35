@@ -632,9 +632,24 @@ fn format_position(position: Option<spring::Float3>) -> alloc::string::String {
 #[derive(Default)]
 struct EndingTracker {
     prepared: bool,
+    /// The first ending arrival, its distance to the player when first seen,
+    /// and that frame.
+    first_arrival: Option<(i32, f32, i32)>,
     spawn_checked: bool,
     done: bool,
     failed: u32,
+}
+
+/// How much closer to the player the first ending arrival must have come by
+/// frame 260. It is ~30 frames old then; the npcwisp unit reaches its 5
+/// elmo/frame top speed after 10 frames.
+const ENDING_MIN_APPROACH: f32 = 50.0;
+
+fn planar_distance(id: i32, target: spring::Float3) -> Option<f32> {
+    let position = spring::get_unit_position(id, false, false).ok()?;
+    let dx = position.x - target.x;
+    let dz = position.z - target.z;
+    Some((dx * dx + dz * dz).sqrt())
 }
 
 thread_local! { static ENDING_TRACKER: RefCell<EndingTracker> = RefCell::new(EndingTracker::default()); }
@@ -695,18 +710,26 @@ pub fn update_ending_integration(global: &Global, frame: i32) {
             );
         }
 
-        // Give the first normal engine MOVE order a few frames to accelerate
-        // before checking its convergence. The Lua unit has maxVelocity=5 and
-        // acceleration=0.5, so checking immediately after creation made the
-        // test depend on the first random offset rather than movement.
+        if t.prepared && t.first_arrival.is_none() {
+            let first = global.endgame.access().ending_wisps.first().copied();
+            if let Some((id, target)) = first
+                && let Some(distance) = planar_distance(id, target)
+            {
+                t.first_arrival = Some((id, distance, frame));
+            }
+        }
+
+        // The arrivals spawn 100-400 elmos from the player on each axis, from
+        // the synced RNG, so how close the first one is by now depends on the
+        // seed. Check that it closed in from where it appeared instead.
         if frame == 260 && t.prepared && !t.spawn_checked {
-            let (game_over, ending_type, release_wisps, first_ending) = {
+            let (game_over, ending_type, release_wisps, target) = {
                 let endgame = global.endgame.access();
                 (
                     endgame.game_over,
                     endgame.ending_type,
                     endgame.release_wisps,
-                    endgame.ending_wisps.first().copied(),
+                    endgame.ending_wisps.first().map(|(_, target)| *target),
                 )
             };
             ending_check(
@@ -714,19 +737,22 @@ pub fn update_ending_integration(global: &Global, frame: i32) {
                 game_over && ending_type == 1 && release_wisps,
                 "freeing every NPC selects the authored souls-freed ending",
             );
-            let converging = first_ending.is_some_and(|(id, target)| {
-                spring::get_unit_position(id, false, false)
-                    .ok()
-                    .is_some_and(|position| {
-                        let dx = position.x - target.x;
-                        let dz = position.z - target.z;
-                        (dx * dx + dz * dz).sqrt() < 300.0
-                    })
+            let progress = t.first_arrival.and_then(|(id, start, seen)| {
+                let target = target?;
+                let now = planar_distance(id, target)?;
+                Some((start, now, frame - seen))
             });
             ending_check(
                 t,
-                converging,
-                "the first ending wisp spawns in the world and converges toward the player",
+                progress.is_some_and(|(start, now, _)| start - now >= ENDING_MIN_APPROACH),
+                &match progress {
+                    Some((start, now, frames)) => format!(
+                        "the first ending wisp spawns in the world and converges toward the player ({start:.0} -> {now:.0} elmos in {frames} frames)"
+                    ),
+                    None => alloc::string::String::from(
+                        "the first ending wisp spawns in the world and converges toward the player (not found)",
+                    ),
+                },
             );
             t.spawn_checked = true;
         }
