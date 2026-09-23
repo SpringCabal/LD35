@@ -155,7 +155,7 @@ pub fn body_part_name(def: i32) -> Option<&'static str> {
 }
 
 pub fn hide_all_wisp_pieces(id: i32) {
-    let _ = spring::typed::call_unit_script(id, "SetWasmPieceMask", &[-1.0], 0);
+    crate::unit_scripts::queue_piece_mask(id, -1);
 }
 
 pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: &[String]) {
@@ -173,7 +173,7 @@ pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: &[String]) {
             .filter(|(_, part)| collected_parts.iter().any(|owned| owned == *part))
             .fold(0, |mask, (bit, _)| mask | (1 << bit))
     };
-    let _ = spring::typed::call_unit_script(id, "SetWasmPieceMask", &[mask as f32], 0);
+    crate::unit_scripts::queue_piece_mask(id, mask);
     // Lua's Show(parent) semantics differ on the Core renderer: making the
     // body visible can implicitly re-enable children that Lua had hidden.
     // Apply the exact authored mask at the engine piece level as well, while

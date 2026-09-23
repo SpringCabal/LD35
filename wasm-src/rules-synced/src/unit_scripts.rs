@@ -2244,24 +2244,41 @@ impl PartsUnitScript {
         }
 
         // SetPieceVisible() in the Lua script calls updateMovement() whenever
-        // the arms or legs group becomes visible.  With isMoving=false that
-        // starts the idle animation, which is observable immediately after
-        // the first spirit -> corporal switch.  The WASM mask call must keep
-        // that same animation transition; merely changing visibility leaves
-        // the body frozen at its spirit-form pose until the next movement.
-        if self.kind == Some(ScriptKind::Wisp) && old_mask < 0 && (mask & (4 | 8)) != 0 {
-            ctx.signal(SIG_WALK);
-            ctx.spawn(TaskDefinition::with_state(
-                "partsneeded-wisp-mask-idle",
-                Rc::clone(&self.animation),
-                wisp_idle,
-            ));
+        // the arms or legs group changes: a moving wisp switches to the gait
+        // its limbs allow (walk with legs, float_arms "swim" with arms only),
+        // a standing one to idle.  Without this, a wisp that gains arms while
+        // already moving keeps its old animation, and the first spirit ->
+        // corporal switch leaves the body frozen at its spirit-form pose.
+        let limbs_changed = old_mask < 0 || (old_mask ^ mask) & (4 | 8) != 0;
+        if self.kind == Some(ScriptKind::Wisp) && limbs_changed && (mask & (4 | 8)) != 0 {
+            if self.animation.borrow().moving {
+                start_wisp_movement(ctx, Rc::clone(&self.animation));
+            } else {
+                ctx.signal(SIG_WALK);
+                ctx.spawn(TaskDefinition::with_state(
+                    "partsneeded-wisp-mask-idle",
+                    Rc::clone(&self.animation),
+                    wisp_idle,
+                ));
+            }
         }
     }
 }
 
 thread_local! {
     static PENDING_UNITS: RefCell<Vec<(i32, i32)>> = const { RefCell::new(Vec::new()) };
+    static PENDING_MASKS: RefCell<Vec<(i32, i32)>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Queue a wisp piece mask (wisp.lua's SetPieceVisible groups) for the next
+/// Core-CUS tick.  The rules run inside this same module, so routing the call
+/// through the engine (`call_unit_script`) is a nested call into a module that
+/// is already running a gadget callin; the engine rejects it (ApiError 1) and
+/// the mask never arrived, leaving the wisp's animation state in spirit form.
+pub fn queue_piece_mask(unit: i32, mask: i32) {
+    if unit >= 0 {
+        PENDING_MASKS.with(|pending| pending.borrow_mut().push((unit, mask)));
+    }
 }
 
 /// Queue both map-authored units and units spawned by the Rust rules. Attach
@@ -2314,6 +2331,20 @@ impl PartsCusModule {
             } else {
                 let _ = self.registry.detach(handle);
             }
+        }
+    }
+
+    fn apply_pending_masks(&mut self) {
+        let pending = PENDING_MASKS.with(|masks| core::mem::take(&mut *masks.borrow_mut()));
+        for (unit_id, mask) in pending {
+            let Some(handle) = self.handles.get(&instance_id(UnitId(unit_id))).copied() else {
+                continue;
+            };
+            self.sync_instance_frame(handle);
+            let _ = self.registry.with(handle, |instance| {
+                let ctx = instance.context();
+                instance.with_state(|script| script.set_piece_mask(&ctx, mask));
+            });
         }
     }
 
@@ -2414,6 +2445,7 @@ impl CoreCusModule for PartsCusModule {
 
     fn cus_tick(&mut self, frame: u32) {
         self.attach_pending();
+        self.apply_pending_masks();
         self.registry.tick(frame as u64);
     }
 
