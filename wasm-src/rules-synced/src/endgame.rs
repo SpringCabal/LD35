@@ -91,24 +91,19 @@ pub(crate) fn game_over_type(alive_wisps: usize, saved_wisps: i32, killed_wisps:
 /// effective behavior is one arrival per GameFrame.
 pub const ENDING_SPAWN_AMOUNT: i32 = 500;
 
-/// Reproduce the Lua ending's independent signed x/z offsets without relying
-/// on a host RNG. Lua samples each axis in [-300, 300], then extends the sign
-/// by another 100 elmos, producing independent ranges [-400, -100] or
-/// [100, 400]. A stable hash keeps replays deterministic while retaining that
-/// square, multi-directional distribution.
-fn ending_offset(index: u32, salt: u32) -> f32 {
-    let mut value = index
-        .wrapping_mul(0x9e37_79b9)
-        .wrapping_add(salt)
-        .wrapping_add(0x7f4a_7c15);
-    value ^= value >> 16;
-    value = value.wrapping_mul(0x85eb_ca6b);
-    value ^= value >> 13;
-    let magnitude = 100.0 + (value % 301) as f32;
-    if value & 1 == 0 {
-        magnitude
+/// How far from the player the ending's arrivals appear, per axis: game_end.lua
+/// samples [-300, 300] and pushes the sample another 100 elmos away from zero.
+const ENDING_SPAWN_DISTANCE: f32 = 300.0;
+const ENDING_SPAWN_DISTANCE_MIN: f32 = 100.0;
+
+/// One axis of game_end.lua's spawn offset, from the synced engine RNG that
+/// its `math.random` draws from.
+fn ending_offset() -> f32 {
+    let offset = (0.5 - spring::random::synced::float()) * ENDING_SPAWN_DISTANCE * 2.0;
+    if offset > 0.0 {
+        offset + ENDING_SPAWN_DISTANCE_MIN
     } else {
-        -magnitude
+        offset - ENDING_SPAWN_DISTANCE_MIN
     }
 }
 
@@ -117,9 +112,8 @@ pub fn spawn_ending_wisp(global: &Global) {
     let Some(position) = spring::get_unit_position(wisp_id, false, false).ok() else {
         return;
     };
-    let index = global.endgame.access().end_spawned.saturating_sub(1) as u32;
-    let dx = ending_offset(index, 0x243f_6a88);
-    let dz = ending_offset(index, 0x85a3_08d3);
+    let dx = ending_offset();
+    let dz = ending_offset();
     let spawn_position = spring::Float3::new(position.x + dx, position.y, position.z + dz);
     let Some(id) = crate::level::spawn_unit("npcwisp", crate::defs::defs().npcwisp, spawn_position)
     else {
