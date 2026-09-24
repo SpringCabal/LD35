@@ -99,7 +99,7 @@ fn play_at(name: &str, volume: f32, position: spring::Float3) {
 }
 
 fn cooldown_frames(sound: &AmbientSound) -> i32 {
-    (random::range(sound.cooldown.0, sound.cooldown.1) * 30.0) as i32
+    (random::range(sound.cooldown.0, sound.cooldown.1) * spring::consts::GAME_SPEED as f32) as i32
 }
 
 /// An offset of 100-500 elmos on each axis, either way.

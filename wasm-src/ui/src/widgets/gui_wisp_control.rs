@@ -1,3 +1,4 @@
+use spring::mouse;
 use spring_addons::event::{EventResult, KeyEvent};
 use spring_addons::ui::Widget;
 
@@ -147,7 +148,7 @@ impl Widget<Global> for GuiWispControlWidget {
     ) -> EventResult {
         let (center_x, center_y) = (self.screen_width.get() / 2, self.screen_height.get() / 2);
         let in_restart_prompt = ctx.global().player.access().end_screen_shown()
-            && button == 1
+            && button == mouse::LEFT
             && (x - center_x).abs() <= RESTART_PROMPT_HALF_WIDTH
             && (center_y + RESTART_PROMPT_TOP..=center_y + RESTART_PROMPT_BOTTOM).contains(&y);
         if in_restart_prompt {
@@ -159,7 +160,7 @@ impl Widget<Global> for GuiWispControlWidget {
         // Match ui_wisp_control.lua: only the embodied, armed player can pull a
         // nearby lever.  In particular, tracing a lever is not enough while the
         // player is a spirit or looking across the map.
-        if button != 1
+        if button != mouse::LEFT
             || global.game_over
             || global.spirit
             || !global.parts.contains(BodyPart::Arms)
@@ -167,7 +168,7 @@ impl Widget<Global> for GuiWispControlWidget {
             // Claim the middle button as well. The engine only gives its
             // camera receiver the drag when no input receiver handles the
             // press; handling it here disables camera rotation.
-            return (button == 1 || button == 2 || button == 3).into();
+            return matches!(button, mouse::LEFT | mouse::MIDDLE | mouse::RIGHT).into();
         }
         // Prefer the lever the highlight widget is already glowing: it traced
         // the cursor this frame, and a second TraceScreenRay in the same frame

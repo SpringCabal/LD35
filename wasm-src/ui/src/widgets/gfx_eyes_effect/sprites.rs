@@ -57,7 +57,7 @@ impl Sprites {
             // unit_wisp_draw.lua quantises its time to a tenth of a second, so
             // the per-pixel noise resamples in visible steps instead of
             // shimmering every frame.
-            let seconds = frame / 30.0;
+            let seconds = frame / spring::consts::GAME_SPEED as f32;
             let _ = spring::gfx::uniform(self.loc_time, &[(seconds * 10.0).floor() / 10.0], 1);
             let _ = spring::gfx::uniform(self.loc_spirit, &[opacity], 1);
             for unit_id in wisps {

@@ -85,7 +85,7 @@ impl GfxEyesEffectWidget {
             spirit,
             noise,
             game_over,
-            time: frame as f32 / 30.0,
+            time: frame as f32 / spring::consts::GAME_SPEED as f32,
         }
     }
 }

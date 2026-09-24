@@ -20,10 +20,6 @@ const MAX_BRIGHTNESS: f32 = 0.22;
 const ILLUM_THRESHOLD: f32 = 0.33;
 const BLUR_PASSES: i32 = 2;
 
-/// GL_RGB16F_ARB, the float format gfx_eyes_effect.lua asks for so the bright
-/// pass can hold values above 1.0 without clipping.
-const GL_RGB16F_ARB: u32 = 0x881B;
-
 /// The combine pass's inputs for one frame.
 pub struct ScreenAmounts {
     pub spirit: f32,
@@ -107,8 +103,10 @@ impl Bloom {
             self.screen_tex = create_texture(width, height, 0, false);
             // Quarter resolution, as authored: the blur is wide enough that the
             // lost detail never shows, and it is what makes the pass cheap.
-            self.bright_tex_1 = create_texture(width / 4, height / 4, GL_RGB16F_ARB, true);
-            self.bright_tex_2 = create_texture(width / 4, height / 4, GL_RGB16F_ARB, true);
+            // A float format, as gfx_eyes_effect.lua asks for, so the bright
+            // pass can hold values above 1.0 without clipping.
+            self.bright_tex_1 = create_texture(width / 4, height / 4, gl::RGB16F, true);
+            self.bright_tex_2 = create_texture(width / 4, height / 4, gl::RGB16F, true);
         }
 
         if self.initialized {
