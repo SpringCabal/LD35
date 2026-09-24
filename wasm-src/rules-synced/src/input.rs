@@ -37,14 +37,16 @@ pub fn handle_command(global: &Global, command: Command) {
     match command {
         Command::SwitchForm => {
             let mut wisp = global.wisp.access_mut();
-            if frame - wisp.form_frame <= FORM_COOLDOWN {
+            // unit_wisp_controller.lua: without eyes a switch is refused and
+            // doesn't start the cooldown either.
+            if frame - wisp.form_frame <= FORM_COOLDOWN
+                || !wisp.collected_parts.contains(BodyPart::Eyes)
+            {
                 return;
             }
             // The form-change sound is unsynced-only; the UI module plays it.
             wisp.form_frame = frame;
-            // Leaving spirit form needs eyes; otherwise the switch always
-            // returns to it.
-            wisp.spirit = !(wisp.spirit && wisp.collected_parts.contains(BodyPart::Eyes));
+            wisp.spirit = !wisp.spirit;
             wisp.pieces_dirty = true;
         }
         Command::PullLever(id) => pull_lever(global, id),
