@@ -35,6 +35,24 @@ impl Defs {
         }
     }
 
+    /// The def of a level unit, by its name in game_custom_spawn.lua.
+    pub fn by_name(&self, name: &str) -> Option<i32> {
+        let def = match name {
+            "wisp" => self.wisp,
+            "npcwisp" => self.npcwisp,
+            "gatesmoth" => self.gate,
+            "lever" => self.lever,
+            "plate" => self.plate,
+            "cage" => self.cage,
+            "light" => self.light,
+            _ => BodyPart::ALL
+                .into_iter()
+                .find(|part| part.name() == name)
+                .map(|part| self.part_def(part))?,
+        };
+        (def >= 0).then_some(def)
+    }
+
     pub fn body_part(&self, def: i32) -> Option<BodyPart> {
         BodyPart::ALL
             .into_iter()

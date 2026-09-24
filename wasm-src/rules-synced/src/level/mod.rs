@@ -73,13 +73,17 @@ pub fn spawn_unit(name: &str, def: i32, position: Float3) -> Option<i32> {
 }
 
 fn create(unit: &LevelUnit) -> Option<i32> {
-    let def = spring::get_unit_def_id_by_name(unit.name).ok()?;
+    let defs = crate::defs::defs();
+    let Some(def) = defs.by_name(unit.name) else {
+        spring::log_warning!(crate::log::SECTION, "unknown level unit {}", unit.name);
+        return None;
+    };
     let id = spawn_unit(unit.name, def, Float3::new(unit.x, unit.y, unit.z))?;
     // All authored static level geometry is placed at an explicit map height.
     // The player wisp is also an authored entry, but it must retain its normal
     // ground move type; putting it under MoveCtrl makes the walk animation run
     // while the unit itself remains completely immobile.
-    if unit.name != "wisp" {
+    if def != defs.wisp {
         configure_fixed_height(id, Float3::new(unit.x, unit.y, unit.z));
     }
     // game_custom_spawn.lua restores these through s11n's unit bridge, which
@@ -88,7 +92,7 @@ fn create(unit: &LevelUnit) -> Option<i32> {
     if let (Some(mid), Some(aim)) = (unit.mid, unit.aim) {
         let _ = spring::set_unit_mid_and_aim_pos(id, mid, aim, true);
     }
-    if unit.name == "gatesmoth" {
+    if def == defs.gate {
         configure_gate(id, unit.y);
     }
     Some(id)
