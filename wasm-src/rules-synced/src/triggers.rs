@@ -83,7 +83,11 @@ pub fn update_triggers(global: &Global) -> Vec<i32> {
                 continue;
             }
             if link.kill {
-                let _ = spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC);
+                crate::log::check(
+                    "do_kill rules param",
+                    target,
+                    spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC),
+                );
             }
             if switch_on(&mut world, target) {
                 targets.push((target, gate_area(&world, target)));
@@ -184,7 +188,11 @@ fn set_gate_physics(id: i32, x1: f32, z1: f32, x2: f32, z2: f32, open: bool) {
     // The terrain is the gate's collision. The model itself stays embedded in
     // the wall and must never become a second, offset blocker.
     crate::level::clear_blocking(id, false);
-    let _ = spring::force_unit_collision_update(id);
+    crate::log::check(
+        "gate collision update",
+        id,
+        spring::force_unit_collision_update(id),
+    );
 }
 
 pub fn nearby(first: i32, second: i32, distance: f32) -> bool {

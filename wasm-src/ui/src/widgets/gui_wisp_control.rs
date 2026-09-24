@@ -122,9 +122,7 @@ impl Widget<Global> for GuiWispControlWidget {
                 );
                 // Show the body now.  Waiting for the rules module to answer
                 // and api_sync to apply no-draw costs a visible round trip.
-                if wisp >= 0 {
-                    let _ = spring::unsynced_ctrl::set_unit_no_draw(wisp, wanted);
-                }
+                crate::show_body(wisp, !wanted);
             }
             return EventResult::Handled;
         }

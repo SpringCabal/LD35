@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 
-use spring::Float3;
+use spring::{Float3, ResultExt};
+
+use crate::log::check;
 
 mod units;
 
@@ -12,7 +14,7 @@ pub const FLOOR_Y: f32 = 411.499_02;
 /// Take a unit out of the collision world.  Levers keep `quad_map_rays` so a
 /// screen trace can still find them to click.
 pub fn clear_blocking(id: i32, quad_map_rays: bool) {
-    let _ = spring::set_unit_blocking(
+    let result = spring::set_unit_blocking(
         id,
         spring::rules_synced::unit_control::SetUnitBlockingOptions {
             blocking: false,
@@ -24,6 +26,7 @@ pub fn clear_blocking(id: i32, quad_map_rays: bool) {
             block_height_changes: false,
         },
     );
+    result.log_err_once("taking a unit out of the collision world");
 }
 
 #[derive(Clone, Copy)]
@@ -88,9 +91,17 @@ fn create(unit: &LevelUnit) -> Option<i32> {
     }
     // game_custom_spawn.lua restores these through s11n's unit bridge, which
     // replays every serialised field, rotation and mid/aim positions included.
-    let _ = spring::set_unit_rotation(id, unit.rot);
+    check(
+        "level unit rotation",
+        id,
+        spring::set_unit_rotation(id, unit.rot),
+    );
     if let (Some(mid), Some(aim)) = (unit.mid, unit.aim) {
-        let _ = spring::set_unit_mid_and_aim_pos(id, mid, aim, true);
+        check(
+            "level unit mid and aim position",
+            id,
+            spring::set_unit_mid_and_aim_pos(id, mid, aim, true),
+        );
     }
     if def == defs.gate {
         configure_gate(id, unit.y);
@@ -99,9 +110,21 @@ fn create(unit: &LevelUnit) -> Option<i32> {
 }
 
 fn configure_fixed_height(unit_id: i32, position: Float3) {
-    let _ = spring::move_ctrl::move_ctrl(unit_id, true);
-    let _ = spring::move_ctrl::set_move_ctrl_gravity(unit_id, 0.0);
-    let _ = spring::set_unit_position(unit_id, position);
+    check(
+        "MoveCtrl",
+        unit_id,
+        spring::move_ctrl::move_ctrl(unit_id, true),
+    );
+    check(
+        "MoveCtrl gravity",
+        unit_id,
+        spring::move_ctrl::set_move_ctrl_gravity(unit_id, 0.0),
+    );
+    check(
+        "level unit position",
+        unit_id,
+        spring::set_unit_position(unit_id, position),
+    );
 }
 
 /// Gates are terrain doors, not free-standing blockers. Keep their model at
@@ -109,15 +132,43 @@ fn configure_fixed_height(unit_id: i32, position: Float3) {
 /// raised around it. MoveCtrl prevents the engine from lifting the model onto
 /// that raised terrain, matching Gravitas' wall setup.
 fn configure_gate(unit_id: i32, floor_y: f32) {
-    let _ = spring::set_unit_always_visible(unit_id, true);
-    let _ = spring::set_unit_neutral(unit_id, true);
-    let _ = spring::move_ctrl::move_ctrl(unit_id, true);
-    let _ = spring::move_ctrl::set_no_blocking(unit_id, true);
-    let _ = spring::move_ctrl::set_move_ctrl_gravity(unit_id, 0.0);
-    if let Ok(position) = spring::get_unit_position(unit_id, false, false) {
-        let _ = spring::set_unit_position(
+    check(
+        "gate always visible",
+        unit_id,
+        spring::set_unit_always_visible(unit_id, true),
+    );
+    check(
+        "gate neutral",
+        unit_id,
+        spring::set_unit_neutral(unit_id, true),
+    );
+    check(
+        "gate MoveCtrl",
+        unit_id,
+        spring::move_ctrl::move_ctrl(unit_id, true),
+    );
+    check(
+        "gate MoveCtrl no blocking",
+        unit_id,
+        spring::move_ctrl::set_no_blocking(unit_id, true),
+    );
+    check(
+        "gate MoveCtrl gravity",
+        unit_id,
+        spring::move_ctrl::set_move_ctrl_gravity(unit_id, 0.0),
+    );
+    if let Some(position) = check(
+        "gate position",
+        unit_id,
+        spring::get_unit_position(unit_id, false, false),
+    ) {
+        check(
+            "gate floor height",
             unit_id,
-            spring::Float3::new(position.x, floor_y, position.z),
+            spring::set_unit_position(
+                unit_id,
+                spring::Float3::new(position.x, floor_y, position.z),
+            ),
         );
     }
     clear_blocking(unit_id, false);

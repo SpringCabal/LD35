@@ -69,7 +69,11 @@ pub fn update_game_end(global: &Global) {
         // incoming spirits converge on it. Input is rejected once game_over
         // is set, but an already-issued move goal would otherwise keep it
         // drifting during the ending.
-        let _ = spring::move_ctrl::move_ctrl(wisp_id, true);
+        crate::log::check(
+            "freezing the player for the ending",
+            wisp_id,
+            spring::move_ctrl::move_ctrl(wisp_id, true),
+        );
     }
 }
 
@@ -169,9 +173,18 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
         }
         endgame.dying_wisps.push((id, saved, destroy_frame));
     }
-    let _ = spring::set_unit_rules_param_f32(id, "is_dying", 1.0, PUBLIC);
-    let _ = spring::set_unit_rules_param_f32(id, "killed_frame", frame as f32, PUBLIC);
-    let _ = spring::set_unit_rules_param_f32(id, "destroy_frame", destroy_frame as f32, PUBLIC);
+    // The UI draws the death or rescue from these.
+    for (param, value) in [
+        ("is_dying", 1.0),
+        ("killed_frame", frame as f32),
+        ("destroy_frame", destroy_frame as f32),
+    ] {
+        crate::log::check(
+            param,
+            id,
+            spring::set_unit_rules_param_f32(id, param, value, PUBLIC),
+        );
+    }
     // unit_wisp_death.lua's audible feedback.
     if saved {
         let volume = if global.endgame.access().game_over {

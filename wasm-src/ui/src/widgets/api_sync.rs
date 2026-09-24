@@ -46,7 +46,7 @@ impl Widget<Global> for ApiSyncWidget {
         player.spirit = confirmed;
         let wisp = player.wisp;
         drop(player);
-        let _ = spring::unsynced_ctrl::set_unit_no_draw(wisp, confirmed);
+        crate::show_body(wisp, !confirmed);
     }
 
     fn recv_from_synced(&self, ctx: &spring_addons::AddonContext<'_, Global>, message: &[u8]) {
@@ -92,7 +92,7 @@ impl Widget<Global> for ApiSyncWidget {
             return;
         }
         let wisp = status.wisp;
-        let _ = spring::unsynced_ctrl::set_unit_no_draw(wisp, new_spirit);
+        crate::show_body(wisp, !new_spirit);
         // Form changes we predicted already played this on the keypress; this
         // covers changes that originate synced-side (game over forcing spirit
         // form, for instance).

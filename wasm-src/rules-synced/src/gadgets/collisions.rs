@@ -1,5 +1,6 @@
 use core::cell::Cell;
 
+use spring::ResultExt;
 use spring_addons::rules::Gadget;
 
 use crate::defs::{collision, defs};
@@ -15,12 +16,13 @@ fn pin_authored_wall_height(id: i32, def: i32) {
     let Ok(position) = spring::get_unit_position(id, false, false) else {
         return;
     };
-    let _ = spring::move_ctrl::move_ctrl(id, true);
-    let _ = spring::move_ctrl::set_move_ctrl_gravity(id, 0.0);
-    let _ = spring::set_unit_position(
+    spring::move_ctrl::move_ctrl(id, true).log_err_once("pinning a wall: MoveCtrl");
+    spring::move_ctrl::set_move_ctrl_gravity(id, 0.0).log_err_once("pinning a wall: gravity");
+    spring::set_unit_position(
         id,
         spring::Float3::new(position.x, crate::level::FLOOR_Y, position.z),
-    );
+    )
+    .log_err_once("pinning a wall: floor height");
 }
 
 /// Everything unit_collisions.lua and unit_plate.lua do to a unit's collision
@@ -35,14 +37,15 @@ fn apply_authored_collisions(id: i32, def: i32) {
     pin_authored_wall_height(id, def);
     let clear_blocking = |quad_map_rays: bool| crate::level::clear_blocking(id, quad_map_rays);
     let clear_volume = || {
-        let _ = spring::set_unit_collision_volume_data(
+        spring::set_unit_collision_volume_data(
             id,
             spring::Float3::new(0.0, 0.0, 0.0),
             spring::Float3::new(0.0, 0.0, 0.0),
             0,
             0,
             0,
-        );
+        )
+        .log_err_once("clearing a collision volume");
     };
 
     // unit_collisions.lua
