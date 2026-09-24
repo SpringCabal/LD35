@@ -632,24 +632,41 @@ fn format_position(position: Option<spring::Float3>) -> alloc::string::String {
 #[derive(Default)]
 struct EndingTracker {
     prepared: bool,
-    /// The first ending arrival, its distance to the player when first seen,
-    /// and that frame.
-    first_arrival: Option<(i32, f32, i32)>,
+    /// The first ending arrival, where it appeared and on which frame.
+    first_arrival: Option<(i32, spring::Float3, i32)>,
     spawn_checked: bool,
     done: bool,
     failed: u32,
 }
 
-/// How much closer to the player the first ending arrival must have come by
-/// frame 260. It is ~30 frames old then; the npcwisp unit reaches its 5
-/// elmo/frame top speed after 10 frames.
-const ENDING_MIN_APPROACH: f32 = 50.0;
+/// How far the first ending arrival must have travelled by frame 260, ~30
+/// frames after it appears; the npcwisp unit reaches its 5 elmo/frame top
+/// speed after 10 frames.  Its path may lead around a wall, so this checks
+/// that it travels, not that every step brings it closer.
+const ENDING_MIN_TRAVEL: f32 = 50.0;
 
-fn planar_distance(id: i32, target: spring::Float3) -> Option<f32> {
-    let position = spring::get_unit_position(id, false, false).ok()?;
-    let dx = position.x - target.x;
-    let dz = position.z - target.z;
-    Some((dx * dx + dz * dz).sqrt())
+fn planar_distance(a: spring::Float3, b: spring::Float3) -> f32 {
+    let (dx, dz) = (a.x - b.x, a.z - b.z);
+    (dx * dx + dz * dz).sqrt()
+}
+
+fn unit_position(id: i32) -> Option<spring::Float3> {
+    spring::get_unit_position(id, false, false).ok()
+}
+
+/// Whether the unit's current order is game_end.lua's MOVE to `target`, or it
+/// already arrived and has no order left.
+fn moving_to(id: i32, target: spring::Float3) -> bool {
+    match spring::get_unit_commands(id, 1).ok().as_deref() {
+        Some([]) => true,
+        Some([command, ..]) => {
+            command.cmd_id == spring::cmd::MOVE
+                && command.params.len() >= 3
+                && (command.params[0] - target.x).abs() < 1.0
+                && (command.params[2] - target.z).abs() < 1.0
+        }
+        None => false,
+    }
 }
 
 thread_local! { static ENDING_TRACKER: RefCell<EndingTracker> = RefCell::new(EndingTracker::default()); }
@@ -712,16 +729,16 @@ pub fn update_ending_integration(global: &Global, frame: i32) {
 
         if t.prepared && t.first_arrival.is_none() {
             let first = global.endgame.access().ending_wisps.first().copied();
-            if let Some((id, target)) = first
-                && let Some(distance) = planar_distance(id, target)
+            if let Some((id, _)) = first
+                && let Some(position) = unit_position(id)
             {
-                t.first_arrival = Some((id, distance, frame));
+                t.first_arrival = Some((id, position, frame));
             }
         }
 
         // The arrivals spawn 100-400 elmos from the player on each axis, from
-        // the synced RNG, so how close the first one is by now depends on the
-        // seed. Check that it closed in from where it appeared instead.
+        // the synced RNG, so where the first one is by now depends on the
+        // seed. Check that it was ordered to the player and is on its way.
         if frame == 260 && t.prepared && !t.spawn_checked {
             let (game_over, ending_type, release_wisps, target) = {
                 let endgame = global.endgame.access();
@@ -739,18 +756,26 @@ pub fn update_ending_integration(global: &Global, frame: i32) {
             );
             let progress = t.first_arrival.and_then(|(id, start, seen)| {
                 let target = target?;
-                let now = planar_distance(id, target)?;
-                Some((start, now, frame - seen))
+                let now = unit_position(id)?;
+                Some((
+                    planar_distance(start, target),
+                    planar_distance(now, target),
+                    planar_distance(start, now),
+                    frame - seen,
+                    moving_to(id, target),
+                ))
             });
             ending_check(
                 t,
-                progress.is_some_and(|(start, now, _)| start - now >= ENDING_MIN_APPROACH),
+                progress.is_some_and(|(_, _, travelled, _, ordered)| {
+                    ordered && travelled >= ENDING_MIN_TRAVEL
+                }),
                 &match progress {
-                    Some((start, now, frames)) => format!(
-                        "the first ending wisp spawns in the world and converges toward the player ({start:.0} -> {now:.0} elmos in {frames} frames)"
+                    Some((start, now, travelled, frames, ordered)) => format!(
+                        "the first ending wisp spawns in the world and heads for the player (moving to the player: {ordered}; {start:.0} -> {now:.0} elmos from it, {travelled:.0} travelled in {frames} frames)"
                     ),
                     None => alloc::string::String::from(
-                        "the first ending wisp spawns in the world and converges toward the player (not found)",
+                        "the first ending wisp spawns in the world and heads for the player (not found)",
                     ),
                 },
             );
