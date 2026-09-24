@@ -5,7 +5,7 @@ use crate::defs::{defs, unit_def};
 use crate::state::Global;
 
 use partsneeded_shared::{BodyPart, Command, FORM_COOLDOWN};
-use springcabal::keys::{MoveKeys, code};
+use springcabal::keys::MoveKeys;
 use springcabal::menu;
 
 /// The clickable band around the end screen's "Click or press R to restart"
@@ -46,16 +46,9 @@ impl GuiWispControlWidget {
             send(Command::Move { x, z });
             return EventResult::Handled;
         }
-        is_move_key(event).into()
+        // A repeat of a held key changes nothing but is claimed too.
+        MoveKeys::is_move_key(event).into()
     }
-}
-
-/// WASD or an arrow key, so a repeat of a held one is claimed too.
-fn is_move_key(event: &KeyEvent<'_>) -> bool {
-    matches!(
-        event.key_code,
-        code::LEFT | code::RIGHT | code::UP | code::DOWN
-    ) || ["a", "d", "w", "s"].iter().any(|key| event.matches(key))
 }
 
 impl Widget<Global> for GuiWispControlWidget {
