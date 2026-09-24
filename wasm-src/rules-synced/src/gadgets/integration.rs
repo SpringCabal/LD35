@@ -1,11 +1,14 @@
 //! Drives the headless integration scenario through the real message path.
 
+use core::cell::RefCell;
+
 use partsneeded_shared::{BodyPart, Command};
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
 use crate::input::handle_command;
-use crate::integration::{self, LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
+use crate::integration::scenario::{LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
+use crate::integration::{self, Tracker, ending};
 use crate::state::Global;
 use crate::triggers::{LEVER_GATE_COMBINATION, level_id};
 
@@ -13,11 +16,14 @@ const MOVE_RIGHT: Command = Command::Move { x: 1, z: 0 };
 const STAND_STILL: Command = Command::Move { x: 0, z: 0 };
 
 #[derive(Default)]
-pub struct IntegrationGadget;
+pub struct IntegrationGadget {
+    tracker: RefCell<Tracker>,
+    ending: RefCell<ending::EndingTracker>,
+}
 
 impl IntegrationGadget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -28,8 +34,8 @@ impl Gadget<Global> for IntegrationGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
-        integration::update(global, frame);
-        integration::update_ending_integration(global, frame);
+        integration::update(&mut self.tracker.borrow_mut(), global, frame);
+        ending::update(&mut self.ending.borrow_mut(), global, frame);
         match frame {
             20 => handle_command(global, MOVE_RIGHT),
             // Release the key again before the frame-30 check.

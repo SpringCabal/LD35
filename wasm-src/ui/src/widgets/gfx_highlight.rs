@@ -263,6 +263,55 @@ fn blur_pass(shader: u32, vsx: i32, vsy: i32) {
     );
 }
 
+/// Draw the blurred silhouette over the screen.
+fn composite(offscreen_tex: &str, vsx: i32, vsy: i32) {
+    let _ = spring::gfx::use_shader(0);
+    let _ = spring::gfx::matrix_mode(gl::TEXTURE);
+    let _ = spring::gfx::load_identity(0);
+    let _ = spring::gfx::matrix_mode(gl::PROJECTION);
+    let _ = spring::gfx::push_matrix(0);
+    let _ = spring::gfx::load_identity(0);
+    let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
+    let _ = spring::gfx::push_matrix(0);
+    let _ = spring::gfx::load_identity(0);
+
+    // The world pass leaves alpha and depth testing on, which would eat the
+    // soft edge of the glow.  A Lua widget has these reset for it.
+    let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
+    let _ = spring::gfx::alpha_test(false, gl::ALWAYS, 0.0);
+    let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
+        enable: false,
+        set_func: false,
+        func: 0,
+    });
+    let _ = spring::gfx::depth_mask(false);
+    let _ = spring::gfx::culling(false);
+    let _ = spring::gfx::blending(true);
+    let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+    let _ = spring::gfx::bind_texture(offscreen_tex, 0, true);
+
+    let x_off = 0.5 / (vsx as f32);
+    let y_off = 0.5 / (vsy as f32);
+    let _ = spring::gfx::tex_rect(
+        -1.0 - x_off,
+        1.0 + y_off,
+        1.0 + x_off,
+        -1.0 - y_off,
+        0.0,
+        1.0,
+        1.0,
+        0.0,
+    );
+
+    let _ = spring::gfx::bind_texture(offscreen_tex, 0, false);
+    let _ = spring::gfx::matrix_mode(gl::PROJECTION);
+    let _ = spring::gfx::pop_matrix(0);
+    let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
+    let _ = spring::gfx::pop_matrix(0);
+    let _ = spring::gfx::use_shader(0);
+    let _ = spring::gfx::pop_attrib(0);
+}
+
 #[derive(Default)]
 pub struct GfxHighlightWidget {
     pipeline: RefCell<Pipeline>,
@@ -369,50 +418,6 @@ impl Widget<Global> for GfxHighlightWidget {
         let _ = spring::gfx::bind_texture(&blur_tex, 0, true);
         let _ = spring::gfx::render_to_texture(&offscreen_tex, || blur_pass(blur_h, vsx, vsy));
 
-        let _ = spring::gfx::use_shader(0);
-        let _ = spring::gfx::matrix_mode(gl::TEXTURE);
-        let _ = spring::gfx::load_identity(0);
-        let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-        let _ = spring::gfx::push_matrix(0);
-        let _ = spring::gfx::load_identity(0);
-        let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-        let _ = spring::gfx::push_matrix(0);
-        let _ = spring::gfx::load_identity(0);
-
-        // The world pass leaves alpha and depth testing on, which would eat the
-        // soft edge of the glow.  A Lua widget has these reset for it.
-        let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
-        let _ = spring::gfx::alpha_test(false, gl::ALWAYS, 0.0);
-        let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
-            enable: false,
-            set_func: false,
-            func: 0,
-        });
-        let _ = spring::gfx::depth_mask(false);
-        let _ = spring::gfx::culling(false);
-        let _ = spring::gfx::blending(true);
-        let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        let _ = spring::gfx::bind_texture(&offscreen_tex, 0, true);
-
-        let x_off = 0.5 / (vsx as f32);
-        let y_off = 0.5 / (vsy as f32);
-        let _ = spring::gfx::tex_rect(
-            -1.0 - x_off,
-            1.0 + y_off,
-            1.0 + x_off,
-            -1.0 - y_off,
-            0.0,
-            1.0,
-            1.0,
-            0.0,
-        );
-
-        let _ = spring::gfx::bind_texture(&offscreen_tex, 0, false);
-        let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-        let _ = spring::gfx::pop_matrix(0);
-        let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-        let _ = spring::gfx::pop_matrix(0);
-        let _ = spring::gfx::use_shader(0);
-        let _ = spring::gfx::pop_attrib(0);
+        composite(&offscreen_tex, vsx, vsy);
     }
 }
