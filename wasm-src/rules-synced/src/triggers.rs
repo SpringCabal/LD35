@@ -21,12 +21,9 @@ const GATE_AREAS: &[(i32, f32, f32, f32, f32)] = &[
 const GATE_CLOSED_HEIGHT: f32 = 499.0;
 const GATE_OPEN_HEIGHT: f32 = 411.5;
 
-/// The standing plates, by level key.  A plate is pressed while an embodied
+/// The standing plates, by level key.  A plate is pressed once an embodied
 /// player with legs stands on it.
 const PLATES: [i32; 8] = [26492, 31488, 12701, 12688, 13688, 14688, 15688, 11688];
-
-/// The corridor gates.  Plates open them one way: they stay open once opened.
-const ONE_WAY_GATES: [i32; 3] = [21, 22, 23];
 
 /// Gate 20 opens from a lever combination instead of a link.
 pub const LEVER_GATE: i32 = 20;
@@ -44,10 +41,13 @@ pub const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
 /// unit_plate.lua's radius: a plate is pressed by a player standing this close.
 const PLATE_RADIUS: f32 = 60.0;
 
-pub fn update_triggers(global: &Global) {
-    // This is the Rust counterpart of `unit_plate.lua` and the link tables in
-    // `game_custom_spawn.lua`.  The map IDs are stable content IDs; only the
-    // engine-assigned unit IDs vary from run to run.
+/// One pass of unit_plate.lua's GameFrame.  Returns the cages it opened.
+///
+/// unit_plate.lua only ever sends ONOFF 1 (its ONOFF 0 is commented out), so
+/// everything but a lever latches: a pressed plate stays down, and a door or
+/// cage stays open once any of its sources has opened it.  Levers are the
+/// only toggles; the player flips them (`input::pull_lever`).
+pub fn update_triggers(global: &Global) -> Vec<i32> {
     let (has_legs, spirit, wisp_id) = {
         let wisp = global.wisp.access();
         (
@@ -58,67 +58,61 @@ pub fn update_triggers(global: &Global) {
     };
     // The ONOFF orders go out after the world borrow ends: an order can raise
     // AllowCommand and other callins synchronously.
-    let changes = {
+    let (plates, targets) = {
         let mut world = global.world.access_mut();
-        let mut changes = Vec::new();
+        let standing = has_legs && !spirit && wisp_id >= 0;
+        let mut plates = Vec::new();
         for key in PLATES {
             let Some(plate) = level_id(&world, key) else {
                 continue;
             };
-            let active =
-                has_legs && !spirit && wisp_id >= 0 && nearby(wisp_id, plate, PLATE_RADIUS);
-            set_trigger(&mut world, plate, active);
-        }
-        for link in LINKS {
-            let Some(source) = level_id(&world, link.source) else {
-                continue;
-            };
-            let Some(target) = level_id(&world, link.target) else {
-                continue;
-            };
-            // The corridor plates are one-way progression switches.  Their
-            // authored Lua link opens the gate on the rising edge and does not
-            // issue a closing command when the player walks away.  Keep the
-            // gate open once it has been opened; the lever-controlled gate
-            // stays reversible because it is handled by its combination below.
-            let active = is_trigger_active(&world, source)
-                || (ONE_WAY_GATES.contains(&link.target)
-                    && world.active_triggerables.contains(&target));
-            if set_triggerable_active(&mut world, target, active) {
-                changes.push((target, active));
+            if standing && !is_trigger_active(&world, plate) && nearby(wisp_id, plate, PLATE_RADIUS)
+            {
+                set_trigger(&mut world, plate, true);
+                plates.push(plate);
             }
-            if link.kill && active {
+        }
+        let mut targets = Vec::new();
+        for link in LINKS {
+            let (Some(source), Some(target)) =
+                (level_id(&world, link.source), level_id(&world, link.target))
+            else {
+                continue;
+            };
+            if !is_trigger_active(&world, source) {
+                continue;
+            }
+            if link.kill {
                 let _ = spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC);
+            }
+            if switch_on(&mut world, target) {
+                targets.push((target, gate_area(&world, target)));
             }
         }
         if let Some(gate) = level_id(&world, LEVER_GATE) {
             let open = LEVER_GATE_COMBINATION.into_iter().all(|(key, expected)| {
                 level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
             });
-            if set_triggerable_active(&mut world, gate, open) {
-                changes.push((gate, open));
+            if open && switch_on(&mut world, gate) {
+                targets.push((gate, gate_area(&world, gate)));
             }
         }
-        changes
-            .into_iter()
-            .map(|(id, active)| (id, active, gate_area(&world, id)))
-            .collect::<Vec<_>>()
+        (plates, targets)
     };
-    for (id, active, gate) in changes {
+    for plate in plates {
+        give_onoff(plate, true);
+    }
+    let mut cages = Vec::new();
+    for (id, gate) in targets {
         if let Some((_, x1, z1, x2, z2)) = gate {
-            // Unlike cages, gates are reversible: send both edges so the unit
-            // script and the terrain collision stay in sync.
-            set_gate_physics(id, x1, z1, x2, z2, active);
-            give_onoff(id, active);
-        } else if active {
-            // Cages only receive their rising edge; replaying their release
-            // animation would re-trigger the prisoner lifecycle.
-            give_onoff(id, true);
-            if crate::defs::unit_def(id) == crate::defs::defs().cage {
-                crate::cages::activate_cage(global, id);
-            }
+            set_gate_physics(id, x1, z1, x2, z2, true);
+        }
+        give_onoff(id, true);
+        if crate::defs::unit_def(id) == crate::defs::defs().cage {
+            cages.push(id);
         }
     }
+    cages
 }
 
 fn give_onoff(id: i32, on: bool) {
@@ -159,19 +153,12 @@ pub fn set_trigger(world: &mut World, id: i32, active: bool) {
     }
 }
 
-/// Record a triggerable's state; true if it changed.
-fn set_triggerable_active(world: &mut World, id: i32, active: bool) -> bool {
-    let was_active = world.active_triggerables.contains(&id);
-    if was_active == active {
+/// Turn a triggerable on; true if it was off.
+fn switch_on(world: &mut World, id: i32) -> bool {
+    if world.active_triggerables.contains(&id) {
         return false;
     }
-    if active {
-        world.active_triggerables.push(id);
-    } else {
-        world
-            .active_triggerables
-            .retain(|candidate| *candidate != id);
-    }
+    world.active_triggerables.push(id);
     true
 }
 

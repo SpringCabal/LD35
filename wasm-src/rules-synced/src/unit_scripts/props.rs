@@ -70,16 +70,21 @@ pub(crate) async fn plate_off(state: Props, ctx: UnitCtx) {
 }
 
 pub(crate) async fn cage_open(state: Props, ctx: UnitCtx) {
-    if spring::get_unit_rules_param_f32(ctx.unit().0, "do_kill") == Ok(1.0) {
+    if crate::cages::kills(ctx.unit().0) {
         return;
     }
     crate::sound::play_unit_sound("sounds/cage.02.ogg", 1.0, ctx.unit().0);
     let bars = props(&state).bars;
-    ctx.move_piece(bars, Axis::Z, -200.0, 150.0);
+    ctx.move_piece(
+        bars,
+        Axis::Z,
+        -crate::cages::BARS_TRAVEL,
+        crate::cages::BARS_SPEED,
+    );
     ctx.wait_for_move(bars, Axis::Z).await;
 }
 
 pub(crate) async fn cage_close(state: Props, ctx: UnitCtx) {
     crate::sound::play_unit_sound("sounds/cage.02.ogg", 1.0, ctx.unit().0);
-    ctx.move_piece(props(&state).bars, Axis::Z, 0.0, 150.0);
+    ctx.move_piece(props(&state).bars, Axis::Z, 0.0, crate::cages::BARS_SPEED);
 }
