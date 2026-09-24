@@ -25,8 +25,8 @@ pub fn spawn_cage_wisp(cage: i32) {
     let _ = crate::level::spawn_unit("npcwisp", crate::defs::defs().npcwisp, position);
 }
 
-/// Whether an opened cage kills its prisoner: a kill link set `do_kill`
-/// before the cage opened.  cage.lua reads it once, when it activates.
+/// Whether a cage opening now kills its prisoner: a kill link has set
+/// `do_kill` on it.  cage.lua reads it once, when it activates.
 pub fn kills(cage: i32) -> bool {
     spring::get_unit_rules_param_f32(cage, "do_kill") == Ok(1.0)
 }

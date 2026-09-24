@@ -36,8 +36,7 @@ impl Gadget<Global> for TriggersGadget {
         if frame % UPDATE_RATE == 0 {
             let opened = triggers::update_triggers(global);
             let mut opening = self.opening_cages.borrow_mut();
-            for cage in opened {
-                let kill = cages::kills(cage);
+            for (cage, kill) in opened {
                 let due = if kill {
                     frame
                 } else {

@@ -41,13 +41,18 @@ pub const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
 /// unit_plate.lua's radius: a plate is pressed by a player standing this close.
 const PLATE_RADIUS: f32 = 60.0;
 
-/// One pass of unit_plate.lua's GameFrame.  Returns the cages it opened.
+/// One pass of unit_plate.lua's GameFrame.  Returns the cages it opened,
+/// each with whether it kills its prisoner.
 ///
 /// unit_plate.lua only ever sends ONOFF 1 (its ONOFF 0 is commented out), so
 /// everything but a lever latches: a pressed plate stays down, and a door or
 /// cage stays open once any of its sources has opened it.  Levers are the
 /// only toggles; the player flips them (`input::pull_lever`).
-pub fn update_triggers(global: &Global) -> Vec<i32> {
+///
+/// cage.lua reads `do_kill` when the cage activates, so the first link that
+/// opens a cage decides its prisoner's fate: a lever link ahead of a kill
+/// link in the same pass saves it, and a kill link set later changes nothing.
+pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
     let (has_legs, spirit, wisp_id) = {
         let wisp = global.wisp.access();
         (
@@ -58,7 +63,7 @@ pub fn update_triggers(global: &Global) -> Vec<i32> {
     };
     // The ONOFF orders go out after the world borrow ends: an order can raise
     // AllowCommand and other callins synchronously.
-    let (plates, targets) = {
+    let (plates, targets, cages) = {
         let mut world = global.world.access_mut();
         let standing = has_legs && !spirit && wisp_id >= 0;
         let mut plates = Vec::new();
@@ -73,6 +78,7 @@ pub fn update_triggers(global: &Global) -> Vec<i32> {
             }
         }
         let mut targets = Vec::new();
+        let mut cages = Vec::new();
         for link in LINKS {
             let (Some(source), Some(target)) =
                 (level_id(&world, link.source), level_id(&world, link.target))
@@ -91,6 +97,9 @@ pub fn update_triggers(global: &Global) -> Vec<i32> {
             }
             if switch_on(&mut world, target) {
                 targets.push((target, gate_area(&world, target)));
+                if crate::defs::unit_def(target) == crate::defs::defs().cage {
+                    cages.push((target, crate::cages::kills(target)));
+                }
             }
         }
         if let Some(gate) = level_id(&world, LEVER_GATE) {
@@ -101,20 +110,16 @@ pub fn update_triggers(global: &Global) -> Vec<i32> {
                 targets.push((gate, gate_area(&world, gate)));
             }
         }
-        (plates, targets)
+        (plates, targets, cages)
     };
     for plate in plates {
         give_onoff(plate, true);
     }
-    let mut cages = Vec::new();
     for (id, gate) in targets {
         if let Some((_, x1, z1, x2, z2)) = gate {
             set_gate_physics(id, x1, z1, x2, z2, true);
         }
         give_onoff(id, true);
-        if crate::defs::unit_def(id) == crate::defs::defs().cage {
-            cages.push(id);
-        }
     }
     cages
 }

@@ -14,5 +14,8 @@ unit scripts or widgets. The original Lua game is `PartsNeeded.sdd`.
   can reach the player first: they spawn 100-400 elmos away on each axis.
 - The UI predicts a form switch as soon as space is pressed instead of
   waiting for the rules, and undoes it after 30 frames if the rules refused.
+- When a lever and the room's kill plate open the same cage in one trigger
+  pass, the lever's link comes first and the prisoner is saved. In Lua the
+  order is that of a table keyed by unit id, so either can win.
 
 [![Join the chat at https://gitter.im/SpringCabal/LD35](https://badges.gitter.im/SpringCabal/LD35.svg)](https://gitter.im/SpringCabal/LD35?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
