@@ -4,7 +4,7 @@ use core::cell::RefCell;
 use partsneeded_shared::BodyPart;
 
 use crate::endgame::{game_over_type, mark_wisp_dying};
-use crate::state::{Endgame, Global, Wisp, World, param};
+use crate::state::{Endgame, Global, Wisp, World};
 use crate::triggers::{LEVER_GATE, level_id};
 
 /// The lever that opens cage 23261; the scenario pulls it twice.
@@ -383,7 +383,7 @@ fn before_pickups(t: &mut Tracker, state: &Snapshot<'_>) {
     check(
         t,
         state.wisp.movement.is_none(),
-        "movement input expires without fresh UI samples",
+        "releasing the movement keys clears the wisp's movement",
     );
 }
 
@@ -716,10 +716,6 @@ pub fn update_ending_integration(global: &Global, frame: i32) {
                 wisp.movement = None;
                 wisp.pieces_dirty = true;
             }
-            param("game_over", 0.0);
-            param("game_over_sequence", 0.0);
-            param("game_over_type", 0.0);
-            param("spiritMode", 0.0);
             t.prepared = true;
             let _ = spring::echo(
                 "[PartsNeeded-Rust-Test] prepared all remaining NPC wisps for type-1 ending",

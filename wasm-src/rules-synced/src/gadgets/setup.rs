@@ -26,5 +26,12 @@ pub fn setup(handler: &mut GadgetHandler<Global>) {
     #[cfg(feature = "headless-integration")]
     register_gadgets!(handler, [IntegrationGadget::new()]);
 
-    register_gadgets!(handler, [LifecycleGadget::new(), InputGadget::new()]);
+    register_gadgets!(
+        handler,
+        [
+            RosterGadget::new(),
+            CollisionsGadget::new(),
+            InputGadget::new()
+        ]
+    );
 }

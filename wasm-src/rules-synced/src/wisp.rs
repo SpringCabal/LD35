@@ -2,12 +2,11 @@
 //!
 //! Ported from `unit_wisp_controller.lua`.
 
-use alloc::format;
 use alloc::vec::Vec;
 
 use partsneeded_shared::{BodyPart, BodyParts};
 
-use crate::state::{Wisp, param};
+use crate::state::Wisp;
 
 /// How far ahead of the wisp the move goal is placed.  A long lookahead has to
 /// be clamped against the map edge, which rotates diagonal input onto an axis;
@@ -103,7 +102,6 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
         let Some(part) = defs.body_part(crate::defs::unit_def(*id)) else {
             continue;
         };
-        param(&format!("has_{}", part.name()), 1.0);
         collected.push((*id, part));
     }
     for &(_, part) in &collected {

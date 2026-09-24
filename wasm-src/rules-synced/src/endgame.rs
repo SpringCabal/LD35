@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 use crate::sound::play_unit_sound;
-use crate::state::{ENDING_WISP_DESTROY_DELAY, Global, PUBLIC, WISP_DESTROY_DELAY, param};
+use crate::state::{ENDING_WISP_DESTROY_DELAY, Global, PUBLIC, WISP_DESTROY_DELAY};
 
 pub fn update_game_end(global: &Global) {
     let (has_all_parts, already_over, alive_wisps, saved_wisps, killed_wisps, settling) = {
@@ -53,12 +53,10 @@ pub fn update_game_end(global: &Global) {
             endgame.release_wisps = true;
         }
     }
-    param("game_over", 1.0);
-    param("game_over_type", over_type);
-    param(
-        "game_over_sequence",
-        if over_type == 1.0 { 0.0 } else { 1.0 },
-    );
+    // Input is rejected from now on, so the release of a held movement key
+    // would never arrive: stop the wisp here.  (unit_wisp_controller.lua's
+    // last movement message goes stale six frames later.)
+    global.wisp.access_mut().movement = None;
     if over_type == 1.0 {
         let wisp_id = {
             let mut wisp = global.wisp.access_mut();
@@ -73,7 +71,6 @@ pub fn update_game_end(global: &Global) {
         // is set, but an already-issued move goal would otherwise keep it
         // drifting during the ending.
         let _ = spring::move_ctrl::move_ctrl(wisp_id, true);
-        param("spiritMode", 1.0);
     }
 }
 
@@ -174,12 +171,6 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
         endgame.dying_wisps.push((id, saved, destroy_frame));
     }
     let _ = spring::set_unit_rules_param_f32(id, "is_dying", 1.0, PUBLIC);
-    let _ = spring::set_unit_rules_param_f32(
-        id,
-        "is_being_saved",
-        if saved { 1.0 } else { 0.0 },
-        PUBLIC,
-    );
     let _ = spring::set_unit_rules_param_f32(id, "killed_frame", frame as f32, PUBLIC);
     let _ = spring::set_unit_rules_param_f32(id, "destroy_frame", destroy_frame as f32, PUBLIC);
     // unit_wisp_death.lua's audible feedback.
@@ -209,10 +200,8 @@ pub fn expire_dying_wisps(global: &Global) -> Vec<(i32, bool, i32)> {
     for &(_id, saved) in &expired {
         if saved {
             endgame.saved_wisps += 1;
-            param("saved_wisps", endgame.saved_wisps as f32);
         } else {
             endgame.killed_wisps += 1;
-            param("killed_wisps", endgame.killed_wisps as f32);
         }
     }
     drop(endgame);
@@ -222,7 +211,6 @@ pub fn expire_dying_wisps(global: &Global) -> Vec<(i32, bool, i32)> {
     world
         .npc_wisps
         .retain(|candidate| !expired.iter().any(|(id, _)| id == candidate));
-    param("alive_wisps", world.npc_wisps.len() as f32);
     expired
         .into_iter()
         .map(|(id, saved)| (id, saved, -1))

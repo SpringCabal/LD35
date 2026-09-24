@@ -1,9 +1,10 @@
+pub mod collisions;
 pub mod endgame;
 pub mod input;
 #[cfg(feature = "headless-integration")]
 pub mod integration;
 pub mod level;
-pub mod lifecycle;
+pub mod roster;
 pub mod setup;
 pub mod status;
 pub mod triggers;
@@ -12,12 +13,13 @@ pub mod unit_script_probe;
 pub mod unit_scripts;
 pub mod wisp;
 
+pub use collisions::CollisionsGadget;
 pub use endgame::EndgameGadget;
 pub use input::InputGadget;
 #[cfg(feature = "headless-integration")]
 pub use integration::IntegrationGadget;
 pub use level::LevelGadget;
-pub use lifecycle::LifecycleGadget;
+pub use roster::RosterGadget;
 pub use setup::setup;
 pub use status::StatusGadget;
 pub use triggers::TriggersGadget;

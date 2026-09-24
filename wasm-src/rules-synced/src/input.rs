@@ -1,99 +1,74 @@
 //! Player commands arriving from the UI over `RecvLuaMsg`.
 
-use partsneeded_shared::BodyPart;
-
-use crate::endgame;
-use crate::state::{FORM_COOLDOWN, Global, param};
-use crate::triggers::nearby;
+use partsneeded_shared::{BodyPart, Command};
 use spring::cmd;
 
+use crate::state::{FORM_COOLDOWN, Global};
+use crate::triggers::nearby;
+
+/// How close the player has to stand to pull a lever (ui_wisp_control.lua).
+const LEVER_REACH: f32 = 100.0;
+
 pub fn handle_message(global: &Global, data: &[u8]) {
-    let Ok(message) = core::str::from_utf8(data) else {
-        return;
-    };
-    {
-        let mut fields = message.split('|');
-        let command = fields.next();
-        if global.endgame.access().game_over
-            && matches!(command, Some("movement" | "switch_form" | "pull_lever"))
-        {
-            return;
-        }
-        let frame = crate::state::frame();
-        match command {
-            Some("movement") => {
-                let x = fields
-                    .next()
-                    .and_then(|value| value.parse().ok())
-                    .unwrap_or(0.0);
-                let z = fields
-                    .next()
-                    .and_then(|value| value.parse().ok())
-                    .unwrap_or(0.0);
-                let mut wisp = global.wisp.access_mut();
-                wisp.movement = (x != 0.0 || z != 0.0).then_some((x, z));
-                wisp.movement_frame = frame;
-                if wisp.movement.is_some() {
-                    wisp.stop_issued = false;
-                }
-            }
-            Some("switch_form") if frame - global.wisp.access().form_frame > FORM_COOLDOWN => {
-                // The form-change sound is unsynced-only; the UI module plays it.
-                let spirit = {
-                    let mut wisp = global.wisp.access_mut();
-                    wisp.form_frame = frame;
-                    // Leaving spirit form needs eyes; otherwise the switch
-                    // always returns to it.
-                    wisp.spirit = !(wisp.spirit && wisp.collected_parts.contains(BodyPart::Eyes));
-                    wisp.pieces_dirty = true;
-                    wisp.spirit
-                };
-                param("spiritMode", if spirit { 1.0 } else { 0.0 });
-            }
-            Some("pull_lever") => {
-                if let Some(id) = fields.next().and_then(|value| value.parse::<i32>().ok()) {
-                    // The UI performs these checks too, but Lua messages are
-                    // untrusted: retain the original interaction contract in
-                    // authoritative rules code.
-                    let (has_arms, spirit, wisp_id) = {
-                        let wisp = global.wisp.access();
-                        (
-                            wisp.collected_parts.contains(BodyPart::Arms),
-                            wisp.spirit,
-                            wisp.id,
-                        )
-                    };
-                    let is_lever = crate::defs::unit_def(id) == crate::defs::defs().lever;
-                    if spirit || !has_arms || !is_lever || !nearby(wisp_id, id, 100.0) {
-                        return;
-                    }
-                    let enabled = {
-                        let mut world = global.world.access_mut();
-                        if let Some(index) = world
-                            .active_triggers
-                            .iter()
-                            .position(|active| *active == id)
-                        {
-                            world.active_triggers.remove(index);
-                        } else {
-                            world.active_triggers.push(id);
-                        }
-                        i32::from(world.active_triggers.contains(&id)) as f32
-                    };
-                    crate::log::check(
-                        "lever ONOFF order",
-                        id,
-                        spring::give_order_to_unit(id, cmd::ONOFF, &[enabled], 0, 0),
-                    );
-                }
-            }
-            Some("npc_wisp") => {
-                let save = matches!(fields.next(), Some("save"));
-                if let Some(id) = fields.next().and_then(|value| value.parse::<i32>().ok()) {
-                    endgame::mark_wisp_dying(global, id, save);
-                }
-            }
-            _ => {}
-        }
+    if let Some(command) = core::str::from_utf8(data).ok().and_then(Command::decode) {
+        handle_command(global, command);
     }
+}
+
+pub fn handle_command(global: &Global, command: Command) {
+    if global.endgame.access().game_over {
+        return;
+    }
+    let frame = crate::state::frame();
+    match command {
+        Command::Move { x, z } => {
+            let mut wisp = global.wisp.access_mut();
+            wisp.movement = (x != 0 || z != 0).then_some((x as f32, z as f32));
+            if wisp.movement.is_some() {
+                wisp.stop_issued = false;
+            }
+        }
+        Command::SwitchForm => {
+            let mut wisp = global.wisp.access_mut();
+            if frame - wisp.form_frame <= FORM_COOLDOWN {
+                return;
+            }
+            // The form-change sound is unsynced-only; the UI module plays it.
+            wisp.form_frame = frame;
+            // Leaving spirit form needs eyes; otherwise the switch always
+            // returns to it.
+            wisp.spirit = !(wisp.spirit && wisp.collected_parts.contains(BodyPart::Eyes));
+            wisp.pieces_dirty = true;
+        }
+        Command::PullLever(id) => pull_lever(global, id),
+    }
+}
+
+fn pull_lever(global: &Global, id: i32) {
+    // The UI performs these checks too, but Lua messages are untrusted:
+    // retain the original interaction contract in authoritative rules code.
+    let (has_arms, spirit, wisp_id) = {
+        let wisp = global.wisp.access();
+        (
+            wisp.collected_parts.contains(BodyPart::Arms),
+            wisp.spirit,
+            wisp.id,
+        )
+    };
+    let is_lever = crate::defs::unit_def(id) == crate::defs::defs().lever;
+    if spirit || !has_arms || !is_lever || !nearby(wisp_id, id, LEVER_REACH) {
+        return;
+    }
+    let enabled = {
+        let mut world = global.world.access_mut();
+        let was_active = world.active_triggers.contains(&id);
+        crate::triggers::set_trigger(&mut world, id, !was_active);
+        !was_active
+    };
+    // The world borrow has ended: the order can raise callins synchronously.
+    crate::log::check(
+        "lever ONOFF order",
+        id,
+        spring::give_order_to_unit(id, cmd::ONOFF, &[f32::from(u8::from(enabled))], 0, 0),
+    );
 }

@@ -4,7 +4,7 @@ use spring_addons::ui::Widget;
 use crate::defs::{defs, unit_def};
 use crate::state::Global;
 
-use partsneeded_shared::{BodyPart, FORM_COOLDOWN};
+use partsneeded_shared::{BodyPart, Command, FORM_COOLDOWN};
 
 const KEY_A: i32 = b'a' as i32;
 const KEY_D: i32 = b'd' as i32;
@@ -111,6 +111,10 @@ const RESTART_SCRIPT: &str = r#"[GAME]
 }
 "#;
 
+fn send(command: Command) {
+    let _ = spring::send_lua_rules_msg(&command.encode());
+}
+
 fn restart_current_game() {
     let _ = spring::reload(RESTART_SCRIPT);
 }
@@ -130,6 +134,8 @@ pub struct GuiWispControlWidget {
     right: core::cell::Cell<bool>,
     up: core::cell::Cell<bool>,
     down: core::cell::Cell<bool>,
+    /// The movement the rules module was last told about.
+    sent_movement: core::cell::Cell<(i32, i32)>,
     scan_ticks: core::cell::Cell<i32>,
     last_form_change: core::cell::Cell<i32>,
     screen_width: core::cell::Cell<i32>,
@@ -167,7 +173,11 @@ impl GuiWispControlWidget {
             _ => return EventResult::Ignored,
         }
         let (x, z) = self.movement();
-        let _ = spring::send_lua_rules_msg(&alloc::format!("movement|{x}|{z}"));
+        // Key repeat sends presses for keys already down: tell the rules only
+        // about changes.
+        if self.sent_movement.replace((x, z)) != (x, z) {
+            send(Command::Move { x, z });
+        }
         EventResult::Handled
     }
 
@@ -284,10 +294,6 @@ impl Widget<Global> for GuiWispControlWidget {
     }
 
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
-        let (x, z) = self.movement();
-        if x != 0 || z != 0 {
-            let _ = spring::send_lua_rules_msg(&alloc::format!("movement|{x}|{z}"));
-        }
         self.refresh_npc_wisps(ctx);
         self.lock_camera(ctx, dt);
         // The player never selects anything: the wisp is steered directly.
@@ -320,19 +326,20 @@ impl Widget<Global> for GuiWispControlWidget {
             return EventResult::Handled;
         }
         if event.matches("space") {
-            let _ = spring::send_lua_rules_msg("switch_form");
+            send(Command::SwitchForm);
             let mut player = ctx.global().player.access_mut();
             // Only dismiss the hint once it is actually on screen.  Latching on
             // any space press meant tapping space before collecting the eyes
             // suppressed the prompt for the rest of the game.
-            if player.spirit && player.eyes {
+            let has_eyes = player.parts.contains(BodyPart::Eyes);
+            if player.spirit && has_eyes {
                 player.space_used = true;
             }
             // Predict the same result the rules module will compute, so the UI
             // and the synced side cannot disagree about what was asked for:
             // leaving spirit form needs eyes, otherwise it stays spirit.
             let current = player.spirit;
-            let wanted = !(current && player.eyes);
+            let wanted = !(current && has_eyes);
             // Mirror the rules module's form-change cooldown.  Predicting a
             // switch it is going to refuse just means the prediction snaps back
             // when it times out.
@@ -448,7 +455,7 @@ impl Widget<Global> for GuiWispControlWidget {
         if dx * dx + dz * dz >= 100.0 * 100.0 {
             return EventResult::Handled;
         }
-        let _ = spring::send_lua_rules_msg(&alloc::format!("pull_lever|{unit_id}"));
+        send(Command::PullLever(unit_id));
         EventResult::Handled
     }
 

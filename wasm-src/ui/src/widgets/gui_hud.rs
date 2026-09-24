@@ -1,3 +1,4 @@
+use partsneeded_shared::BodyPart;
 use spring_addons::ui::Widget;
 
 use crate::state::{GAME_END_DURATION, Global};
@@ -27,7 +28,11 @@ impl Widget<Global> for GuiHudWidget {
 
     fn draw_screen(&self, ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
         let global = ctx.global().player.access();
-        if !global.game_over && global.spirit && global.eyes && !global.space_used {
+        if !global.game_over
+            && global.spirit
+            && global.parts.contains(BodyPart::Eyes)
+            && !global.space_used
+        {
             let _ = spring::gfx::begin_text(false);
             let _ = spring::gfx::color(1.0, 1.0, 1.0, 1.0);
             let _ = spring::gfx::text(

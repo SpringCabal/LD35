@@ -57,20 +57,17 @@ impl Gadget<Global> for UnitScriptProbeGadget {
             let mut wisp = ctx.global().wisp.access_mut();
             wisp.spirit = true;
             wisp.pieces_dirty = true;
-            crate::state::param("spiritMode", 1.0);
         } else if frame == 89 {
             let mut wisp = ctx.global().wisp.access_mut();
             wisp.spirit = false;
             wisp.form_frame = frame;
             wisp.pieces_dirty = true;
-            crate::state::param("spiritMode", 0.0);
-        } else if (105..=170).contains(&frame) {
+        } else if frame == 105 || frame == 171 {
+            // Walk right through the last sampled frame, 170, as the Lua
+            // fixture's move goals do.
             let mut wisp = ctx.global().wisp.access_mut();
-            if wisp.id >= 0 {
-                wisp.movement = Some((1.0, 0.0));
-                wisp.movement_frame = frame;
-                wisp.stop_issued = false;
-            }
+            wisp.movement = (frame == 105).then_some((1.0, 0.0));
+            wisp.stop_issued = false;
         }
     }
 }
@@ -97,7 +94,6 @@ fn assemble(ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
     let mut collected = BodyParts::NONE;
     for &(_, part) in &parts {
         collected.insert(part);
-        crate::state::param(&alloc::format!("has_{}", part.name()), 1.0);
     }
     if !collected.is_complete() {
         let _ = spring::echo(

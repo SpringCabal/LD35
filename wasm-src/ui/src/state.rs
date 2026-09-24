@@ -18,8 +18,6 @@ const LUA_PI: f32 = 3.14;
 /// What the rules module last told the UI about the player wisp.
 pub struct Player {
     pub spirit: bool,
-    pub eyes: bool,
-    pub remaining: i32,
     pub game_over: bool,
     pub ending_type: i32,
     pub game_over_sequence: bool,
@@ -51,8 +49,6 @@ impl Default for Player {
     fn default() -> Self {
         Self {
             spirit: true,
-            eyes: false,
-            remaining: 0,
             game_over: false,
             ending_type: -1,
             game_over_sequence: false,

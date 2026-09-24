@@ -1,7 +1,9 @@
-use spring_addons::rules::{Gadget, UnitDestroyedEvent};
+use core::cell::Cell;
+
+use spring_addons::rules::Gadget;
 
 use crate::defs::{collision, defs};
-use crate::state::{Global, PUBLIC, param};
+use crate::state::Global;
 
 /// Keep map-authored walls at the level's explicit floor height.  A map unit
 /// can predate the WASM rules module, so it does not necessarily pass through
@@ -62,38 +64,32 @@ fn apply_authored_collisions(id: i32, def: i32) {
     }
 }
 
+/// The authored collision rules: unit_collisions.lua and unit_plate.lua.
 #[derive(Default)]
-pub struct LifecycleGadget {
+pub struct CollisionsGadget {
     /// Whether the one-shot sweep over the map's own units has run.
-    swept: core::cell::Cell<bool>,
+    swept: Cell<bool>,
 }
 
-impl LifecycleGadget {
+impl CollisionsGadget {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl Gadget<Global> for LifecycleGadget {
+impl Gadget<Global> for CollisionsGadget {
     fn name(&self) -> &'static str {
-        "Lifecycle"
+        "Collisions"
     }
 
-    /// Apply the authored collision rules to the units the map itself placed.
+    /// Apply the rules to the units the map itself placed.
     ///
     /// UnitCreated does not reach them: they exist before this module loads.
-    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        param("alive_wisps", 0.0);
-    }
-
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         if self.swept.replace(true) {
             return;
         }
-        let Ok(units) = spring::get_all_units() else {
-            return;
-        };
-        for id in units {
+        for id in spring::get_all_units().unwrap_or_default() {
             if let Ok(def) = spring::get_unit_def_id(id) {
                 apply_authored_collisions(id, def.0);
             }
@@ -102,59 +98,12 @@ impl Gadget<Global> for LifecycleGadget {
 
     fn unit_created(
         &self,
-        ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global>,
         id: i32,
         def: i32,
         _team: i32,
         _builder: i32,
     ) {
-        let global = ctx.global();
-        let defs = defs();
-        if def == defs.wisp {
-            {
-                let mut wisp = global.wisp.access_mut();
-                wisp.id = id;
-                wisp.pieces_dirty = true;
-            }
-            let _ = spring::set_unit_rules_param_f32(id, "selfMoveSpeedChange", 1.0, PUBLIC);
-        }
-        if defs.body_part(def).is_some() {
-            global.wisp.access_mut().body_parts.push(id);
-        }
         apply_authored_collisions(id, def);
-        if def == defs.cage {
-            // unit_cage.lua: each cage holds a prisoner from the start.
-            ctx.delay(move |_| crate::cages::spawn_cage_wisp(id));
-        }
-        if def == defs.npcwisp {
-            let alive = {
-                let mut world = global.world.access_mut();
-                world.npc_wisps.push(id);
-                world.npc_wisps.len() as f32
-            };
-            param("alive_wisps", alive);
-        }
-    }
-
-    fn unit_destroyed(
-        &self,
-        ctx: &spring_addons::AddonContext<'_, Global>,
-        event: &UnitDestroyedEvent,
-    ) {
-        let global = ctx.global();
-        let id = event.unit_id;
-        {
-            let mut wisp = global.wisp.access_mut();
-            if wisp.id == id {
-                wisp.id = -1;
-            }
-            wisp.body_parts.retain(|part| *part != id);
-        }
-        let alive = {
-            let mut world = global.world.access_mut();
-            world.npc_wisps.retain(|wisp| *wisp != id);
-            world.npc_wisps.len() as f32
-        };
-        param("alive_wisps", alive);
     }
 }

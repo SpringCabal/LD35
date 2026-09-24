@@ -1,13 +1,16 @@
 //! Drives the headless integration scenario through the real message path.
 
-use partsneeded_shared::BodyPart;
+use partsneeded_shared::{BodyPart, Command};
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
-use crate::input::handle_message;
+use crate::input::handle_command;
 use crate::integration::{self, LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
 use crate::state::Global;
 use crate::triggers::{LEVER_GATE_COMBINATION, level_id};
+
+const MOVE_RIGHT: Command = Command::Move { x: 1, z: 0 };
+const STAND_STILL: Command = Command::Move { x: 0, z: 0 };
 
 #[derive(Default)]
 pub struct IntegrationGadget;
@@ -27,13 +30,14 @@ impl Gadget<Global> for IntegrationGadget {
         let global = ctx.global();
         integration::update(global, frame);
         integration::update_ending_integration(global, frame);
-        // Keep the player moving right long enough for the engine's turn rate
-        // to settle before the physical-form screenshot at frame 86.
-        if (73..=86).contains(&frame) {
-            handle_message(global, b"movement|1|0");
-        }
         match frame {
-            20 => handle_message(global, b"movement|1|0"),
+            20 => handle_command(global, MOVE_RIGHT),
+            // Release the key again before the frame-30 check.
+            26 => handle_command(global, STAND_STILL),
+            // Keep the player moving right from here on, long enough for the
+            // engine's turn rate to settle before the physical-form screenshot
+            // at frame 86; game over stops it.
+            73 => handle_command(global, MOVE_RIGHT),
             // Out of reach, and still a spirit: the rules must refuse it.
             25 => {
                 if let Some(lever) = level_unit(global, TEST_LEVER) {
@@ -41,7 +45,7 @@ impl Gadget<Global> for IntegrationGadget {
                 }
             }
             35 => move_part_to_wisp(global, Some(BodyPart::Eyes)),
-            61 => handle_message(global, b"switch_form"),
+            61 => handle_command(global, Command::SwitchForm),
             70 => move_part_to_wisp(global, Some(BodyPart::Arms)),
             // Pull the same lever twice: the second pull has to toggle it off.
             72 | 78 => bring_and_pull_lever(global, TEST_LEVER),
@@ -84,7 +88,7 @@ fn wisp_position(global: &Global) -> Option<spring::Float3> {
 }
 
 fn pull_lever(global: &Global, lever: i32) {
-    handle_message(global, alloc::format!("pull_lever|{lever}").as_bytes());
+    handle_command(global, Command::PullLever(lever));
 }
 
 fn bring_and_pull_lever(global: &Global, key: i32) {

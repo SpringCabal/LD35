@@ -1,7 +1,6 @@
 //! Rules state that more than one gadget reads or writes.
 
 use alloc::collections::BTreeMap;
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use partsneeded_shared::BodyParts;
@@ -21,7 +20,6 @@ pub const ENDING_WISP_DESTROY_DELAY: i32 = 180;
 pub struct Wisp {
     pub id: i32,
     pub movement: Option<(f32, f32)>,
-    pub movement_frame: i32,
     pub stop_issued: bool,
     pub form_frame: i32,
     pub spirit: bool,
@@ -36,7 +34,6 @@ impl Default for Wisp {
         Self {
             id: -1,
             movement: None,
-            movement_frame: 0,
             stop_issued: false,
             form_frame: 0,
             spirit: true,
@@ -73,19 +70,6 @@ pub struct Endgame {
     pub ending_wisps: Vec<(i32, spring::Float3)>,
     /// The visual ending is complete once the authored batch has been issued.
     pub sequence_complete: bool,
-}
-
-pub fn param(name: &str, value: f32) {
-    let _ = spring::set_game_rules_param(
-        name,
-        &spring::owned::rules_params::RulesParamValue {
-            type_: spring::owned::rules_params::RulesParamType::RulesparamTypeFloat,
-            bool_value: false,
-            float_value: value,
-            string_value: String::new(),
-        },
-        PUBLIC,
-    );
 }
 
 /// The current simulation frame.

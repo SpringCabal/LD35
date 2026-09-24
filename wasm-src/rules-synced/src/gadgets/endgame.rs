@@ -1,7 +1,7 @@
 use spring_addons::rules::Gadget;
 
 use crate::endgame;
-use crate::state::{Global, param};
+use crate::state::Global;
 
 // game_end.lua declares SPAWN_FRAME_CD = 10, but never updates spawnedTime.
 // Once the ending starts, frame - 0 is already greater than 10, so the actual
@@ -23,12 +23,6 @@ impl Gadget<Global> for EndgameGadget {
         "Endgame"
     }
 
-    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        param("game_over", 0.0);
-        param("saved_wisps", 0.0);
-        param("killed_wisps", 0.0);
-    }
-
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
         crate::units::destroy_later(ctx, endgame::expire_dying_wisps(global));
@@ -36,38 +30,16 @@ impl Gadget<Global> for EndgameGadget {
 
         let wisp_id = global.wisp.access().id;
         endgame::move_ending_wisps(global);
-        let sequence_done = {
-            let (release_wisps, end_spawned, end_spawn_frame, sequence_complete) = {
-                let endgame = global.endgame.access();
-                (
-                    endgame.release_wisps,
-                    endgame.end_spawned,
-                    endgame.end_spawn_frame,
-                    endgame.sequence_complete,
-                )
-            };
-            if !release_wisps || wisp_id < 0 || sequence_complete {
-                false
-            } else {
-                if end_spawned < endgame::ENDING_SPAWN_AMOUNT
-                    && frame - end_spawn_frame > ENDING_SPAWN_INTERVAL
-                {
-                    let mut endgame = global.endgame.access_mut();
-                    endgame.end_spawned += 1;
-                    endgame.end_spawn_frame = frame;
-                    ctx.delay(endgame::spawn_ending_wisp);
-                    false
-                } else if end_spawned >= endgame::ENDING_SPAWN_AMOUNT {
-                    let mut endgame = global.endgame.access_mut();
-                    endgame.sequence_complete = true;
-                    true
-                } else {
-                    false
-                }
-            }
-        };
-        if sequence_done {
-            param("game_over_sequence", 1.0);
+        let mut endgame = global.endgame.access_mut();
+        if !endgame.release_wisps || wisp_id < 0 || endgame.sequence_complete {
+            return;
+        }
+        if endgame.end_spawned >= endgame::ENDING_SPAWN_AMOUNT {
+            endgame.sequence_complete = true;
+        } else if frame - endgame.end_spawn_frame > ENDING_SPAWN_INTERVAL {
+            endgame.end_spawned += 1;
+            endgame.end_spawn_frame = frame;
+            ctx.delay(endgame::spawn_ending_wisp);
         }
     }
 }
