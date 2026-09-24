@@ -6,7 +6,7 @@
 use partsneeded_shared::BodyParts;
 use spring::UnitId;
 use spring::cus::host::{CusHost, UnitDefScript};
-use spring::cus::{InitCtx, ScriptCapabilities, UnitScript};
+use spring::cus::{InitCtx, ScriptCapabilities};
 
 use super::{PartsUnitScript, capabilities, script_kind_for_def};
 use crate::log::SECTION;
@@ -18,10 +18,8 @@ impl UnitDefScript for PartsUnitScript {
         script_kind_for_def(def).map(capabilities)
     }
 
-    fn for_def(def: i32, ctx: &mut InitCtx<'_>) -> Self {
-        let mut script = Self::new(ctx);
-        script.kind = script_kind_for_def(def);
-        script
+    fn for_def(def: i32, ctx: &mut InitCtx<'_>, _shared: &mut ()) -> Self {
+        PartsUnitScript::for_kind(script_kind_for_def(def), ctx)
     }
 }
 

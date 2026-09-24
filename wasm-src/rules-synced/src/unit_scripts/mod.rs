@@ -87,11 +87,11 @@ pub struct PartsUnitScript {
     animation: Rc<RefCell<WispAnimationState>>,
 }
 
-impl UnitScript for PartsUnitScript {
-    fn new(ctx: &mut InitCtx<'_>) -> Self {
+impl PartsUnitScript {
+    fn for_kind(kind: Option<ScriptKind>, ctx: &mut InitCtx<'_>) -> Self {
         let pieces = WispPieces::from_init(ctx);
         Self {
-            kind: None,
+            kind,
             pieces,
             props: Rc::new(RefCell::new(PropPieces::from_init(ctx))),
             animation: Rc::new(RefCell::new(WispAnimationState {
@@ -101,7 +101,9 @@ impl UnitScript for PartsUnitScript {
             })),
         }
     }
+}
 
+impl UnitScript for PartsUnitScript {
     fn create(&mut self, ctx: &UnitCtx) {
         match self.kind {
             Some(ScriptKind::Wisp) => {

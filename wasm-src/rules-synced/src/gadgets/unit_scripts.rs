@@ -1,5 +1,3 @@
-use core::cell::Cell;
-
 use spring::UnitId;
 use spring_addons::rules::Gadget;
 
@@ -7,13 +5,11 @@ use crate::state::Global;
 
 /// Attaches each unit's script in the unit-script module.
 #[derive(Default)]
-pub struct UnitScriptsGadget {
-    started: Cell<bool>,
-}
+pub struct UnitScriptsGadget;
 
 impl UnitScriptsGadget {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 }
 
@@ -22,14 +18,10 @@ impl Gadget<Global> for UnitScriptsGadget {
         "UnitScripts"
     }
 
-    /// Units created before the game starts (the map's own units) get their
-    /// scripts on the first frame. Before it `CusHost` would start their
-    /// clocks at frame -1 read as `u32::MAX`, and a sleep in their Create
-    /// would never wake (spring-bar WASM_GAME_API_TODO_2026-09-24.md §I.1).
-    fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
-        if !self.started.replace(true) {
-            crate::with_cus_module_or_defer(|host| host.attach_existing());
-        }
+    /// Units that exist before the rules load (a rules restart) get their
+    /// scripts here; every later one in `unit_created`.
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        crate::with_cus_module_or_defer(|host| host.attach_existing());
     }
 
     fn unit_created(
@@ -40,8 +32,6 @@ impl Gadget<Global> for UnitScriptsGadget {
         _team: i32,
         _builder: i32,
     ) {
-        if self.started.get() {
-            crate::with_cus_module_or_defer(move |host| host.unit_created(UnitId(id), def));
-        }
+        crate::with_cus_module_or_defer(move |host| host.unit_created(UnitId(id), def));
     }
 }
