@@ -23,7 +23,8 @@ impl Default for EndingTracker {
             suite: Suite::new(
                 "[PartsNeeded-Rust-Test]",
                 "PARTS NEEDED ENDING INTEGRATION TEST",
-            ),
+            )
+            .require_at_least(3),
             prepared: false,
             first_arrival: None,
             spawn_checked: false,
@@ -31,7 +32,14 @@ impl Default for EndingTracker {
     }
 }
 
-/// How far the first ending arrival must have travelled by frame 260, ~30
+/// The frame the ending scenario starts on, after the main scenario's last
+/// check.
+const PREPARE_FRAME: i32 = 200;
+/// The frame the first arrival is checked on.
+const ARRIVAL_CHECK_FRAME: i32 = PREPARE_FRAME + 80;
+
+/// How far the first ending arrival must have travelled by
+/// `ARRIVAL_CHECK_FRAME`, ~30
 /// frames after it appears; the npcwisp unit reaches its 5 elmo/frame top
 /// speed after 10 frames.  Its path may lead around a wall, so this checks
 /// that it travels, not that every step brings it closer.
@@ -66,7 +74,7 @@ fn moving_to(id: i32, target: spring::Float3) -> bool {
 /// second scenario resets only its test-owned state, saves those remaining
 /// wisps, and verifies the full authored 500-arrival sequence.
 pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
-    if frame == 180 && !t.prepared {
+    if frame == PREPARE_FRAME && !t.prepared {
         prepare(t, global);
     }
     if t.prepared && t.first_arrival.is_none() {
@@ -77,7 +85,7 @@ pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
             t.first_arrival = Some((id, position, frame));
         }
     }
-    if frame == 260 && t.prepared && !t.spawn_checked {
+    if frame == ARRIVAL_CHECK_FRAME && t.prepared && !t.spawn_checked {
         check_first_arrival(t, global, frame);
         t.spawn_checked = true;
     }

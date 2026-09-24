@@ -18,31 +18,45 @@ pub(super) struct Snapshot<'a> {
     pub(super) endgame: &'a Endgame,
 }
 
+/// How many checks the main scenario makes.
+const CHECKS: u32 = 57;
+
 /// The main scenario's progress and the samples later checks compare with.
 pub struct Tracker {
     pub(super) suite: Suite,
     pub(super) initial_npc_wisps: usize,
+    /// Whether the UI module's hello reached the rules; the gadget sets it.
+    pub ui_hello: bool,
     pub(super) wisp_position_at_15: Option<spring::Float3>,
-    pub(super) arms_at_15: Option<f32>,
     pub(super) arm_vs_body: Option<f32>,
+    pub(super) leg_vs_body: Option<f32>,
     pub(super) lever_piece: Option<f32>,
     pub(super) lever_piece_pulled: Option<f32>,
     pub(super) gate_piece: Option<f32>,
+    pub(super) plate_piece: Option<f32>,
     pub(super) arm_swim_changed: bool,
+    pub(super) leg_walk_changed: bool,
+    /// Prisoners being freed or killed at frame 105, before any bars are open.
+    pub(super) dying_before_bars_open: Option<usize>,
 }
 
 impl Default for Tracker {
     fn default() -> Self {
         Self {
-            suite: Suite::new("[PartsNeeded-Rust-Test]", "PARTS NEEDED INTEGRATION TESTS"),
+            suite: Suite::new("[PartsNeeded-Rust-Test]", "PARTS NEEDED INTEGRATION TESTS")
+                .require_at_least(CHECKS),
             initial_npc_wisps: 0,
+            ui_hello: false,
             wisp_position_at_15: None,
-            arms_at_15: None,
             arm_vs_body: None,
+            leg_vs_body: None,
             lever_piece: None,
             lever_piece_pulled: None,
             gate_piece: None,
+            plate_piece: None,
             arm_swim_changed: false,
+            leg_walk_changed: false,
+            dying_before_bars_open: None,
         }
     }
 }
@@ -65,10 +79,14 @@ pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
     match frame {
         15 => level_spawned(t, state),
         21 => movement_message(t, state),
-        30 => before_pickups(t, state),
+        30 => {
+            before_pickups(t, state);
+            ui_hello(t);
+        }
         31 => remote_lever_refused(t, state),
         45 => walking(t, state),
         60 => cages_hold(t, state),
+        63 => switch_refused_without_eyes(t, state),
         65 => eyes_collected(t, state),
         71 => lever_at_rest(t, state),
         74 => arm_baseline(t, state),
@@ -76,19 +94,40 @@ pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
         77 => {
             lever_pulled(t, state);
             gate_baseline(t, state);
+            plate_baseline(t, state);
         }
         78 => form_persists(t, state),
+        81 => leg_baseline(t, state),
         84 => lever_released(t, state),
         85 => plate_pressed(t, state),
-        91 => swam(t),
-        95 => game_over(t, state),
+        91 => {
+            swam(t);
+            walked(t);
+        }
+        95 => {
+            game_over(t, state);
+            plate_sank(t, state);
+        }
         105 => after_game_over(t, state),
-        120 => one_way_gate(t, state),
-        140 => gate_opened(t, state),
-        145 => finish(t, state),
+        120 => {
+            one_way_gate(t, state);
+            bars_opened_before_release(t, state);
+        }
+        135 => form_locked_after_game_over(t, state),
+        140 => {
+            gate_opened(t, state);
+            plate_stays_down(t, state);
+            cage_stays_open(t, state);
+        }
+        155 => kill_plate(t, state),
+        196 => finish(t, state),
         _ => {}
     }
-    if (75..=90).contains(&frame) {
+    // Legs arrive at frame 80; from then on the arms follow the walk instead.
+    if (75..80).contains(&frame) {
         track_swim(t, state);
+    }
+    if (82..=90).contains(&frame) {
+        track_walk(t, state);
     }
 }

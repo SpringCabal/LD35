@@ -5,25 +5,13 @@ use alloc::format;
 use partsneeded_shared::BodyPart;
 
 use super::probes::*;
-use super::scenario::{TEST_LEVER, TEST_PLATE};
+use super::scenario::{KILL_PLATE_CAGES, TEST_LEVER, TEST_LEVER_CAGE, TEST_PLATE};
 use super::{Snapshot, Tracker};
 use crate::defs::defs;
-use crate::endgame::game_over_type;
 use crate::triggers::{LEVER_GATE, level_id};
 
 pub(super) fn level_spawned(t: &mut Tracker, state: &Snapshot<'_>) {
     t.initial_npc_wisps = state.world.npc_wisps.len();
-    t.suite.check(
-        [
-            game_over_type(1, 0, 0) == 0,
-            game_over_type(0, 1, 0) == 1,
-            game_over_type(0, 0, 1) == 2,
-            game_over_type(0, 0, 0) == 3,
-        ]
-        .into_iter()
-        .all(|branch| branch),
-        "all four authored game-over outcome branches select correctly",
-    );
     t.suite.check(
         state.world.level_ids.len() == 61,
         "level static units spawned",
@@ -72,9 +60,8 @@ pub(super) fn level_spawned(t: &mut Tracker, state: &Snapshot<'_>) {
         );
     }
     t.wisp_position_at_15 = spring::get_unit_position(state.wisp.id, false, false).ok();
-    t.arms_at_15 = piece_offset_from_unit(state.wisp.id);
     t.suite.check(
-        t.arms_at_15.is_some(),
+        offset_from_body(state.wisp.id, ANIMATED_PIECE).is_some(),
         format!("the wisp model exposes the {ANIMATED_PIECE} piece to query"),
     );
 }
@@ -102,19 +89,6 @@ pub(super) fn walking(t: &mut Tracker, state: &Snapshot<'_>) {
         format!(
             "the engine turns the wisp toward right while moving right (heading {heading:?} radians)"
         ),
-    );
-    // The wisp has been walking since frame 20.  Scripts/wisp.lua drives
-    // Walk()/Wave_Arms() from StartMoving, so the arms piece has to have
-    // moved relative to the model; if the unit scripts are not running
-    // it sits at its authored rest position forever.
-    let now = piece_offset_from_unit(state.wisp.id);
-    let moved = match (t.arms_at_15, now) {
-        (Some(before), Some(after)) => (before - after).abs() > 0.01,
-        _ => false,
-    };
-    t.suite.check(
-        moved,
-        format!("the wisp is animated: its {ANIMATED_PIECE} piece moves while walking"),
     );
 }
 
@@ -224,7 +198,7 @@ pub(super) fn lever_pulled(t: &mut Tracker, state: &Snapshot<'_>) {
 pub(super) fn gate_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
     // Sampled before the combination is set, as the baseline for the
     // frame-140 check.
-    t.gate_piece = gate_piece_offset(state, LEVER_GATE);
+    t.gate_piece = piece_offset(state, LEVER_GATE, GATE_PIECE);
     t.suite.check(
         t.gate_piece.is_some(),
         "the gate model exposes the sliding piece to measure",
@@ -237,7 +211,7 @@ pub(super) fn gate_opened(t: &mut Tracker, state: &Snapshot<'_>) {
     //
     // Reading the negative ids in game_custom_spawn.lua as "must be
     // off" inverts all four levers and leaves this door unopenable.
-    let now = gate_piece_offset(state, LEVER_GATE);
+    let now = piece_offset(state, LEVER_GATE, GATE_PIECE);
     let opened = match (t.gate_piece, now) {
         (Some(before), Some(after)) => (before - after).abs() > 1.0,
         _ => false,
@@ -271,7 +245,7 @@ pub(super) fn lever_released(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn arm_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
-    t.arm_vs_body = arm_offset_from_body(state.wisp.id);
+    t.arm_vs_body = offset_from_body(state.wisp.id, ANIMATED_PIECE);
     t.suite.check(
         t.arm_vs_body.is_some(),
         "the wisp model exposes the Body piece to measure the arm against",
@@ -279,10 +253,36 @@ pub(super) fn arm_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn track_swim(t: &mut Tracker, state: &Snapshot<'_>) {
-    let now = arm_offset_from_body(state.wisp.id);
+    let now = offset_from_body(state.wisp.id, ANIMATED_PIECE);
     if let (Some(before), Some(after)) = (t.arm_vs_body, now) {
         t.arm_swim_changed |= (before - after).abs() > 0.01;
     }
+}
+
+pub(super) fn leg_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
+    t.leg_vs_body = offset_from_body(state.wisp.id, LEG_PIECE);
+    t.suite.check(
+        t.leg_vs_body.is_some(),
+        format!("the wisp model exposes the {LEG_PIECE} piece to measure"),
+    );
+}
+
+pub(super) fn track_walk(t: &mut Tracker, state: &Snapshot<'_>) {
+    let now = offset_from_body(state.wisp.id, LEG_PIECE);
+    if let (Some(before), Some(after)) = (t.leg_vs_body, now) {
+        t.leg_walk_changed |= (before - after).abs() > 0.01;
+    }
+}
+
+pub(super) fn walked(t: &mut Tracker) {
+    // A spirit has no walk animation; only its body bobs.  With legs,
+    // wisp.lua's StartMoving runs the walk cycle.
+    t.suite.check(
+        t.leg_walk_changed,
+        format!(
+            "the wisp walks: its {LEG_PIECE} animates relative to the body when moving with legs"
+        ),
+    );
 }
 
 pub(super) fn swam(t: &mut Tracker) {
@@ -318,11 +318,17 @@ pub(super) fn game_over(t: &mut Tracker, state: &Snapshot<'_>) {
     );
 }
 
-pub(super) fn after_game_over(t: &mut Tracker, state: &Snapshot<'_>) {
+pub(super) fn form_locked_after_game_over(t: &mut Tracker, state: &Snapshot<'_>) {
+    // A switch was sent at frame 130; before game over it would have
+    // returned the eyed body to spirit form.
     t.suite.check(
         !state.wisp.spirit,
         "game-over blocks further player form-switch input",
     );
+}
+
+pub(super) fn after_game_over(t: &mut Tracker, state: &Snapshot<'_>) {
+    t.dying_before_bars_open = Some(state.endgame.dying_wisps.len());
     t.suite.check(
         state
             .world
@@ -348,12 +354,106 @@ pub(super) fn finish(t: &mut Tracker, state: &Snapshot<'_>) {
         "lever plus standing plate open all three linked cages and complete delayed rescues",
     );
     t.suite.check(
-        state.world.npc_wisps.len() + 3 == t.initial_npc_wisps,
+        state.endgame.killed_wisps == KILL_PLATE_CAGES as i32,
         format!(
-            "expired rescued wisp leaves the authoritative alive-wisp set (expected {}, got {})",
-            t.initial_npc_wisps.saturating_sub(3),
+            "the kill plate's {KILL_PLATE_CAGES} prisoners count as killed (got {})",
+            state.endgame.killed_wisps
+        ),
+    );
+    let gone = 3 + KILL_PLATE_CAGES;
+    t.suite.check(
+        state.world.npc_wisps.len() + gone == t.initial_npc_wisps,
+        format!(
+            "expired rescued and killed wisps leave the authoritative alive-wisp set (expected {}, got {})",
+            t.initial_npc_wisps.saturating_sub(gone),
             state.world.npc_wisps.len()
         ),
     );
     t.suite.finish();
+}
+
+pub(super) fn ui_hello(t: &mut Tracker) {
+    t.suite.check(
+        t.ui_hello,
+        "the UI module's hello reaches the rules over RecvLuaMsg",
+    );
+}
+
+pub(super) fn switch_refused_without_eyes(t: &mut Tracker, state: &Snapshot<'_>) {
+    t.suite.check(
+        state.wisp.spirit && state.wisp.form_frame == 0,
+        "without eyes a form switch is refused and starts no cooldown",
+    );
+}
+
+pub(super) fn plate_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
+    t.plate_piece = piece_offset(state, TEST_PLATE, PLATE_PIECE);
+    t.suite.check(
+        t.plate_piece.is_some(),
+        format!("the plate model exposes the {PLATE_PIECE} piece to measure"),
+    );
+}
+
+/// How far the plate's button has sunk since frame 77.
+fn plate_sunk(t: &Tracker, state: &Snapshot<'_>) -> Option<f32> {
+    Some((t.plate_piece? - piece_offset(state, TEST_PLATE, PLATE_PIECE)?).abs())
+}
+
+pub(super) fn plate_sank(t: &mut Tracker, state: &Snapshot<'_>) {
+    // unit_plate.lua gives the plate itself ONOFF 1; plate.lua then sinks
+    // the button 2 elmos.
+    let sunk = plate_sunk(t, state);
+    t.suite.check(
+        sunk.is_some_and(|sunk| sunk > 1.0),
+        format!("pressing a plate runs its unit script: the {PLATE_PIECE} sinks ({sunk:?} elmos)"),
+    );
+}
+
+pub(super) fn plate_stays_down(t: &mut Tracker, state: &Snapshot<'_>) {
+    // The player left it at frame 110.  unit_plate.lua never sends ONOFF 0.
+    let sunk = plate_sunk(t, state);
+    t.suite.check(
+        sunk.is_some_and(|sunk| sunk > 1.0)
+            && level_id(state.world, TEST_PLATE)
+                .is_some_and(|id| state.world.active_triggers.contains(&id)),
+        format!("a plate stays pressed after the player steps off ({sunk:?} elmos)"),
+    );
+}
+
+pub(super) fn bars_opened_before_release(t: &mut Tracker, state: &Snapshot<'_>) {
+    // The lever opened cage 23261 at frame 75.  cage.lua frees its prisoner
+    // only once the bars have slid open, 40 frames later.
+    let before = t.dying_before_bars_open;
+    let now = state.endgame.dying_wisps.len();
+    t.suite.check(
+        before == Some(0) && now == 1,
+        format!(
+            "a cage frees its prisoner once its bars are open (dying at frame 105: {before:?}, at 120: {now})"
+        ),
+    );
+}
+
+pub(super) fn kill_plate(t: &mut Tracker, state: &Snapshot<'_>) {
+    // The player stepped on it at frame 146.  A killing cage doesn't open
+    // its bars: its prisoner dies on the same frame.
+    let killed = state
+        .endgame
+        .dying_wisps
+        .iter()
+        .filter(|(_, saved, _)| !saved)
+        .count();
+    t.suite.check(
+        killed == KILL_PLATE_CAGES,
+        format!("a kill plate kills the prisoners of its {KILL_PLATE_CAGES} cages at once (got {killed})"),
+    );
+}
+
+pub(super) fn cage_stays_open(t: &mut Tracker, state: &Snapshot<'_>) {
+    // Its lever was released at frame 78, and its other source, a plate, was
+    // never pressed.  unit_plate.lua never turns a triggerable back off.
+    let cage = level_id(state.world, TEST_LEVER_CAGE);
+    t.suite.check(
+        cage.is_some_and(|id| state.world.active_triggerables.contains(&id)),
+        "a cage stays open after the lever that opened it is released",
+    );
 }

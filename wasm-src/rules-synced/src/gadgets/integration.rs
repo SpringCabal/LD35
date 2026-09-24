@@ -1,13 +1,13 @@
 //! Drives the headless integration scenario through the real message path.
 
-use core::cell::RefCell;
+use core::cell::{Cell, RefCell};
 
 use partsneeded_shared::{BodyPart, Command};
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
-use crate::input::{handle_command, steer};
-use crate::integration::scenario::{LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
+use crate::input::{handle_message, steer};
+use crate::integration::scenario::{KILL_PLATE, LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
 use crate::integration::{self, Tracker, ending};
 use crate::state::Global;
 use crate::triggers::{LEVER_GATE_COMBINATION, level_id};
@@ -19,6 +19,11 @@ const STAND_STILL: (f32, f32) = (0.0, 0.0);
 pub struct IntegrationGadget {
     tracker: RefCell<Tracker>,
     ending: RefCell<ending::EndingTracker>,
+    /// Whether the UI module's hello arrived over RecvLuaMsg.
+    ui_hello: Cell<bool>,
+    /// Where the player stood before the kill-plate step, restored for the
+    /// ending scenario.
+    before_kill_plate: Cell<Option<spring::Float3>>,
 }
 
 impl IntegrationGadget {
@@ -32,9 +37,26 @@ impl Gadget<Global> for IntegrationGadget {
         "Integration"
     }
 
+    fn handle_lua_msg(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _player_id: i32,
+        _script: i32,
+        _mode: i32,
+        data: &[u8],
+    ) {
+        if data == Command::Hello.encode().as_bytes() {
+            self.ui_hello.set(true);
+        }
+    }
+
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
-        integration::update(&mut self.tracker.borrow_mut(), global, frame);
+        {
+            let mut tracker = self.tracker.borrow_mut();
+            tracker.ui_hello = self.ui_hello.get();
+            integration::update(&mut tracker, global, frame);
+        }
         ending::update(&mut self.ending.borrow_mut(), global, frame);
         match frame {
             20 => steer(global, MOVE_RIGHT),
@@ -50,8 +72,11 @@ impl Gadget<Global> for IntegrationGadget {
                     pull_lever(global, lever);
                 }
             }
-            35 => move_part_to_wisp(global, Some(BodyPart::Eyes)),
-            61 => handle_command(global, Command::SwitchForm),
+            // Past the cooldown from frame 0, still without eyes: refused, and
+            // it must not start the cooldown that would refuse the next one.
+            62 => send(global, Command::SwitchForm),
+            63 => move_part_to_wisp(global, Some(BodyPart::Eyes)),
+            66 => send(global, Command::SwitchForm),
             70 => move_part_to_wisp(global, Some(BodyPart::Arms)),
             // Pull the same lever twice: the second pull has to toggle it off.
             72 | 78 => bring_and_pull_lever(global, TEST_LEVER),
@@ -68,6 +93,8 @@ impl Gadget<Global> for IntegrationGadget {
                 }
             }
             86 | 88 | 90 => move_part_to_wisp(global, None),
+            // After game over, and past the cooldown from frame 66: refused.
+            130 => send(global, Command::SwitchForm),
             // Test the one-way last-room plate after the normal pickup and
             // game-over checks have completed, so this scenario cannot alter
             // the pickup sequence being tested above.
@@ -79,6 +106,17 @@ impl Gadget<Global> for IntegrationGadget {
             116 => {
                 let wisp = global.wisp.access().id;
                 move_wisp_next_to(global, wisp, 180.0);
+            }
+            146 => {
+                self.before_kill_plate.set(wisp_position(global));
+                if let Some(plate) = level_unit(global, KILL_PLATE) {
+                    move_wisp_next_to(global, plate, 0.0);
+                }
+            }
+            160 => {
+                if let Some(position) = self.before_kill_plate.get() {
+                    let _ = spring::set_unit_position(global.wisp.access().id, position);
+                }
             }
             _ => {}
         }
@@ -93,8 +131,13 @@ fn wisp_position(global: &Global) -> Option<spring::Float3> {
     spring::get_unit_position(global.wisp.access().id, false, false).ok()
 }
 
+/// Deliver a command the way RecvLuaMsg does.
+fn send(global: &Global, command: Command) {
+    handle_message(global, command.encode().as_bytes());
+}
+
 fn pull_lever(global: &Global, lever: i32) {
-    handle_command(global, Command::PullLever(lever));
+    send(global, Command::PullLever(lever));
 }
 
 fn bring_and_pull_lever(global: &Global, key: i32) {
