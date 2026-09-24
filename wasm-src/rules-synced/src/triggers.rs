@@ -35,7 +35,7 @@ pub const LEVER_GATE: i32 = 20;
 /// fails the mask on `triggerObj[2] ~= active` -- so a negative id means the
 /// lever must be ON, and the one positive id means it must be OFF.  The floor
 /// markers in that room show the same three circles and one cross.
-pub const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
+const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
     [(29318, true), (23884, false), (14619, true), (19115, true)];
 
 /// unit_plate.lua's radius: a plate is pressed by a player standing this close.

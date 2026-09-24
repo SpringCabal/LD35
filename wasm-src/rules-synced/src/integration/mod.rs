@@ -19,7 +19,7 @@ pub(super) struct Snapshot<'a> {
 }
 
 /// How many checks the main scenario makes.
-const CHECKS: u32 = 57;
+const CHECKS: u32 = 58;
 
 /// The main scenario's progress and the samples later checks compare with.
 pub struct Tracker {
@@ -27,6 +27,9 @@ pub struct Tracker {
     pub(super) initial_npc_wisps: usize,
     /// Whether the UI module's hello reached the rules; the gadget sets it.
     pub ui_hello: bool,
+    /// The scenario's commands and movement messages: (sent, received over
+    /// RecvLuaMsg); the gadget sets it.
+    pub messages: (u32, u32),
     pub(super) wisp_position_at_15: Option<spring::Float3>,
     pub(super) arm_vs_body: Option<f32>,
     pub(super) leg_vs_body: Option<f32>,
@@ -47,6 +50,7 @@ impl Default for Tracker {
                 .require_at_least(CHECKS),
             initial_npc_wisps: 0,
             ui_hello: false,
+            messages: (0, 0),
             wisp_position_at_15: None,
             arm_vs_body: None,
             leg_vs_body: None,
@@ -113,7 +117,10 @@ pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
             one_way_gate(t, state);
             bars_opened_before_release(t, state);
         }
-        135 => form_locked_after_game_over(t, state),
+        135 => {
+            form_locked_after_game_over(t, state);
+            messages_delivered(t);
+        }
         140 => {
             gate_opened(t, state);
             plate_stays_down(t, state);

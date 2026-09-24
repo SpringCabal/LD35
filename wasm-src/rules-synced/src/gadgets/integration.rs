@@ -6,14 +6,16 @@ use partsneeded_shared::{BodyPart, Command};
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
-use crate::input::{handle_message, steer};
-use crate::integration::scenario::{KILL_PLATE, LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
+use crate::integration::scenario::{
+    KILL_PLATE, LAST_ROOM_PLATE, LEVER_GATE_PULLS, TEST_LEVER, TEST_PLATE,
+};
 use crate::integration::{self, Tracker, ending};
 use crate::state::Global;
-use crate::triggers::{LEVER_GATE_COMBINATION, level_id};
+use crate::triggers::level_id;
+use springcabal_control::protocol;
 
-const MOVE_RIGHT: (f32, f32) = (1.0, 0.0);
-const STAND_STILL: (f32, f32) = (0.0, 0.0);
+const MOVE_RIGHT: (i32, i32) = (1, 0);
+const STAND_STILL: (i32, i32) = (0, 0);
 
 #[derive(Default)]
 pub struct IntegrationGadget {
@@ -21,6 +23,10 @@ pub struct IntegrationGadget {
     ending: RefCell<ending::EndingTracker>,
     /// Whether the UI module's hello arrived over RecvLuaMsg.
     ui_hello: Cell<bool>,
+    /// The scenario's own commands and movement messages: how many it sent,
+    /// and how many came back over RecvLuaMsg.
+    sent: Cell<u32>,
+    received: Cell<u32>,
     /// Where the player stood before the kill-plate step, restored for the
     /// ending scenario.
     before_kill_plate: Cell<Option<spring::Float3>>,
@@ -47,6 +53,10 @@ impl Gadget<Global> for IntegrationGadget {
     ) {
         if data == Command::Hello.encode().as_bytes() {
             self.ui_hello.set(true);
+        } else if core::str::from_utf8(data).is_ok_and(|message| {
+            Command::decode(message).is_some() || protocol::decode_direction(message).is_some()
+        }) {
+            self.received.set(self.received.get() + 1);
         }
     }
 
@@ -55,35 +65,36 @@ impl Gadget<Global> for IntegrationGadget {
         {
             let mut tracker = self.tracker.borrow_mut();
             tracker.ui_hello = self.ui_hello.get();
+            tracker.messages = (self.sent.get(), self.received.get());
             integration::update(&mut tracker, global, frame);
         }
         ending::update(&mut self.ending.borrow_mut(), global, frame);
         match frame {
-            20 => steer(global, MOVE_RIGHT),
+            20 => self.steer(MOVE_RIGHT),
             // Release the key again before the frame-30 check.
-            26 => steer(global, STAND_STILL),
+            26 => self.steer(STAND_STILL),
             // Keep the player moving right from here on, long enough for the
             // engine's turn rate to settle before the physical-form screenshot
             // at frame 86; game over stops it.
-            73 => steer(global, MOVE_RIGHT),
+            73 => self.steer(MOVE_RIGHT),
             // Out of reach, and still a spirit: the rules must refuse it.
             25 => {
                 if let Some(lever) = level_unit(global, TEST_LEVER) {
-                    pull_lever(global, lever);
+                    self.send(Command::PullLever(lever));
                 }
             }
             // Past the cooldown from frame 0, still without eyes: refused, and
             // it must not start the cooldown that would refuse the next one.
-            62 => send(global, Command::SwitchForm),
+            62 => self.send(Command::SwitchForm),
             63 => move_part_to_wisp(global, Some(BodyPart::Eyes)),
-            66 => send(global, Command::SwitchForm),
+            66 => self.send(Command::SwitchForm),
             70 => move_part_to_wisp(global, Some(BodyPart::Arms)),
             // Pull the same lever twice: the second pull has to toggle it off.
-            72 | 78 => bring_and_pull_lever(global, TEST_LEVER),
+            72 | 78 => self.bring_and_pull_lever(global, TEST_LEVER),
             // Set the first door's lever combination.
             79 => {
-                for (key, _) in LEVER_GATE_COMBINATION.iter().filter(|(_, on)| *on) {
-                    bring_and_pull_lever(global, *key);
+                for key in LEVER_GATE_PULLS {
+                    self.bring_and_pull_lever(global, key);
                 }
             }
             80 => move_part_to_wisp(global, Some(BodyPart::Legs)),
@@ -94,7 +105,7 @@ impl Gadget<Global> for IntegrationGadget {
             }
             86 | 88 | 90 => move_part_to_wisp(global, None),
             // After game over, and past the cooldown from frame 66: refused.
-            130 => send(global, Command::SwitchForm),
+            130 => self.send(Command::SwitchForm),
             // Test the one-way last-room plate after the normal pickup and
             // game-over checks have completed, so this scenario cannot alter
             // the pickup sequence being tested above.
@@ -131,19 +142,32 @@ fn wisp_position(global: &Global) -> Option<spring::Float3> {
     spring::get_unit_position(global.wisp.access().id, false, false).ok()
 }
 
-/// Deliver a command the way RecvLuaMsg does.
-fn send(global: &Global, command: Command) {
-    handle_message(global, command.encode().as_bytes());
-}
+impl IntegrationGadget {
+    /// Send a message the way the UI does: over the network, back to the
+    /// rules' RecvLuaMsg.
+    fn send_message(&self, message: &str) {
+        match spring::send_lua_rules_msg(message) {
+            Ok(_) => self.sent.set(self.sent.get() + 1),
+            Err(error) => {
+                spring::log_warning!(crate::log::SECTION, "sending {message} failed: {error:?}")
+            }
+        }
+    }
 
-fn pull_lever(global: &Global, lever: i32) {
-    send(global, Command::PullLever(lever));
-}
+    fn send(&self, command: Command) {
+        self.send_message(&command.encode());
+    }
 
-fn bring_and_pull_lever(global: &Global, key: i32) {
-    if let (Some(lever), Some(position)) = (level_unit(global, key), wisp_position(global)) {
-        let _ = spring::set_unit_position(lever, position);
-        pull_lever(global, lever);
+    /// The held movement keys, as the UI reports them.
+    fn steer(&self, direction: (i32, i32)) {
+        self.send_message(&protocol::encode_direction(direction));
+    }
+
+    fn bring_and_pull_lever(&self, global: &Global, key: i32) {
+        if let (Some(lever), Some(position)) = (level_unit(global, key), wisp_position(global)) {
+            let _ = spring::set_unit_position(lever, position);
+            self.send(Command::PullLever(lever));
+        }
     }
 }
 

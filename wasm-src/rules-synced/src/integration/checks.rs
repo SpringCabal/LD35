@@ -5,7 +5,9 @@ use alloc::format;
 use partsneeded_shared::BodyPart;
 
 use super::probes::*;
-use super::scenario::{KILL_PLATE_CAGES, TEST_LEVER, TEST_LEVER_CAGE, TEST_PLATE};
+use super::scenario::{
+    KILL_PLATE_CAGES, SCENARIO_MESSAGES, TEST_LEVER, TEST_LEVER_CAGE, TEST_PLATE,
+};
 use super::{Snapshot, Tracker};
 use crate::defs::defs;
 use crate::triggers::{LEVER_GATE, level_id};
@@ -370,6 +372,18 @@ pub(super) fn finish(t: &mut Tracker, state: &Snapshot<'_>) {
         ),
     );
     t.suite.finish();
+}
+
+/// The scenario sends its commands and movement the way the UI does, and
+/// the rules only act on what comes back over RecvLuaMsg.
+pub(super) fn messages_delivered(t: &mut Tracker) {
+    let (sent, received) = t.messages;
+    t.suite.check(
+        sent == SCENARIO_MESSAGES && received == sent,
+        format!(
+            "the scenario's commands and movement reach the rules over RecvLuaMsg ({received} of {sent} sent, {SCENARIO_MESSAGES} expected)"
+        ),
+    );
 }
 
 pub(super) fn ui_hello(t: &mut Tracker) {

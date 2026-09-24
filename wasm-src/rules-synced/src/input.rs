@@ -19,14 +19,14 @@ pub fn handle_message(global: &Global, data: &[u8]) {
 }
 
 /// The held movement keys.
-pub fn steer(global: &Global, direction: (f32, f32)) {
+fn steer(global: &Global, direction: (f32, f32)) {
     if global.endgame.access().game_over {
         return;
     }
     global.wisp.access_mut().steering.set(direction);
 }
 
-pub fn handle_command(global: &Global, command: Command) {
+fn handle_command(global: &Global, command: Command) {
     if global.endgame.access().game_over {
         return;
     }
