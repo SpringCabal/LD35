@@ -8,15 +8,20 @@ use spring_addons::ui::WidgetHandler;
 use super::*;
 use crate::state::Global;
 
+/// hide_default_layout.lua's list, plus the distance icons.
+pub const HIDDEN_INTERFACE: u32 =
+    CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS;
+
 pub fn setup(handler: &mut WidgetHandler<Global>) {
+    if gallery::active() {
+        gallery::setup(handler);
+        return;
+    }
     register_widgets!(
         handler,
         [
             ApiSyncWidget::new(),
-            // hide_default_layout.lua's list, plus the distance icons.
-            HideDefaultInterface::new(
-                CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS
-            ),
+            HideDefaultInterface::new(HIDDEN_INTERFACE),
             CameraFollowWidget::new(),
             GuiWispControlWidget::new(),
             SndMusicWidget::new(),

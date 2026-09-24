@@ -2,6 +2,7 @@ pub mod api_sync;
 pub mod camera_follow;
 #[cfg(feature = "e2e")]
 pub mod dbg_e2e;
+pub mod gallery;
 pub mod gfx_blood;
 pub mod gfx_eyes_effect;
 pub mod gfx_highlight;
