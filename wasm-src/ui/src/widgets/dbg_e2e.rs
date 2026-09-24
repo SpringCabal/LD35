@@ -5,10 +5,20 @@ use springcabal::shots::{Clock, Screenshots, screenshot};
 
 use crate::state::Global;
 
-/// Frame 77 is after the body-form switch has settled. The rules-side E2E
-/// scenario sends movement|1|0 at frame 76, so that screenshot is the visual
-/// proof that the physical model faces right while moving right.
-const SHOT_FRAMES: [u32; 4] = [30, 77, 86, 100];
+/// Shot 2 is the start room once the switch to body form (frame 66 in the
+/// rules' scenario) has settled. The screen's spirit-to-body fade runs 15
+/// frames from the update in which the UI hears of the switch, usually frame
+/// 67, so it is over by frame 84 unless the UI misses more than two frames. A
+/// shot inside the fade catches a different fade state whenever the capture
+/// lands a frame or two later, which happens whenever the UI's updates skip
+/// frames. The body itself is out of view by 84: the scenario moves it to a
+/// plate in another room at frame 82. Shot 2 shows the body-form view and the
+/// lever the body pulled twice, back at rest.
+///
+/// Shots 3 and 4 catch the camera on its way to the body. Where it is then
+/// depends on how long the earlier captures took, so moving a shot moves
+/// them too.
+const SHOT_FRAMES: [u32; 4] = [30, 84, 86, 100];
 
 /// Without the ending scenario there is nothing left to capture: quit at
 /// frame 160.
