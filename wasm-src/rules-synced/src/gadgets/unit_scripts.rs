@@ -18,10 +18,17 @@ impl Gadget<Global> for UnitScriptsGadget {
         "UnitScripts"
     }
 
-    /// Units that exist before the rules load (a rules restart) get their
-    /// scripts here; every later one in `unit_created`.
+    /// The map's featureplacer creates its units, the four gates among
+    /// them, before the rules load: they get their scripts here, every later
+    /// unit in `unit_created`.
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
         crate::with_cus_module_or_defer(|host| host.attach_existing());
+    }
+
+    /// Wake the scripts' sleeping tasks where Lua does: in `GameFrame`,
+    /// before the units update.
+    fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+        crate::with_cus_module_or_defer(move |host| host.game_frame(frame));
     }
 
     fn unit_created(
