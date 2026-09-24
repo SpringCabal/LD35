@@ -18,6 +18,10 @@ just copy    # build and install both WASM artifacts
 - `shared/` holds what both agree on: body parts and the two messages
   between them, `Status` (rules to UI) and `Command` (UI to rules).
 
+The parts every SpringCabal game shares come from the `springcabal` crate
+(`gajop/springcabal-rs`): the message codec, the test suite tally, the looping
+music, the screenshot schedule, the movement keys and Ctrl+Q.
+
 The `headless-integration`, `e2e` and `unit-script-probe` features add the
 test gadgets and widgets the verification suites use; they are never part of
 the shipped modules.
