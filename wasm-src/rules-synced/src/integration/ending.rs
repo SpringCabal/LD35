@@ -3,18 +3,32 @@
 use alloc::format;
 use alloc::string::String;
 
+use springcabal::check::Suite;
+
 use crate::endgame::mark_wisp_dying;
 use crate::state::{Endgame, Global};
 
 /// The type-1 ending scenario's progress.
-#[derive(Default)]
 pub struct EndingTracker {
+    suite: Suite,
     prepared: bool,
     /// The first ending arrival, where it appeared and on which frame.
     first_arrival: Option<(i32, spring::Float3, i32)>,
     spawn_checked: bool,
-    done: bool,
-    failed: u32,
+}
+
+impl Default for EndingTracker {
+    fn default() -> Self {
+        Self {
+            suite: Suite::new(
+                "[PartsNeeded-Rust-Test]",
+                "PARTS NEEDED ENDING INTEGRATION TEST",
+            ),
+            prepared: false,
+            first_arrival: None,
+            spawn_checked: false,
+        }
+    }
 }
 
 /// How far the first ending arrival must have travelled by frame 260, ~30
@@ -47,21 +61,6 @@ fn moving_to(id: i32, target: spring::Float3) -> bool {
     }
 }
 
-fn ending_check(t: &mut EndingTracker, condition: bool, message: &str) {
-    if condition {
-        let _ = spring::echo(
-            &format!("[PartsNeeded-Rust-Test] ENDING ASSERTION PASSED: {message}"),
-            "",
-        );
-    } else {
-        t.failed += 1;
-        let _ = spring::echo(
-            &format!("[PartsNeeded-Rust-Test] ENDING ASSERTION FAILED: {message}"),
-            "",
-        );
-    }
-}
-
 /// Exercise the type-1 path separately from the ordinary integration flow.
 /// The main test intentionally leaves NPCs alive to cover Ending #1; this
 /// second scenario resets only its test-owned state, saves those remaining
@@ -82,9 +81,12 @@ pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
         check_first_arrival(t, global, frame);
         t.spawn_checked = true;
     }
-    if frame >= 800 && t.prepared && !t.done && global.endgame.access().sequence_complete {
+    if frame >= 800
+        && t.prepared
+        && !t.suite.is_finished()
+        && global.endgame.access().sequence_complete
+    {
         finish(t, global);
-        t.done = true;
     }
 }
 
@@ -121,8 +123,7 @@ fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
             endgame.ending_wisps.first().map(|(_, target)| *target),
         )
     };
-    ending_check(
-        t,
+    t.suite.check(
         game_over && ending_type == 1 && release_wisps,
         "freeing every NPC selects the authored souls-freed ending",
     );
@@ -137,11 +138,9 @@ fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
             moving_to(id, target),
         ))
     });
-    ending_check(
-        t,
-        progress
+    t.suite.check(progress
             .is_some_and(|(_, _, travelled, _, ordered)| ordered && travelled >= ENDING_MIN_TRAVEL),
-        &match progress {
+        match progress {
             Some((start, now, travelled, frames, ordered)) => format!(
                 "the first ending wisp spawns in the world and heads for the player (moving to the player: {ordered}; {start:.0} -> {now:.0} elmos from it, {travelled:.0} travelled in {frames} frames)"
             ),
@@ -154,17 +153,9 @@ fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
 
 fn finish(t: &mut EndingTracker, global: &Global) {
     let spawned = global.endgame.access().end_spawned;
-    ending_check(
-        t,
+    t.suite.check(
         spawned == crate::endgame::ENDING_SPAWN_AMOUNT,
         "the full authored 500-wisp ending sequence completes",
     );
-    let _ = spring::echo(
-        if t.failed == 0 {
-            "[PartsNeeded-Rust-Test] PARTS NEEDED ENDING INTEGRATION TEST PASSED"
-        } else {
-            "[PartsNeeded-Rust-Test] PARTS NEEDED ENDING INTEGRATION TEST FAILED"
-        },
-        "",
-    );
+    t.suite.finish();
 }

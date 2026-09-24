@@ -1,7 +1,7 @@
 //! The headless integration scenario: the checks and what they measure.
 //! `gadgets::integration` drives it.
 
-use alloc::format;
+use springcabal::check::Suite;
 
 use crate::state::{Endgame, Global, Wisp, World};
 
@@ -19,11 +19,8 @@ pub(super) struct Snapshot<'a> {
 }
 
 /// The main scenario's progress and the samples later checks compare with.
-#[derive(Default)]
 pub struct Tracker {
-    pub(super) passed: u32,
-    pub(super) failed: u32,
-    pub(super) done: bool,
+    pub(super) suite: Suite,
     pub(super) initial_npc_wisps: usize,
     pub(super) wisp_position_at_15: Option<spring::Float3>,
     pub(super) arms_at_15: Option<f32>,
@@ -34,28 +31,25 @@ pub struct Tracker {
     pub(super) arm_swim_changed: bool,
 }
 
-fn check(t: &mut Tracker, condition: bool, message: &str) {
-    if condition {
-        t.passed += 1;
-        let _ = spring::echo(
-            &format!(
-                "[PartsNeeded-Rust-Test] ASSERTION PASSED ({}): {message}",
-                t.passed
-            ),
-            "",
-        );
-    } else {
-        t.failed += 1;
-        let _ = spring::echo(
-            &format!("[PartsNeeded-Rust-Test] ASSERTION FAILED: {message}"),
-            "",
-        );
+impl Default for Tracker {
+    fn default() -> Self {
+        Self {
+            suite: Suite::new("[PartsNeeded-Rust-Test]", "PARTS NEEDED INTEGRATION TESTS"),
+            initial_npc_wisps: 0,
+            wisp_position_at_15: None,
+            arms_at_15: None,
+            arm_vs_body: None,
+            lever_piece: None,
+            lever_piece_pulled: None,
+            gate_piece: None,
+            arm_swim_changed: false,
+        }
     }
 }
 
 /// Run the main scenario's checks due on `frame`.
 pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
-    if t.done {
+    if t.suite.is_finished() {
         return;
     }
     // Test-only bookkeeping; nothing below issues a callout that re-enters a
