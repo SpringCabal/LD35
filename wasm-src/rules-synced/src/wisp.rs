@@ -165,14 +165,11 @@ pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: BodyParts) {
     }
     // The unit script owns the piece groups and the gait they select.  This
     // runs from the rules' own GameFrame, never inside a unit-script export,
-    // so the module is free.
+    // so the module is free and the mask applies now.
     let parts = (!spirit).then_some(collected_parts);
-    if crate::with_cus_module(|module| module.set_piece_mask(id, parts)).is_none() {
-        spring::log_warning!(
-            crate::log::SECTION,
-            "piece mask for unit {id}: unit scripts busy"
-        );
-    }
+    crate::with_cus_module_or_defer(move |host| {
+        crate::unit_scripts::set_piece_mask(host, id, parts);
+    });
     // Lua's Show(parent) semantics differ on the Core renderer: making the
     // body visible can implicitly re-enable children that Lua had hidden.
     // Apply the exact authored mask at the engine piece level as well.

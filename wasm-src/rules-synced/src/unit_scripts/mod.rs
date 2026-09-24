@@ -15,7 +15,7 @@ mod module;
 mod props;
 mod wisp;
 
-pub use module::PartsCusModule;
+pub use module::{PartsCusModule, set_piece_mask};
 
 use props::{
     PropPieces, Props, cage_close, cage_open, gate_close, gate_open, lever_off, lever_on,
@@ -80,7 +80,7 @@ fn capabilities(kind: ScriptKind) -> ScriptCapabilities {
     ScriptCapabilities::new(bits)
 }
 
-struct PartsUnitScript {
+pub struct PartsUnitScript {
     kind: Option<ScriptKind>,
     pieces: WispPieces,
     props: Props,

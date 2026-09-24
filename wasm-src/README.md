@@ -11,8 +11,9 @@ just copy    # build and install both WASM artifacts
 
 - `rules-synced/` builds `LuaRules/wasm/partsneeded-rules.wasm`: the synced
   gadgets (`src/gadgets/`) and the unit scripts of every unit
-  (`src/unit_scripts/`, run through Core-CUS). The gadgets attach the
-  scripts and call them directly through `with_cus_module`.
+  (`src/unit_scripts/`, hosted by the engine's `CusHost`). The gadgets
+  attach the scripts and call them directly through
+  `with_cus_module_or_defer`.
 - `ui/` builds `LuaUI/wasm/partsneeded-ui.wasm`: the widgets (`src/widgets/`)
   for input, camera, HUD, sound and the screen effects.
 - `shared/` holds what both agree on: body parts and the two messages

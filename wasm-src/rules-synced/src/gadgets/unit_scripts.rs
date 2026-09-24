@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
-use core::cell::{Cell, RefCell};
+use core::cell::Cell;
 
+use spring::UnitId;
 use spring_addons::rules::Gadget;
 
 use crate::state::Global;
@@ -8,23 +8,12 @@ use crate::state::Global;
 /// Attaches each unit's script in the unit-script module.
 #[derive(Default)]
 pub struct UnitScriptsGadget {
-    /// Whether the map's own units, which predate this module, got theirs.
-    swept: Cell<bool>,
-    /// Units created while the unit-script module was unavailable: before the
-    /// engine initialized it, or while it was busy further up the stack (a
-    /// script whose engine call raised UnitCreated).  Attached next frame.
-    pending: RefCell<Vec<(i32, i32)>>,
+    started: Cell<bool>,
 }
 
 impl UnitScriptsGadget {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    fn attach(&self, unit: i32, def: i32) {
-        if crate::with_cus_module(|module| module.attach(unit, def)).is_none() {
-            self.pending.borrow_mut().push((unit, def));
-        }
     }
 }
 
@@ -33,19 +22,13 @@ impl Gadget<Global> for UnitScriptsGadget {
         "UnitScripts"
     }
 
+    /// Units created before the game starts (the map's own units) get their
+    /// scripts on the first frame. Before it `CusHost` would start their
+    /// clocks at frame -1 read as `u32::MAX`, and a sleep in their Create
+    /// would never wake (spring-bar WASM_GAME_API_TODO_2026-09-24.md §I.1).
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
-        let mut units = core::mem::take(&mut *self.pending.borrow_mut());
-        if !self.swept.replace(true) {
-            for id in spring::get_all_units().unwrap_or_default() {
-                if let Ok(def) = spring::get_unit_def_id(id) {
-                    units.push((id, def.0));
-                }
-            }
-        }
-        for (id, def) in units {
-            if spring::valid_unit_id(id).unwrap_or(false) {
-                self.attach(id, def);
-            }
+        if !self.started.replace(true) {
+            crate::with_cus_module_or_defer(|host| host.attach_existing());
         }
     }
 
@@ -57,6 +40,8 @@ impl Gadget<Global> for UnitScriptsGadget {
         _team: i32,
         _builder: i32,
     ) {
-        self.attach(id, def);
+        if self.started.get() {
+            crate::with_cus_module_or_defer(move |host| host.unit_created(UnitId(id), def));
+        }
     }
 }
