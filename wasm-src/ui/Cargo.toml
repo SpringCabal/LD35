@@ -18,6 +18,7 @@ spring = { workspace = true }
 spring-addons = { workspace = true }
 partsneeded-shared = { path = "../shared" }
 springcabal = { workspace = true }
+springcabal-control = { workspace = true }
 libm = { workspace = true }
 
 [lints]

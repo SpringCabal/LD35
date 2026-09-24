@@ -33,7 +33,7 @@ impl Gadget<Global> for WispGadget {
         let mut wisp = global.wisp.access_mut();
         if wisp.id >= 0 {
             wisp::cancel_upward_velocity(&wisp);
-            let rejected = wisp.movement.is_some() && !wisp::move_wisp(&wisp);
+            let rejected = wisp.steering.direction().is_some() && !wisp::move_wisp(&wisp);
             if rejected && !self.move_rejected.get() {
                 spring::log_warning!(SECTION, "the engine refused the wisp's move goal");
             }
@@ -42,8 +42,7 @@ impl Gadget<Global> for WispGadget {
             crate::units::destroy_later(ctx, collected);
         }
         wisp::rotate_body_parts(&wisp);
-        let stop = wisp.id >= 0 && wisp.movement.is_none() && !wisp.stop_issued;
-        wisp.stop_issued |= stop;
+        let stop = wisp.id >= 0 && wisp.steering.take_stop();
         let pieces = core::mem::take(&mut wisp.pieces_dirty).then_some((
             wisp.id,
             wisp.spirit,

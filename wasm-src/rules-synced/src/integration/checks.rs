@@ -120,7 +120,7 @@ pub(super) fn walking(t: &mut Tracker, state: &Snapshot<'_>) {
 
 pub(super) fn movement_message(t: &mut Tracker, state: &Snapshot<'_>) {
     t.suite.check(
-        state.wisp.movement == Some((1.0, 0.0)),
+        state.wisp.steering.direction() == Some((1.0, 0.0)),
         "movement Lua message reaches wisp controller",
     );
 }
@@ -149,7 +149,7 @@ pub(super) fn before_pickups(t: &mut Tracker, state: &Snapshot<'_>) {
         "game remains active before pickups",
     );
     t.suite.check(
-        state.wisp.movement.is_none(),
+        state.wisp.steering.direction().is_none(),
         "releasing the movement keys clears the wisp's movement",
     );
 }

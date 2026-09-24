@@ -56,13 +56,12 @@ pub fn update_game_end(global: &Global) {
     // Input is rejected from now on, so the release of a held movement key
     // would never arrive: stop the wisp here.  (unit_wisp_controller.lua's
     // last movement message goes stale six frames later.)
-    global.wisp.access_mut().movement = None;
+    global.wisp.access_mut().steering.release();
     if over_type == 1.0 {
         let wisp_id = {
             let mut wisp = global.wisp.access_mut();
             wisp.spirit = true;
-            wisp.movement = None;
-            wisp.stop_issued = true;
+            wisp.steering.release_quietly();
             wisp.pieces_dirty = true;
             wisp.id
         };

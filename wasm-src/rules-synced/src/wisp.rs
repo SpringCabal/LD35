@@ -5,64 +5,36 @@
 use alloc::vec::Vec;
 
 use partsneeded_shared::{BodyPart, BodyParts};
+use springcabal_control::goal::{Bounds, Clamp, GoalHeight, MoveGoal};
 
 use crate::state::Wisp;
 
-/// How far ahead of the wisp the move goal is placed.  A long lookahead has to
-/// be clamped against the map edge, which rotates diagonal input onto an axis;
-/// keep it short, the goal is re-issued every frame anyway.
-const MOVE_LOOKAHEAD: f32 = 120.0;
-// Keep the same playable bounds as the original Lua controller.  A larger
-// artificial margin makes the authored start position (2000, 2000) sit on the
-// movement boundary on this map, so one half of WASD appears completely dead.
-const MAP_EDGE_CLEARANCE: f32 = 1.0;
+/// Where the held keys send the wisp: a raw goal, straight where the player
+/// pointed instead of a path finder's detour, at the wisp's own height.
+///
+/// A long lookahead has to be clamped against the map edge; keep it short,
+/// the goal is re-issued every frame anyway. The edge clamp keeps the heading
+/// (clamping x and z separately would turn a diagonal into a cardinal) and the
+/// original controller's bounds: a larger margin puts the authored start
+/// position (2000, 2000) on the boundary on this map, so one half of WASD
+/// appears dead.
+const STEER: MoveGoal = MoveGoal::ahead(120.0)
+    .radius(16.0)
+    .raw(true)
+    .height(GoalHeight::Unit)
+    .bounds(Bounds::Map {
+        clearance: 1.0,
+        clamp: Clamp::KeepHeading,
+    });
+
 /// unit_powerup_controller.lua picks a part up within 50 elmos.
 const PICKUP_RADIUS: f32 = 50.0;
 
-/// Shorten an offset until it lands inside the map, preserving its heading.
-/// Clamping x and z independently would turn a diagonal into a cardinal.
-fn clamp_offset_to_map(origin: spring::Float3, dx: f32, dz: f32) -> (f32, f32) {
-    let Ok([points_x, points_z]) = spring::get_height_map_size() else {
-        return (origin.x + dx, origin.z + dz);
-    };
-    // get_height_map_size() reports heightmap points (mapx + 1), not elmos.
-    const SQUARE_SIZE: f32 = 8.0;
-    let max_x = (points_x - 1) as f32 * SQUARE_SIZE - MAP_EDGE_CLEARANCE;
-    let max_z = (points_z - 1) as f32 * SQUARE_SIZE - MAP_EDGE_CLEARANCE;
-    let mut scale: f32 = 1.0;
-    let mut limit = |start: f32, delta: f32, hi: f32| {
-        if delta > 0.0 && start + delta > hi {
-            scale = scale.min((hi - start) / delta);
-        } else if delta < 0.0 && start + delta < MAP_EDGE_CLEARANCE {
-            scale = scale.min((MAP_EDGE_CLEARANCE - start) / delta);
-        }
-    };
-    limit(origin.x, dx, max_x);
-    limit(origin.z, dz, max_z);
-    let scale = scale.max(0.0);
-    (origin.x + dx * scale, origin.z + dz * scale)
-}
-
 pub fn move_wisp(wisp: &Wisp) -> bool {
-    let Some((x, z)) = wisp.movement else {
+    let Some(direction) = wisp.steering.direction() else {
         return false;
     };
-    let Ok(position) = spring::get_unit_position(wisp.id, false, false) else {
-        return false;
-    };
-    let length = (x * x + z * z).sqrt();
-    if length == 0.0 {
-        return false;
-    }
-    let (goal_x, goal_z) = clamp_offset_to_map(
-        position,
-        x / length * MOVE_LOOKAHEAD,
-        z / length * MOVE_LOOKAHEAD,
-    );
-    let goal = spring::Float3::new(goal_x, position.y, goal_z);
-    // Raw goal: head straight where the player pointed instead of letting the
-    // pathfinder plan a detour around whatever is in the way.
-    spring::set_unit_move_goal(wisp.id, goal, 16.0, 0.0, true).unwrap_or(false)
+    STEER.apply(wisp.id, direction).unwrap_or(false)
 }
 
 /// Ground-unit collision resolution can leave a positive vertical velocity at

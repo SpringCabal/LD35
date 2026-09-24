@@ -5,6 +5,7 @@ use alloc::vec::Vec;
 
 use partsneeded_shared::BodyParts;
 use spring_addons::Resource;
+use springcabal_control::goal::Steering;
 
 pub const PUBLIC: i32 = 32;
 pub use partsneeded_shared::FORM_COOLDOWN;
@@ -19,8 +20,8 @@ pub const ENDING_WISP_DESTROY_DELAY: i32 = 180;
 /// parts it has collected.
 pub struct Wisp {
     pub id: i32,
-    pub movement: Option<(f32, f32)>,
-    pub stop_issued: bool,
+    /// The held movement keys.
+    pub steering: Steering,
     pub form_frame: i32,
     pub spirit: bool,
     /// The body-part pickups still lying in the level.
@@ -33,8 +34,7 @@ impl Default for Wisp {
     fn default() -> Self {
         Self {
             id: -1,
-            movement: None,
-            stop_issued: false,
+            steering: Steering::new(),
             form_frame: 0,
             spirit: true,
             body_parts: Vec::new(),

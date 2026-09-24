@@ -2,6 +2,7 @@
 
 use partsneeded_shared::{BodyPart, Command};
 use spring::cmd;
+use springcabal_control::protocol;
 
 use crate::state::{FORM_COOLDOWN, Global};
 use crate::triggers::nearby;
@@ -10,9 +11,22 @@ use crate::triggers::nearby;
 const LEVER_REACH: f32 = 100.0;
 
 pub fn handle_message(global: &Global, data: &[u8]) {
-    if let Some(command) = core::str::from_utf8(data).ok().and_then(Command::decode) {
+    let Ok(message) = core::str::from_utf8(data) else {
+        return;
+    };
+    if let Some(direction) = protocol::decode_direction(message) {
+        steer(global, direction);
+    } else if let Some(command) = Command::decode(message) {
         handle_command(global, command);
     }
+}
+
+/// The held movement keys.
+pub fn steer(global: &Global, direction: (f32, f32)) {
+    if global.endgame.access().game_over {
+        return;
+    }
+    global.wisp.access_mut().steering.set(direction);
 }
 
 pub fn handle_command(global: &Global, command: Command) {
@@ -21,13 +35,6 @@ pub fn handle_command(global: &Global, command: Command) {
     }
     let frame = crate::state::frame();
     match command {
-        Command::Move { x, z } => {
-            let mut wisp = global.wisp.access_mut();
-            wisp.movement = (x != 0 || z != 0).then_some((x as f32, z as f32));
-            if wisp.movement.is_some() {
-                wisp.stop_issued = false;
-            }
-        }
         Command::SwitchForm => {
             let mut wisp = global.wisp.access_mut();
             if frame - wisp.form_frame <= FORM_COOLDOWN {

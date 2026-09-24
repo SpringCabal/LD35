@@ -65,9 +65,8 @@ impl Gadget<Global> for UnitScriptProbeGadget {
         } else if frame == 105 || frame == 171 {
             // Walk right through the last sampled frame, 170, as the Lua
             // fixture's move goals do.
-            let mut wisp = ctx.global().wisp.access_mut();
-            wisp.movement = (frame == 105).then_some((1.0, 0.0));
-            wisp.stop_issued = false;
+            let direction = if frame == 105 { (1.0, 0.0) } else { (0.0, 0.0) };
+            ctx.global().wisp.access_mut().steering.set(direction);
         }
     }
 }

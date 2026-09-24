@@ -6,14 +6,14 @@ use partsneeded_shared::{BodyPart, Command};
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
-use crate::input::handle_command;
+use crate::input::{handle_command, steer};
 use crate::integration::scenario::{LAST_ROOM_PLATE, TEST_LEVER, TEST_PLATE};
 use crate::integration::{self, Tracker, ending};
 use crate::state::Global;
 use crate::triggers::{LEVER_GATE_COMBINATION, level_id};
 
-const MOVE_RIGHT: Command = Command::Move { x: 1, z: 0 };
-const STAND_STILL: Command = Command::Move { x: 0, z: 0 };
+const MOVE_RIGHT: (f32, f32) = (1.0, 0.0);
+const STAND_STILL: (f32, f32) = (0.0, 0.0);
 
 #[derive(Default)]
 pub struct IntegrationGadget {
@@ -37,13 +37,13 @@ impl Gadget<Global> for IntegrationGadget {
         integration::update(&mut self.tracker.borrow_mut(), global, frame);
         ending::update(&mut self.ending.borrow_mut(), global, frame);
         match frame {
-            20 => handle_command(global, MOVE_RIGHT),
+            20 => steer(global, MOVE_RIGHT),
             // Release the key again before the frame-30 check.
-            26 => handle_command(global, STAND_STILL),
+            26 => steer(global, STAND_STILL),
             // Keep the player moving right from here on, long enough for the
             // engine's turn rate to settle before the physical-form screenshot
             // at frame 86; game over stops it.
-            73 => handle_command(global, MOVE_RIGHT),
+            73 => steer(global, MOVE_RIGHT),
             // Out of reach, and still a spirit: the rules must refuse it.
             25 => {
                 if let Some(lever) = level_unit(global, TEST_LEVER) {

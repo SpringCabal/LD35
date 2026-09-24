@@ -5,8 +5,8 @@ use crate::defs::{defs, unit_def};
 use crate::state::Global;
 
 use partsneeded_shared::{BodyPart, Command, FORM_COOLDOWN};
-use springcabal::keys::MoveKeys;
 use springcabal::menu;
+use springcabal_control::keyboard::{KeyMovement, send_direction};
 
 /// The clickable band around the end screen's "Click or press R to restart"
 /// line, relative to the screen centre.
@@ -24,7 +24,7 @@ fn send(command: Command) {
 /// switches, lever pulls and the end screen's restart.
 #[derive(Default)]
 pub struct GuiWispControlWidget {
-    keys: MoveKeys,
+    movement: KeyMovement,
     last_form_change: core::cell::Cell<i32>,
     screen_width: core::cell::Cell<i32>,
     screen_height: core::cell::Cell<i32>,
@@ -38,16 +38,13 @@ impl GuiWispControlWidget {
         }
     }
 
+    /// The rules hear about the held keys only when they change.
     fn update_movement(&self, event: &KeyEvent<'_>, pressed: bool) -> EventResult {
-        // Key repeat sends presses for keys already down: the rules hear only
-        // about changes.
-        if self.keys.set(event, pressed) {
-            let (x, z) = self.keys.axis();
-            send(Command::Move { x, z });
-            return EventResult::Handled;
+        let claimed = self.movement.key(event, pressed);
+        if claimed {
+            self.movement.send(send_direction);
         }
-        // A repeat of a held key changes nothing but is claimed too.
-        MoveKeys::is_move_key(event).into()
+        claimed.into()
     }
 }
 
@@ -65,6 +62,8 @@ impl Widget<Global> for GuiWispControlWidget {
     }
 
     fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
+        // Retries a direction the engine didn't take.
+        self.movement.send(send_direction);
         // The player never selects anything: the wisp is steered directly.
         if spring::selection::get_selected_units_count(0).unwrap_or(0) > 0 {
             let _ = spring::selection::select_unit_array(&[], false);

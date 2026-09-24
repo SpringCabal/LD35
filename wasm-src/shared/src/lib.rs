@@ -133,37 +133,28 @@ impl Status {
     }
 }
 
-/// A player command from the UI.
+/// A player command from the UI. Movement has its own message,
+/// `springcabal_control::protocol`'s `movement|x|z`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
-    /// The held movement keys, each axis -1, 0 or 1; sent when they change.
-    Move { x: i32, z: i32 },
     /// Space: leave or return to spirit form.
     SwitchForm,
     /// Pull the clicked lever.
     PullLever(i32),
 }
 
-const MOVE: &str = "movement";
 const SWITCH_FORM: &str = "switch_form";
 const PULL_LEVER: &str = "pull_lever";
 
 impl Command {
     pub fn encode(&self) -> String {
         match self {
-            Command::Move { x, z } => Encoder::new(MOVE).field(x).field(z).finish(),
             Command::SwitchForm => Encoder::new(SWITCH_FORM).finish(),
             Command::PullLever(unit) => Encoder::new(PULL_LEVER).field(unit).finish(),
         }
     }
 
     pub fn decode(message: &str) -> Option<Self> {
-        if let Some(mut fields) = fields(message, MOVE) {
-            return Some(Command::Move {
-                x: fields.i32()?.clamp(-1, 1),
-                z: fields.i32()?.clamp(-1, 1),
-            });
-        }
         if fields(message, SWITCH_FORM).is_some() {
             return Some(Command::SwitchForm);
         }
@@ -192,18 +183,10 @@ mod tests {
 
     #[test]
     fn command_round_trip() {
-        for command in [
-            Command::Move { x: -1, z: 1 },
-            Command::SwitchForm,
-            Command::PullLever(77),
-        ] {
+        for command in [Command::SwitchForm, Command::PullLever(77)] {
             assert_eq!(Command::decode(&command.encode()), Some(command));
         }
-        assert_eq!(Command::Move { x: 1, z: 0 }.encode(), "movement|1|0");
-        assert_eq!(
-            Command::decode("movement|5|-9"),
-            Some(Command::Move { x: 1, z: -1 })
-        );
+        assert_eq!(Command::decode("movement|1|0"), None);
         assert_eq!(Command::decode("pull_lever"), None);
         assert_eq!(Command::decode("unknown|1"), None);
     }

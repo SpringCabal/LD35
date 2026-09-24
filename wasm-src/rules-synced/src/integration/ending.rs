@@ -100,7 +100,7 @@ fn prepare(t: &mut EndingTracker, global: &Global) {
     {
         let mut wisp = global.wisp.access_mut();
         wisp.spirit = false;
-        wisp.movement = None;
+        wisp.steering.release();
         wisp.pieces_dirty = true;
     }
     t.prepared = true;
