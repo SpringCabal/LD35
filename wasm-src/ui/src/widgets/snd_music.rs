@@ -20,8 +20,6 @@ pub struct SndMusicWidget {
 impl Default for SndMusicWidget {
     fn default() -> Self {
         Self {
-            // Both tracks are about 202-204 s; the hint is used only when the
-            // engine can't report the stream's length.
             music: MusicLoop::new(MUFFLED_MUSIC, 0.6),
             ears: Cell::new(None),
         }
