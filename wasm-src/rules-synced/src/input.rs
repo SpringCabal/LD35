@@ -1,14 +1,11 @@
 //! Player commands arriving from the UI over `RecvLuaMsg`.
 
-use partsneeded_shared::{BodyPart, Command};
+use partsneeded_shared::{BodyPart, Command, LEVER_REACH};
 use spring::cmd;
 use springcabal_control::protocol;
 
 use crate::state::{FORM_COOLDOWN, Global};
 use crate::triggers::nearby;
-
-/// How close the player has to stand to pull a lever (ui_wisp_control.lua).
-const LEVER_REACH: f32 = 100.0;
 
 pub fn handle_message(global: &Global, data: &[u8]) {
     let Ok(message) = core::str::from_utf8(data) else {

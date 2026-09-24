@@ -10,7 +10,7 @@
 use alloc::string::String;
 use core::cell::RefCell;
 
-use partsneeded_shared::BodyPart;
+use partsneeded_shared::{BodyPart, LEVER_REACH};
 use spring::gfx::{GfxUnitDrawOptions, TextureCreateParams};
 use spring::gl;
 use spring_addons::event::ViewGeometry;
@@ -22,11 +22,6 @@ use crate::state::Global;
 const DEPTH_FRAGMENT: &str = include_str!("../shaders/highlight_depth.frag");
 const BLUR_H_FRAGMENT: &str = include_str!("../shaders/highlight_blur_h.frag");
 const BLUR_V_FRAGMENT: &str = include_str!("../shaders/highlight_blur_v.frag");
-
-/// How close the player has to stand, matching gfx_highlight.lua and
-/// ui_wisp_control.lua.  Both use the same radius so that everything the glow
-/// offers can actually be clicked.
-pub const REACH: f32 = 100.0;
 
 struct Pipeline {
     initialized: bool,
@@ -96,7 +91,8 @@ fn find_hovered_lever(player_wisp: i32) -> i32 {
         return -1;
     };
     let (dx, dz) = (lever.x - wisp.x, lever.z - wisp.z);
-    if dx * dx + dz * dz >= REACH * REACH {
+    // The click uses the same reach, so everything that glows can be pulled.
+    if dx * dx + dz * dz >= LEVER_REACH * LEVER_REACH {
         return -1;
     }
     unit_id

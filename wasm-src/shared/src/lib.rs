@@ -14,6 +14,10 @@ use springcabal::message::{Encoder, fields};
 /// it needs the same cooldown the rules module enforces.
 pub const FORM_COOLDOWN: i32 = 60;
 
+/// How close the player has to stand to pull a lever (ui_wisp_control.lua).
+/// The UI checks it before sending a pull, and the rules again.
+pub const LEVER_REACH: f32 = 100.0;
+
 /// The six body parts the player collects.  The discriminant is the part's
 /// bit in [`BodyParts`], which is also how [`Status`] sends them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -5,7 +5,7 @@ use crate::commands::send;
 use crate::defs::{defs, unit_def};
 use crate::state::Global;
 
-use partsneeded_shared::{BodyPart, Command, FORM_COOLDOWN};
+use partsneeded_shared::{BodyPart, Command, FORM_COOLDOWN, LEVER_REACH};
 use springcabal::menu;
 use springcabal_control::keyboard::{KeyMovement, send_direction};
 
@@ -46,14 +46,6 @@ impl GuiWispControlWidget {
 impl Widget<Global> for GuiWispControlWidget {
     fn name(&self) -> &'static str {
         "GuiWispControl"
-    }
-
-    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        // The WASM archive does not load the Lua keybind widget. Install the
-        // same game-local binding at the engine level as a fallback for input
-        // paths that do not deliver Ctrl-Q to the WASM receiver.
-        let _ = spring::send_commands("unbind", "ctrl+q");
-        let _ = spring::send_commands("bind", "ctrl+q reloadforce");
     }
 
     fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
@@ -213,7 +205,7 @@ impl Widget<Global> for GuiWispControlWidget {
         };
         let dx = lever_position.x - wisp_position.x;
         let dz = lever_position.z - wisp_position.z;
-        if dx * dx + dz * dz >= 100.0 * 100.0 {
+        if dx * dx + dz * dz >= LEVER_REACH * LEVER_REACH {
             return EventResult::Handled;
         }
         send(Command::PullLever(unit_id));
