@@ -209,8 +209,8 @@ pub(crate) fn apply_turn_commands(ctx: &UnitCtx, p: WispPieces, commands: &[Turn
 pub(crate) async fn wisp_create(state: Rc<RefCell<WispAnimationState>>, ctx: UnitCtx) {
     let p = state.borrow().pieces;
     // Scripts/wisp.lua blocks in PlayAnimation("idle") before it starts
-    // Float_Body. Lua's Sleep(20 * 33 ms) resumes at this engine boundary;
-    ctx.sleep_frames(23).await;
+    // Float_Body: Sleep(20 * 33 ms) is 20 frames in unit_script.lua.
+    ctx.sleep_frames(20).await;
     apply_wisp_idle_frame_20(&ctx, p);
     ctx.sleep_frames(10).await;
     ctx.spawn(TaskDefinition::with_state(

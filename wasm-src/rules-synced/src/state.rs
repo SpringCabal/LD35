@@ -82,7 +82,6 @@ pub struct Pending {
     /// Cages whose prisoner still has to be spawned.
     pub cage_wisps: Vec<i32>,
     pub cage_activations: Vec<i32>,
-    pub piece_hides: Vec<i32>,
     pub destroys: Vec<(i32, bool, i32)>,
     pub spawn_level: bool,
     pub spawn_end_wisp: bool,

@@ -8,7 +8,7 @@ use crate::state::Global;
 /// engine callouts the others queued this frame, once none of them holds a
 /// resource.
 pub fn setup(handler: &mut GadgetHandler<Global>) {
-    register_gadgets!(handler, [LevelGadget::new()]);
+    register_gadgets!(handler, [UnitScriptsGadget::new(), LevelGadget::new()]);
 
     #[cfg(feature = "unit-script-probe")]
     register_gadgets!(handler, [UnitScriptProbeGadget::new()]);

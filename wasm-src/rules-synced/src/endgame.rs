@@ -119,9 +119,6 @@ pub fn spawn_ending_wisp(global: &Global) {
     else {
         return;
     };
-    // The UI draws these as spirit billboards; hide the physical model before
-    // the next render pass.
-    crate::wisp::hide_all_wisp_pieces(id);
     // Match game_end.lua: a normal MOVE order, so the engine's own movement
     // (acceleration, speed) carries each arrival to the player.
     crate::log::check(

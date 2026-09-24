@@ -27,7 +27,6 @@ impl Gadget<Global> for ReaperGadget {
         // Take every queued action first: the callouts below re-enter callins
         // that need this same state.
         let (
-            piece_hides,
             wisp_pieces,
             stop_wisp,
             cage_activations,
@@ -38,7 +37,6 @@ impl Gadget<Global> for ReaperGadget {
         ) = {
             let mut pending = global.pending.access_mut();
             (
-                core::mem::take(&mut pending.piece_hides),
                 pending.wisp_pieces.take(),
                 pending.stop_wisp.take(),
                 core::mem::take(&mut pending.cage_activations),
@@ -49,9 +47,6 @@ impl Gadget<Global> for ReaperGadget {
             )
         };
 
-        for id in piece_hides {
-            wisp::hide_all_wisp_pieces(id);
-        }
         if let Some((id, spirit, parts)) = wisp_pieces {
             wisp::sync_wisp_pieces(id, spirit, parts);
         }

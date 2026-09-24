@@ -10,6 +10,7 @@ pub mod status;
 pub mod triggers;
 #[cfg(feature = "unit-script-probe")]
 pub mod unit_script_probe;
+pub mod unit_scripts;
 pub mod wisp;
 
 pub use endgame::EndgameGadget;
@@ -24,4 +25,5 @@ pub use status::StatusGadget;
 pub use triggers::TriggersGadget;
 #[cfg(feature = "unit-script-probe")]
 pub use unit_script_probe::UnitScriptProbeGadget;
+pub use unit_scripts::UnitScriptsGadget;
 pub use wisp::WispGadget;
