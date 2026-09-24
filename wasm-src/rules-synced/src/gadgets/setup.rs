@@ -13,15 +13,15 @@ pub fn setup(handler: &mut GadgetHandler<Global>) {
     #[cfg(feature = "unit-script-probe")]
     register_gadgets!(handler, [UnitScriptProbeGadget::new()]);
 
-    register_gadgets!(handler, [WispGadget::new(), TriggersGadget::new()]);
-
-    // The unit-script comparison keeps simulating after all six parts are
-    // collected, so it runs without the ending, as the Lua fixture replaces
-    // game_end.lua for the same run.
-    #[cfg(not(feature = "unit-script-probe"))]
-    register_gadgets!(handler, [EndgameGadget::new()]);
-
-    register_gadgets!(handler, [StatusGadget::new()]);
+    register_gadgets!(
+        handler,
+        [
+            WispGadget::new(),
+            TriggersGadget::new(),
+            EndgameGadget::new(),
+            StatusGadget::new(),
+        ]
+    );
 
     #[cfg(feature = "headless-integration")]
     register_gadgets!(handler, [IntegrationGadget::new()]);
