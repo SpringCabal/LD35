@@ -321,7 +321,7 @@ pub(super) fn game_over(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn form_locked_after_game_over(t: &mut Tracker, state: &Snapshot<'_>) {
-    // A switch was sent at frame 130; before game over it would have
+    // A switch was sent at frame 160; before game over it would have
     // returned the eyed body to spirit form.
     t.suite.check(
         !state.wisp.spirit,
@@ -329,8 +329,11 @@ pub(super) fn form_locked_after_game_over(t: &mut Tracker, state: &Snapshot<'_>)
     );
 }
 
-pub(super) fn after_game_over(t: &mut Tracker, state: &Snapshot<'_>) {
+pub(super) fn before_bars_open(t: &mut Tracker, state: &Snapshot<'_>) {
     t.dying_before_bars_open = Some(state.endgame.dying_wisps.len());
+}
+
+pub(super) fn pickups_removed(t: &mut Tracker, state: &Snapshot<'_>) {
     t.suite.check(
         state
             .world
@@ -424,7 +427,7 @@ pub(super) fn plate_sank(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn plate_stays_down(t: &mut Tracker, state: &Snapshot<'_>) {
-    // The player left it at frame 110.  unit_plate.lua never sends ONOFF 0.
+    // The player left it at frame 146.  unit_plate.lua never sends ONOFF 0.
     let sunk = plate_sunk(t, state);
     t.suite.check(
         sunk.is_some_and(|sunk| sunk > 1.0)
@@ -448,7 +451,7 @@ pub(super) fn bars_opened_before_release(t: &mut Tracker, state: &Snapshot<'_>) 
 }
 
 pub(super) fn kill_plate(t: &mut Tracker, state: &Snapshot<'_>) {
-    // The player stepped on it at frame 146.  A killing cage doesn't open
+    // The player stepped on it at frame 166.  A killing cage doesn't open
     // its bars: its prisoner dies on the same frame.
     let killed = state
         .endgame

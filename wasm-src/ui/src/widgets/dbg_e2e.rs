@@ -16,28 +16,53 @@ use crate::state::Global;
 /// plate in another room at frame 82. Shot 2 shows the body-form view and the
 /// lever the body pulled twice, back at rest.
 ///
-/// Shots 3 and 4 catch the camera on its way to the body. Where it is then
-/// depends on how long the earlier captures took, so moving a shot moves
-/// them too.
-const SHOT_FRAMES: [u32; 4] = [30, 84, 86, 100];
+const SHOT_FRAMES: [u32; 2] = [30, 84];
+
+/// Shots 3 and 4 show the body standing on the plate the scenario moved it
+/// to at frame 82 (it stops at 91): with eyes, arms and legs, then with two
+/// parts more (picked up at 124 and 126). The camera follows the wisp with
+/// wall-clock smoothing, so where it is on a given frame depends on how long
+/// the earlier captures took; each shot waits for it to settle instead, from
+/// its first frame until the frame before the scenario changes the scene.
+const SETTLED_SHOTS: [SettledShot; 2] = [
+    SettledShot {
+        label: "3 (body on the plate)",
+        from: 112,
+        until: 124,
+    },
+    SettledShot {
+        label: "4 (five parts)",
+        from: 130,
+        until: 138,
+    },
+];
+
+/// The camera has settled when it moved less than this (elmos) in each of
+/// `SETTLED_UPDATES` updates in a row.
+const SETTLED_STEP: f32 = 0.5;
+const SETTLED_UPDATES: u32 = 3;
 
 /// Without the ending scenario there is nothing left to capture: quit at
-/// frame 160.
+/// frame 198.
 #[cfg(not(feature = "headless-integration"))]
-const QUIT_AFTER_LAST_SHOT: u32 = 60;
+const QUIT_AFTER_LAST_SHOT: i32 = 60;
+
+struct SettledShot {
+    label: &'static str,
+    from: i32,
+    /// Taken on this frame even if the camera is still moving, and logged
+    /// as unsettled: the suite fails on that line.
+    until: i32,
+}
 
 /// How long after the type-1 ending starts its final screenshot is taken.
 const ENDING_FINAL_SHOT_DELAY: i32 = 180;
 
-fn schedule() -> Screenshots {
-    let shots = Screenshots::new(Clock::GameFrame, &SHOT_FRAMES);
-    #[cfg(not(feature = "headless-integration"))]
-    let shots = shots.quit_after(QUIT_AFTER_LAST_SHOT);
-    shots
-}
-
 pub struct DbgE2eWidget {
     shots: Screenshots,
+    settled_taken: Cell<usize>,
+    last_camera: Cell<Option<spring::Float3>>,
+    still_updates: Cell<u32>,
     quit_frame: Cell<i32>,
     ending_start: Cell<i32>,
     ending_final_captured: Cell<bool>,
@@ -46,7 +71,10 @@ pub struct DbgE2eWidget {
 impl Default for DbgE2eWidget {
     fn default() -> Self {
         Self {
-            shots: schedule(),
+            shots: Screenshots::new(Clock::GameFrame, &SHOT_FRAMES),
+            settled_taken: Cell::new(0),
+            last_camera: Cell::new(None),
+            still_updates: Cell::new(0),
             quit_frame: Cell::new(-1),
             ending_start: Cell::new(-1),
             ending_final_captured: Cell::new(false),
@@ -57,6 +85,53 @@ impl Default for DbgE2eWidget {
 impl DbgE2eWidget {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Updates in a row the camera has barely moved.
+    fn track_camera(&self) -> u32 {
+        let Ok(now) = spring::camera::get_camera_position(0) else {
+            self.still_updates.set(0);
+            return 0;
+        };
+        let still = self.last_camera.replace(Some(now)).is_some_and(|last| {
+            let (dx, dy, dz) = (now.x - last.x, now.y - last.y, now.z - last.z);
+            dx * dx + dy * dy + dz * dz < SETTLED_STEP * SETTLED_STEP
+        });
+        let updates = if still {
+            self.still_updates.get() + 1
+        } else {
+            0
+        };
+        self.still_updates.set(updates);
+        updates
+    }
+
+    /// Take the next settled shot once its camera is still.
+    fn settled_shot(&self, frame: i32) {
+        let still_updates = self.track_camera();
+        let Some(shot) = SETTLED_SHOTS.get(self.settled_taken.get()) else {
+            return;
+        };
+        if frame < shot.from {
+            return;
+        }
+        let settled = still_updates >= SETTLED_UPDATES;
+        if !settled && frame < shot.until {
+            return;
+        }
+        if !settled {
+            spring::log_warning!(
+                "partsneeded",
+                "E2E camera not settled for screenshot {}",
+                shot.label
+            );
+        }
+        screenshot(&alloc::format!("{} at {frame}", shot.label));
+        self.settled_taken.set(self.settled_taken.get() + 1);
+        #[cfg(not(feature = "headless-integration"))]
+        if self.settled_taken.get() == SETTLED_SHOTS.len() {
+            self.quit_frame.set(frame + QUIT_AFTER_LAST_SHOT);
+        }
     }
 }
 
@@ -97,5 +172,6 @@ impl Widget<Global> for DbgE2eWidget {
             return;
         }
         self.shots.update(ctx, dt);
+        self.settled_shot(frame);
     }
 }

@@ -38,7 +38,7 @@ impl Default for EndingTracker {
 /// The frame the ending scenario starts on, after the main scenario's last
 /// check: every NPC wisp left starts its rescue, and the last part is
 /// picked up again.
-const PREPARE_FRAME: i32 = 200;
+const PREPARE_FRAME: i32 = 220;
 /// The pickup ended the game by now.
 const PENDING_CHECK_FRAME: i32 = PREPARE_FRAME + 2;
 /// The rescues are over (saved and gone) and the part is picked up again.

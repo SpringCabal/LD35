@@ -75,10 +75,11 @@ impl Gadget<Global> for IntegrationGadget {
             20 => self.steer(MOVE_RIGHT),
             // Release the key again before the frame-30 check.
             26 => self.steer(STAND_STILL),
-            // Keep the player moving right from here on, long enough for the
-            // engine's turn rate to settle before the physical-form screenshot
-            // at frame 86; game over stops it.
+            // Walk right, from the start room and on the plate it is moved
+            // to at 82, then stand still on the plate for the visual suite's
+            // settled shots 3 and 4 (ui/src/widgets/dbg_e2e.rs).
             73 => self.steer(MOVE_RIGHT),
+            91 => self.steer(STAND_STILL),
             // Out of reach, and still a spirit: the rules must refuse it.
             25 => {
                 if let Some(lever) = level_unit(global, TEST_LEVER) {
@@ -105,28 +106,29 @@ impl Gadget<Global> for IntegrationGadget {
                     move_wisp_next_to(global, plate, 45.0);
                 }
             }
-            86 | 88 | 90 => move_part_to_wisp(global, None),
-            // After game over, and past the cooldown from frame 66: refused.
-            130 => self.send(Command::SwitchForm),
+            // The last three parts: two after shot 3, one after shot 4.
+            124 | 126 | 138 => move_part_to_wisp(global, None),
             // Test the one-way last-room plate after the normal pickup and
             // game-over checks have completed, so this scenario cannot alter
             // the pickup sequence being tested above.
-            110 => {
+            146 => {
                 if let Some(plate) = level_unit(global, LAST_ROOM_PLATE) {
                     move_wisp_next_to(global, plate, 0.0);
                 }
             }
-            116 => {
+            152 => {
                 let wisp = global.wisp.access().id;
                 move_wisp_next_to(global, wisp, 180.0);
             }
-            146 => {
+            // After game over, and past the cooldown from frame 66: refused.
+            160 => self.send(Command::SwitchForm),
+            166 => {
                 self.before_kill_plate.set(wisp_position(global));
                 if let Some(plate) = level_unit(global, KILL_PLATE) {
                     move_wisp_next_to(global, plate, 0.0);
                 }
             }
-            160 => {
+            180 => {
                 if let Some(position) = self.before_kill_plate.get() {
                     let _ = spring::set_unit_position(global.wisp.access().id, position);
                 }

@@ -109,26 +109,23 @@ pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
             swam(t);
             walked(t);
         }
-        95 => {
-            game_over(t, state);
-            plate_sank(t, state);
-        }
-        105 => after_game_over(t, state),
-        120 => {
+        95 => plate_sank(t, state),
+        105 => before_bars_open(t, state),
+        120 => bars_opened_before_release(t, state),
+        142 => game_over(t, state),
+        145 => pickups_removed(t, state),
+        160 => {
             one_way_gate(t, state);
-            bars_opened_before_release(t, state);
-        }
-        135 => {
-            form_locked_after_game_over(t, state);
-            messages_delivered(t);
-        }
-        140 => {
             gate_opened(t, state);
             plate_stays_down(t, state);
             cage_stays_open(t, state);
         }
-        155 => kill_plate(t, state),
-        196 => finish(t, state),
+        165 => {
+            form_locked_after_game_over(t, state);
+            messages_delivered(t);
+        }
+        175 => kill_plate(t, state),
+        216 => finish(t, state),
         _ => {}
     }
     // Legs arrive at frame 80; from then on the arms follow the walk instead.

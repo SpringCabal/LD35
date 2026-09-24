@@ -13,7 +13,7 @@ pub const LEVER_GATE_PULLS: [i32; 3] = [29318, 14619, 19115];
 /// on it.
 pub const TEST_PLATE: i32 = 12701;
 /// How many commands and movement messages the scenario sends.
-pub const SCENARIO_MESSAGES: u32 = 12;
+pub const SCENARIO_MESSAGES: u32 = 13;
 /// The last room's one-way plate, which opens gate 23.
 pub const LAST_ROOM_PLATE: i32 = 11688;
 /// A plate that kills the prisoners of four cages.
