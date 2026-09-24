@@ -6,8 +6,9 @@
 
 extern crate alloc;
 
-use alloc::format;
 use alloc::string::String;
+
+use springcabal::message::{Encoder, fields};
 
 /// Frames between two form switches.  The UI predicts the switch locally, so
 /// it needs the same cooldown the rules module enforces.
@@ -104,36 +105,31 @@ pub struct Status {
     pub sequence_complete: bool,
 }
 
-const STATUS_PREFIX: &str = "PARTS_STATUS|";
+const STATUS_PREFIX: &str = "PARTS_STATUS";
 
 impl Status {
     pub fn encode(&self) -> String {
-        format!(
-            "{STATUS_PREFIX}{}|{}|{}|{}|{}|{}",
-            i32::from(self.spirit),
-            i32::from(self.game_over),
-            self.wisp,
-            self.parts.bits(),
-            self.ending_type,
-            i32::from(self.sequence_complete),
-        )
+        Encoder::new(STATUS_PREFIX)
+            .flag(self.spirit)
+            .flag(self.game_over)
+            .field(self.wisp)
+            .field(self.parts.bits())
+            .field(self.ending_type)
+            .flag(self.sequence_complete)
+            .finish()
     }
 
     pub fn decode(message: &str) -> Option<Self> {
-        let mut fields = message
-            .strip_prefix(STATUS_PREFIX)?
-            .split('|')
-            .map(|field| field.parse::<i32>().ok());
-        let mut next = || fields.next().flatten();
+        let mut fields = fields(message, STATUS_PREFIX)?;
         let status = Self {
-            spirit: next()? != 0,
-            game_over: next()? != 0,
-            wisp: next()?,
-            parts: BodyParts::from_bits(u8::try_from(next()?).ok()?),
-            ending_type: next()?,
-            sequence_complete: next()? != 0,
+            spirit: fields.flag()?,
+            game_over: fields.flag()?,
+            wisp: fields.i32()?,
+            parts: BodyParts::from_bits(u8::try_from(fields.i32()?).ok()?),
+            ending_type: fields.i32()?,
+            sequence_complete: fields.flag()?,
         };
-        next().is_none().then_some(status)
+        fields.is_done().then_some(status)
     }
 }
 
@@ -148,27 +144,67 @@ pub enum Command {
     PullLever(i32),
 }
 
+const MOVE: &str = "movement";
+const SWITCH_FORM: &str = "switch_form";
+const PULL_LEVER: &str = "pull_lever";
+
 impl Command {
     pub fn encode(&self) -> String {
         match self {
-            Command::Move { x, z } => format!("movement|{x}|{z}"),
-            Command::SwitchForm => String::from("switch_form"),
-            Command::PullLever(unit) => format!("pull_lever|{unit}"),
+            Command::Move { x, z } => Encoder::new(MOVE).field(x).field(z).finish(),
+            Command::SwitchForm => Encoder::new(SWITCH_FORM).finish(),
+            Command::PullLever(unit) => Encoder::new(PULL_LEVER).field(unit).finish(),
         }
     }
 
     pub fn decode(message: &str) -> Option<Self> {
-        let mut fields = message.split('|');
-        let command = fields.next()?;
-        let mut number = || fields.next()?.parse::<i32>().ok();
-        match command {
-            "movement" => Some(Command::Move {
-                x: number()?.clamp(-1, 1),
-                z: number()?.clamp(-1, 1),
-            }),
-            "switch_form" => Some(Command::SwitchForm),
-            "pull_lever" => Some(Command::PullLever(number()?)),
-            _ => None,
+        if let Some(mut fields) = fields(message, MOVE) {
+            return Some(Command::Move {
+                x: fields.i32()?.clamp(-1, 1),
+                z: fields.i32()?.clamp(-1, 1),
+            });
         }
+        if fields(message, SWITCH_FORM).is_some() {
+            return Some(Command::SwitchForm);
+        }
+        Some(Command::PullLever(fields(message, PULL_LEVER)?.i32()?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_round_trip() {
+        let status = Status {
+            spirit: true,
+            game_over: false,
+            wisp: 1234,
+            parts: BodyParts::from_bits(0b101),
+            ending_type: 2,
+            sequence_complete: true,
+        };
+        assert_eq!(status.encode(), "PARTS_STATUS|1|0|1234|5|2|1");
+        assert_eq!(Status::decode(&status.encode()), Some(status));
+        assert_eq!(Status::decode("PARTS_STATUS|1|0|1234|5|2|1|9"), None);
+    }
+
+    #[test]
+    fn command_round_trip() {
+        for command in [
+            Command::Move { x: -1, z: 1 },
+            Command::SwitchForm,
+            Command::PullLever(77),
+        ] {
+            assert_eq!(Command::decode(&command.encode()), Some(command));
+        }
+        assert_eq!(Command::Move { x: 1, z: 0 }.encode(), "movement|1|0");
+        assert_eq!(
+            Command::decode("movement|5|-9"),
+            Some(Command::Move { x: 1, z: -1 })
+        );
+        assert_eq!(Command::decode("pull_lever"), None);
+        assert_eq!(Command::decode("unknown|1"), None);
     }
 }

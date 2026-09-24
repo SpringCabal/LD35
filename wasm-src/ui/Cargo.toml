@@ -17,6 +17,7 @@ unit-script-probe = []
 spring = { workspace = true }
 spring-addons = { workspace = true }
 partsneeded-shared = { path = "../shared" }
+springcabal = { workspace = true }
 libm = { workspace = true }
 
 [lints]

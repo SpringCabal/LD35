@@ -1,7 +1,6 @@
-use core::cell::Cell;
-
 use partsneeded_shared::Status;
 use spring_addons::rules::Gadget;
+use springcabal::message::SendOnChange;
 
 use crate::log::SECTION;
 use crate::state::Global;
@@ -9,7 +8,7 @@ use crate::state::Global;
 /// Sends the UI the player's and the ending's status whenever it changes.
 #[derive(Default)]
 pub struct StatusGadget {
-    last_sent: Cell<Option<Status>>,
+    sent: SendOnChange<Status>,
 }
 
 impl StatusGadget {
@@ -36,14 +35,14 @@ impl Gadget<Global> for StatusGadget {
                 sequence_complete: endgame.sequence_complete,
             }
         };
-        if self.last_sent.get() == Some(status) {
-            return;
-        }
-        match spring::send_to_unsynced(&status.encode()) {
-            Ok(_) => self.last_sent.set(Some(status)),
-            // Unsent, the UI keeps showing the old form and parts: retry on
-            // the next frame.
-            Err(error) => spring::log_warning!(SECTION, "sending the status failed: {error:?}"),
-        }
+        // Unsent, the UI keeps showing the old form and parts: retried on the
+        // next frame.
+        self.sent.send_if_changed(status, |status| {
+            spring::send_to_unsynced(&status.encode())
+                .inspect_err(|error| {
+                    spring::log_warning!(SECTION, "sending the status failed: {error:?}")
+                })
+                .is_ok()
+        });
     }
 }

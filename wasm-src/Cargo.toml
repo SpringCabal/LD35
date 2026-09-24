@@ -12,6 +12,7 @@ too_many_arguments = "allow"
 [workspace.dependencies]
 spring = { git = "https://github.com/gajop/spring-rust", branch = "rust-wip", features = ["alloc"] }
 spring-addons = { git = "https://github.com/gajop/spring-rust", branch = "rust-wip" }
+springcabal = { git = "ssh://git@github.com/gajop/springcabal-rs.git" }
 # The screen treatment reproduces gfx_eyes_effect.lua's transition curves, and
 # core has no trig in a no_std wasm target.
 libm = "0.2"
