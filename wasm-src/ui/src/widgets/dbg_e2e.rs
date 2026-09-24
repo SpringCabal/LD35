@@ -26,6 +26,12 @@ impl DbgE2eWidget {
     }
 }
 
+fn screenshot() {
+    if let Err(error) = spring::send_commands("screenshot", "") {
+        spring::log_warning!("partsneeded", "screenshot failed: {error:?}");
+    }
+}
+
 impl Widget<Global> for DbgE2eWidget {
     fn name(&self) -> &'static str {
         "DbgE2e"
@@ -46,8 +52,7 @@ impl Widget<Global> for DbgE2eWidget {
         let ending = ctx.global().player.access();
         if ending.ending_type == 1 && ending.game_over_sequence && self.ending_start.get() < 0 {
             self.ending_start.set(frame);
-            let _ = spring::send_commands("screenshot", "");
-            let _ = spring::send_commands("console", "0");
+            screenshot();
             return;
         }
         let ending_start = self.ending_start.get();
@@ -55,8 +60,7 @@ impl Widget<Global> for DbgE2eWidget {
             && frame - ending_start >= 180
             && !self.ending_final_captured.replace(true)
         {
-            let _ = spring::send_commands("screenshot", "");
-            let _ = spring::send_commands("console", "0");
+            screenshot();
             self.quit_frame.set(frame + 30);
             return;
         }
@@ -69,8 +73,7 @@ impl Widget<Global> for DbgE2eWidget {
             .get(target as usize)
             .is_some_and(|minimum| frame >= *minimum)
         {
-            let _ = spring::send_commands("screenshot", "");
-            let _ = spring::send_commands("console", "0");
+            screenshot();
             self.captured.set(target + 1);
             #[cfg(not(feature = "headless-integration"))]
             if target == 3 {

@@ -1,3 +1,7 @@
+use spring::default_interface::{
+    CLOCK, CONSOLE, MINIMAP, PLAYER_INFO, RESOURCE_BAR, TOOLTIP, UNIT_ICONS,
+};
+use spring_addons::HideDefaultInterface;
 use spring_addons::register_widgets;
 use spring_addons::ui::WidgetHandler;
 
@@ -9,7 +13,11 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
         handler,
         [
             ApiSyncWidget::new(),
-            HideDefaultLayoutWidget::new(),
+            // hide_default_layout.lua's list, plus the distance icons.
+            HideDefaultInterface::new(
+                CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS
+            ),
+            CameraFollowWidget::new(),
             GuiWispControlWidget::new(),
             SndAmbienceWidget::new(),
             GfxBloodWidget::new(),

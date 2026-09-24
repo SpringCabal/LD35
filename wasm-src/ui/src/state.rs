@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use partsneeded_shared::BodyParts;
 use spring_addons::Resource;
 
@@ -37,12 +35,6 @@ pub struct Player {
     /// while you are a spirit -- ate the click as well.
     pub pending_spirit: Option<bool>,
     pub pending_since: i32,
-}
-
-/// NPC wisps, refreshed periodically rather than every frame.
-#[derive(Default)]
-pub struct Npcs {
-    pub wisps: Vec<i32>,
 }
 
 impl Default for Player {
@@ -136,7 +128,6 @@ pub fn current_frame() -> i32 {
 #[derive(Default)]
 pub struct Global {
     pub player: Resource<Player>,
-    pub npcs: Resource<Npcs>,
     /// The lever the highlight glows on as of the last draw pass.
     ///
     /// The click handler uses it instead of tracing again: two TraceScreenRay

@@ -42,14 +42,6 @@ struct Pipeline {
     loc_screen_xy: i32,
     loc_screen_x: i32,
     loc_screen_y: i32,
-    /// The world matrices, captured in DrawWorldPreUnit and restored inside the
-    /// render-to-texture callback: `render_to_texture` installs identity
-    /// matrices before invoking it, and a native module -- unlike a Lua widget
-    /// calling gl.ResetMatrices() -- has to put the camera back itself.
-    camera_projection: [f32; 16],
-    camera_modelview: [f32; 16],
-    /// The lever the silhouette pass should draw, handed to the callback.
-    target: i32,
 }
 
 impl Default for Pipeline {
@@ -68,17 +60,8 @@ impl Default for Pipeline {
             loc_screen_xy: -1,
             loc_screen_x: -1,
             loc_screen_y: -1,
-            camera_projection: [0.0; 16],
-            camera_modelview: [0.0; 16],
-            target: -1,
         }
     }
-}
-
-thread_local! {
-    /// Thread-local because `render_to_texture` takes a bare `fn` callback,
-    /// which has no other way to reach the pipeline.
-    static PIPELINE: RefCell<Pipeline> = RefCell::new(Pipeline::default());
 }
 
 /// The hovered unit, if it is a lever the player could pull right now.
@@ -236,22 +219,15 @@ fn update_uniforms(state: &mut Pipeline) {
     let _ = spring::gfx::use_shader(0);
 }
 
-fn pass_draw_target() {
-    let (projection, modelview, target) = PIPELINE.with_borrow(|state| {
-        (
-            state.camera_projection,
-            state.camera_modelview,
-            state.target,
-        )
-    });
+/// Draw the lever's silhouette.  `render_to_texture` installs identity
+/// matrices before invoking this, and a native module -- unlike a Lua widget
+/// calling gl.ResetMatrices() -- has to put the camera back itself.
+fn pass_draw_target(projection: &[f32; 16], modelview: &[f32; 16], target: i32) {
     let _ = spring::gfx::clear(gl::COLOR_BUFFER_BIT, &[0.0, 0.0, 0.0, 0.0], 4);
     let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-    let _ = spring::gfx::load_matrix(&projection);
+    let _ = spring::gfx::load_matrix(projection);
     let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-    let _ = spring::gfx::load_matrix(&modelview);
-    if target < 0 {
-        return;
-    }
+    let _ = spring::gfx::load_matrix(modelview);
     let _ = spring::gfx::unit(
         target,
         GfxUnitDrawOptions {
@@ -287,24 +263,14 @@ fn blur_pass(shader: u32, vsx: i32, vsy: i32) {
     );
 }
 
-fn pass_blur_v() {
-    let (shader, vsx, vsy) =
-        PIPELINE.with_borrow(|state| (state.blur_v_shader, state.vsx, state.vsy));
-    blur_pass(shader, vsx, vsy);
-}
-
-fn pass_blur_h() {
-    let (shader, vsx, vsy) =
-        PIPELINE.with_borrow(|state| (state.blur_h_shader, state.vsx, state.vsy));
-    blur_pass(shader, vsx, vsy);
-}
-
 #[derive(Default)]
-pub struct GfxHighlightWidget;
+pub struct GfxHighlightWidget {
+    pipeline: RefCell<Pipeline>,
+}
 
 impl GfxHighlightWidget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -314,13 +280,12 @@ impl Widget<Global> for GfxHighlightWidget {
     }
 
     fn view_resize(&self, _ctx: &spring_addons::AddonContext<'_, Global>, geometry: &ViewGeometry) {
-        PIPELINE.with_borrow_mut(|state| {
-            state.vsx = geometry.view_size.0;
-            state.vsy = geometry.view_size.1;
-            if state.initialized {
-                recreate_textures(state);
-            }
-        });
+        let mut state = self.pipeline.borrow_mut();
+        state.vsx = geometry.view_size.0;
+        state.vsy = geometry.view_size.1;
+        if state.initialized {
+            recreate_textures(&mut state);
+        }
     }
 
     fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
@@ -345,29 +310,30 @@ impl Widget<Global> for GfxHighlightWidget {
             return;
         }
 
-        let (depth_tex, offscreen_tex, blur_tex, depth_shader, vsx, vsy) = PIPELINE
-            .with_borrow_mut(|state| {
-                ensure_initialized(state);
-                if let Ok(geometry) = spring::display::get_view_geometry(0)
-                    && geometry.view_size_x > 1
-                    && geometry.view_size_y > 1
-                    && (geometry.view_size_x != state.vsx || geometry.view_size_y != state.vsy)
-                {
-                    state.vsx = geometry.view_size_x;
-                    state.vsy = geometry.view_size_y;
-                    recreate_textures(state);
-                }
-                update_uniforms(state);
-                state.target = target;
-                (
-                    state.depth_tex.clone(),
-                    state.offscreen_tex.clone(),
-                    state.blur_tex.clone(),
-                    state.depth_shader,
-                    state.vsx,
-                    state.vsy,
-                )
-            });
+        let (depth_tex, offscreen_tex, blur_tex, depth_shader, blur_h, blur_v, vsx, vsy) = {
+            let mut state = self.pipeline.borrow_mut();
+            ensure_initialized(&mut state);
+            if let Ok(geometry) = spring::display::get_view_geometry(0)
+                && geometry.view_size_x > 1
+                && geometry.view_size_y > 1
+                && (geometry.view_size_x != state.vsx || geometry.view_size_y != state.vsy)
+            {
+                state.vsx = geometry.view_size_x;
+                state.vsy = geometry.view_size_y;
+                recreate_textures(&mut state);
+            }
+            update_uniforms(&mut state);
+            (
+                state.depth_tex.clone(),
+                state.offscreen_tex.clone(),
+                state.blur_tex.clone(),
+                state.depth_shader,
+                state.blur_h_shader,
+                state.blur_v_shader,
+                state.vsx,
+                state.vsy,
+            )
+        };
         if depth_tex.is_empty()
             || offscreen_tex.is_empty()
             || blur_tex.is_empty()
@@ -381,24 +347,27 @@ impl Widget<Global> for GfxHighlightWidget {
         let _ = spring::gfx::copy_to_texture(&depth_tex, 0, 0, 0, 0, vsx, vsy, gl::TEXTURE_2D, 0);
         let _ = spring::gfx::bind_texture(&depth_tex, 0, true);
 
-        if let Ok(projection) = spring::gfx::get_matrix_data(gl::PROJECTION)
-            && let Ok(modelview) = spring::gfx::get_matrix_data(gl::MODELVIEW)
-            && projection.len() == 16
-            && modelview.len() == 16
+        // The world matrices, restored inside the silhouette pass.
+        let mut projection = [0.0; 16];
+        let mut modelview = [0.0; 16];
+        if let Ok(live_projection) = spring::gfx::get_matrix_data(gl::PROJECTION)
+            && let Ok(live_modelview) = spring::gfx::get_matrix_data(gl::MODELVIEW)
+            && live_projection.len() == 16
+            && live_modelview.len() == 16
         {
-            PIPELINE.with_borrow_mut(|state| {
-                state.camera_projection.copy_from_slice(&projection);
-                state.camera_modelview.copy_from_slice(&modelview);
-            });
+            projection.copy_from_slice(&live_projection);
+            modelview.copy_from_slice(&live_modelview);
         }
 
         let _ = spring::gfx::use_shader(depth_shader);
-        let _ = spring::gfx::render_to_texture(&offscreen_tex, pass_draw_target);
+        let _ = spring::gfx::render_to_texture(&offscreen_tex, || {
+            pass_draw_target(&projection, &modelview, target);
+        });
 
         let _ = spring::gfx::bind_texture(&offscreen_tex, 0, true);
-        let _ = spring::gfx::render_to_texture(&blur_tex, pass_blur_v);
+        let _ = spring::gfx::render_to_texture(&blur_tex, || blur_pass(blur_v, vsx, vsy));
         let _ = spring::gfx::bind_texture(&blur_tex, 0, true);
-        let _ = spring::gfx::render_to_texture(&offscreen_tex, pass_blur_h);
+        let _ = spring::gfx::render_to_texture(&offscreen_tex, || blur_pass(blur_h, vsx, vsy));
 
         let _ = spring::gfx::use_shader(0);
         let _ = spring::gfx::matrix_mode(gl::TEXTURE);

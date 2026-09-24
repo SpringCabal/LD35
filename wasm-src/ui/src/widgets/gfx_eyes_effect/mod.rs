@@ -9,10 +9,12 @@ use spring_addons::ui::Widget;
 use crate::state::{GAME_END_DURATION, Global, current_frame};
 
 mod bloom;
+mod npcs;
 mod sprites;
 mod trail;
 
 use bloom::{Bloom, ScreenAmounts};
+use npcs::Npcs;
 use sprites::Sprites;
 use trail::Trail;
 
@@ -26,6 +28,7 @@ pub struct Camera {
 pub struct GfxEyesEffectWidget {
     camera: RefCell<Camera>,
     bloom: RefCell<Bloom>,
+    npcs: RefCell<Npcs>,
     sprites: RefCell<Sprites>,
     trail: RefCell<Trail>,
     game_end_start: Cell<i32>,
@@ -36,6 +39,7 @@ impl Default for GfxEyesEffectWidget {
         Self {
             camera: RefCell::default(),
             bloom: RefCell::default(),
+            npcs: RefCell::default(),
             sprites: RefCell::default(),
             trail: RefCell::default(),
             game_end_start: Cell::new(-1),
@@ -91,6 +95,11 @@ impl Widget<Global> for GfxEyesEffectWidget {
         "GfxEyesEffect"
     }
 
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
+        let ending = ctx.global().player.access().game_over;
+        self.npcs.borrow_mut().refresh(ending);
+    }
+
     /// Remember the camera matrices for the billboard pass, and draw the trail.
     ///
     /// unit_wisp_draw.lua gets them with gl.LoadMatrix("camprj"/"camera");
@@ -135,7 +144,7 @@ impl Widget<Global> for GfxEyesEffectWidget {
             (player.form.amount(), player.wisp)
         };
         {
-            let npcs = ctx.global().npcs.access();
+            let npcs = self.npcs.borrow();
             if opacity > 0.0 && (wisp >= 0 || !npcs.wisps.is_empty()) {
                 let wisps = (wisp >= 0)
                     .then_some(wisp)

@@ -21,113 +21,12 @@ const RESTART_PROMPT_HALF_WIDTH: i32 = 190;
 const RESTART_PROMPT_TOP: i32 = -52;
 const RESTART_PROMPT_BOTTOM: i32 = -12;
 
-// Match camera_control.lua. The target is smoothed in the widget; the engine
-// transition itself stays at zero so the two interpolation layers do not fight
-// each other.
-const CAMERA_FOLLOW_TAU: f32 = 0.12;
-
-/// Update ticks between scans for NPC wisps outside the ending.
-const NPC_SCAN_INTERVAL: i32 = 30;
-
-/// The start script the in-game restart reloads.  It mirrors
-/// springcabal-games' launch/games/partsneeded/wasm.txt, the script the menu
-/// launches this game with; keep the two in sync.  (Reload needs a script: an
-/// empty one returns to the menu.)
-const RESTART_SCRIPT: &str = r#"[GAME]
-{
-    MapName=LD35 map 0.1;
-    GameMode=0;
-    GameType=Parts Needed WASM 0.1.0-wasm;
-
-    NumTeams=2;
-    NumUsers=2;
-
-    HostIP=127.0.0.1;
-    HostPort=8452;
-    IsHost=1;
-    NumPlayers=1;
-    GameStartDelay=0;
-
-    StartMetal=1000;
-    StartEnergy=1000;
-
-    StartposType=3;
-    LimitDGun=0;
-    DiminishingMMs=0;
-    GhostedBuildings=1;
-    MyPlayerNum=1;
-    MyPlayerName=0;
-    NumRestrictions=0;
-    MaxSpeed=20;
-    MinSpeed=0.1;
-
-    [TEAM0]
-    {
-        AllyTeam=0;
-        Side=;
-        RGBColor=0.35294118523598 0.35294118523598 1;
-        TeamLeader=1;
-        Handicap=0;
-        StartPosX=0;
-        StartPosZ=0;
-    }
-    [PLAYER1]
-    {
-        Name=0;
-        Spectator=0;
-        Team=0;
-    }
-    [TEAM1]
-    {
-        AllyTeam=1;
-        Side=;
-        RGBColor=0.7843137383461 0 0;
-        TeamLeader=1;
-        Handicap=0;
-        StartPosX=0;
-        StartPosZ=0;
-    }
-    [AI1]
-    {
-        Name=1: NullAI;
-        ShortName=NullAI;
-        Team=1;
-        IsFromDemo=0;
-        Host=1;
-        [Options] {}
-    }
-    [ALLYTEAM0]
-    {
-        NumAllies=0;
-    }
-    [ALLYTEAM1]
-    {
-        NumAllies=0;
-    }
-    [MODOPTIONS]
-    {
-        gamemode=play;
-    }
-}
-"#;
-
 fn send(command: Command) {
     let _ = spring::send_lua_rules_msg(&command.encode());
 }
 
-fn restart_current_game() {
-    let _ = spring::reload(RESTART_SCRIPT);
-}
-
-#[derive(Clone, Copy, Default)]
-struct CameraTracking {
-    wisp_id: i32,
-    focus: spring::Float3,
-    initialized: bool,
-}
-
-/// Direct player control, ported from `ui_wisp_control.lua`, plus the tracking
-/// camera from `camera_control.lua`.
+/// Direct player control, ported from `ui_wisp_control.lua`: movement, form
+/// switches, lever pulls and the end screen's restart.
 #[derive(Default)]
 pub struct GuiWispControlWidget {
     left: core::cell::Cell<bool>,
@@ -136,23 +35,15 @@ pub struct GuiWispControlWidget {
     down: core::cell::Cell<bool>,
     /// The movement the rules module was last told about.
     sent_movement: core::cell::Cell<(i32, i32)>,
-    scan_ticks: core::cell::Cell<i32>,
     last_form_change: core::cell::Cell<i32>,
     screen_width: core::cell::Cell<i32>,
     screen_height: core::cell::Cell<i32>,
-    /// NPC wisps and lights already set to no-draw, sorted.
-    hidden: core::cell::RefCell<Vec<i32>>,
-    camera_tracking: core::cell::RefCell<CameraTracking>,
 }
 
 impl GuiWispControlWidget {
     pub fn new() -> Self {
         Self {
             last_form_change: core::cell::Cell::new(-FORM_COOLDOWN - 1),
-            camera_tracking: core::cell::RefCell::new(CameraTracking {
-                wisp_id: -1,
-                ..Default::default()
-            }),
             ..Default::default()
         }
     }
@@ -180,104 +71,6 @@ impl GuiWispControlWidget {
         }
         EventResult::Handled
     }
-
-    fn lock_camera(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
-        let wisp = ctx.global().player.access().wisp;
-        if wisp < 0 {
-            return;
-        }
-        // camera_control.lua follows the unit's view position: the raw physics
-        // position moves in simulation steps and would make the camera jitter.
-        let Ok(position) = spring::unit_rendering::get_unit_view_position(wisp, false) else {
-            return;
-        };
-        let target = position;
-
-        let focus = {
-            let mut tracking = self.camera_tracking.borrow_mut();
-            // Clamp the first sample (and every newly discovered UnitCreated
-            // equivalent) directly to the live unit. Interpolating from the
-            // zero/default point would cause a visible camera sweep at start.
-            if !tracking.initialized || tracking.wisp_id != wisp {
-                tracking.wisp_id = wisp;
-                tracking.focus = target;
-                tracking.initialized = true;
-            } else if dt.is_finite() && dt > 0.0 {
-                let alpha = 1.0 - libm::expf(-(dt / CAMERA_FOLLOW_TAU));
-                tracking.focus.x += (target.x - tracking.focus.x) * alpha;
-                tracking.focus.y += (target.y - tracking.focus.y) * alpha;
-                tracking.focus.z += (target.z - tracking.focus.z) * alpha;
-            }
-            tracking.focus
-        };
-
-        // Lua uses SetCameraTarget(..., 0): the smoothing above is the only
-        // interpolation. Supplying no transition time would add the engine's
-        // default 0.5-second transition on top and make the camera laggy.
-        let _ = spring::camera::set_camera_target(
-            focus,
-            spring::camera::SetCameraTargetOptions {
-                transition_time: Some(0.0),
-                dir_x: None,
-                dir_y: None,
-                dir_z: None,
-            },
-        );
-    }
-
-    fn refresh_npc_wisps(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
-        // During the ending new ceremonial wisps must enter the billboard list
-        // immediately. The normal 30-frame scan interval is useful in the
-        // dungeon, but made each arrival briefly show its physical model.
-        let ending = ctx.global().player.access().game_over;
-        if !ending && self.scan_ticks.get() > 0 {
-            self.scan_ticks.set(self.scan_ticks.get() - 1);
-            return;
-        }
-        self.scan_ticks
-            .set(if ending { 0 } else { NPC_SCAN_INTERVAL });
-        let Ok(all_units) = spring::get_all_units() else {
-            return;
-        };
-        let defs = defs();
-        let mut player = None;
-        let mut wisps = Vec::new();
-        let mut hidden = self.hidden.borrow_mut();
-        let mut still_hidden = Vec::with_capacity(hidden.len());
-        for unit_id in all_units {
-            let def = unit_def(unit_id);
-            if def == defs.wisp {
-                player.get_or_insert(unit_id);
-                continue;
-            }
-            if def == defs.npcwisp {
-                wisps.push(unit_id);
-            } else if def != defs.light {
-                continue;
-            }
-            // NPC wisps are drawn as billboards, and unit_wisp_draw.lua hides
-            // every light unit: they exist to place a deferred light.  Hide
-            // each one once, when it first shows up.
-            if hidden.binary_search(&unit_id).is_err() {
-                let _ = spring::unsynced_ctrl::set_unit_no_draw(unit_id, true);
-            }
-            still_hidden.push(unit_id);
-        }
-        still_hidden.sort_unstable();
-        *hidden = still_hidden;
-        drop(hidden);
-        if let Some(player) = player {
-            let spirit = {
-                let mut state = ctx.global().player.access_mut();
-                state.wisp = player;
-                state.spirit
-            };
-            if spirit {
-                let _ = spring::unsynced_ctrl::set_unit_no_draw(player, true);
-            }
-        }
-        ctx.global().npcs.access_mut().wisps = wisps;
-    }
 }
 
 impl Widget<Global> for GuiWispControlWidget {
@@ -293,9 +86,7 @@ impl Widget<Global> for GuiWispControlWidget {
         let _ = spring::send_commands("bind", "ctrl+q reloadforce");
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
-        self.refresh_npc_wisps(ctx);
-        self.lock_camera(ctx, dt);
+    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
         // The player never selects anything: the wisp is steered directly.
         if spring::selection::get_selected_units_count(0).unwrap_or(0) > 0 {
             let _ = spring::selection::select_unit_array(&[], false);
@@ -316,7 +107,7 @@ impl Widget<Global> for GuiWispControlWidget {
             // The Lua endgame's Restart button reloads the current game.
             // Use the Core lifecycle API so this resets the WASM module
             // and synced state without leaving the WASM menu.
-            restart_current_game();
+            crate::restart::restart();
             return EventResult::Handled;
         }
         if event.ctrl && event.matches("q") {
@@ -399,7 +190,7 @@ impl Widget<Global> for GuiWispControlWidget {
             && (center_y + RESTART_PROMPT_TOP..=center_y + RESTART_PROMPT_BOTTOM).contains(&y);
         if in_restart_prompt {
             // Match the Lua endgame Restart button as well as the R shortcut.
-            restart_current_game();
+            crate::restart::restart();
             return EventResult::Handled;
         }
         let global = ctx.global().player.access();
@@ -456,17 +247,6 @@ impl Widget<Global> for GuiWispControlWidget {
             return EventResult::Handled;
         }
         send(Command::PullLever(unit_id));
-        EventResult::Handled
-    }
-
-    fn mouse_wheel(
-        &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
-        _up: bool,
-        _value: f32,
-    ) -> EventResult {
-        // The authored camera is fixed. Claim the wheel at the input receiver
-        // boundary so the engine never applies its default zoom operation.
         EventResult::Handled
     }
 }
