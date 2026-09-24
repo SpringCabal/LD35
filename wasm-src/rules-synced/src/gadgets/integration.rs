@@ -9,7 +9,7 @@ use crate::defs::{defs, unit_def};
 use crate::integration::scenario::{
     KILL_PLATE, LAST_ROOM_PLATE, LEVER_GATE_PULLS, TEST_LEVER, TEST_PLATE,
 };
-use crate::integration::{self, Tracker, ending};
+use crate::integration::{self, Tracker, ending, restart};
 use crate::state::Global;
 use crate::triggers::level_id;
 use springcabal_control::protocol;
@@ -21,6 +21,7 @@ const STAND_STILL: (i32, i32) = (0, 0);
 pub struct IntegrationGadget {
     tracker: RefCell<Tracker>,
     ending: RefCell<ending::EndingTracker>,
+    restart: RefCell<restart::RestartTracker>,
     /// Whether the UI module's hello arrived over RecvLuaMsg.
     ui_hello: Cell<bool>,
     /// The scenario's own commands and movement messages: how many it sent,
@@ -69,6 +70,7 @@ impl Gadget<Global> for IntegrationGadget {
             integration::update(&mut tracker, global, frame);
         }
         ending::update(&mut self.ending.borrow_mut(), global, frame);
+        restart::update(&mut self.restart.borrow_mut(), global, frame);
         match frame {
             20 => self.steer(MOVE_RIGHT),
             // Release the key again before the frame-30 check.

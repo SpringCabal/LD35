@@ -69,10 +69,8 @@ impl Widget<Global> for GuiWispControlWidget {
         event: &KeyEvent<'_>,
     ) -> EventResult {
         if event.matches("r") && ctx.global().player.access().end_screen_shown() {
-            // The Lua endgame's Restart button reloads the current game.
-            // Use the Core lifecycle API so this resets the WASM module
-            // and synced state without leaving the WASM menu.
-            crate::restart::restart();
+            // ui_endgame.lua's Restart button: the rules start the level over.
+            send(Command::Restart);
             return EventResult::Handled;
         }
         if menu::is_quit_to_menu(event) {
@@ -150,8 +148,8 @@ impl Widget<Global> for GuiWispControlWidget {
             && (x - center_x).abs() <= RESTART_PROMPT_HALF_WIDTH
             && (center_y + RESTART_PROMPT_TOP..=center_y + RESTART_PROMPT_BOTTOM).contains(&y);
         if in_restart_prompt {
-            // Match the Lua endgame Restart button as well as the R shortcut.
-            crate::restart::restart();
+            // ui_endgame.lua's Restart button, like the R shortcut.
+            send(Command::Restart);
             return EventResult::Handled;
         }
         let global = ctx.global().player.access();

@@ -3,14 +3,14 @@ use core::cell::Cell;
 use spring::ResultExt;
 use spring_addons::rules::Gadget;
 
-use crate::defs::{collision, defs};
+use crate::defs::{defs, params};
 use crate::state::Global;
 
 /// Keep map-authored walls at the level's explicit floor height.  A map unit
 /// can predate the WASM rules module, so it does not necessarily pass through
 /// level::create(), where the same MoveCtrl pin is applied.
 fn pin_authored_wall_height(id: i32, def: i32) {
-    if !collision(def).pinned_wall {
+    if !params(def).pinned_wall {
         return;
     }
     let Ok(position) = spring::get_unit_position(id, false, false) else {
@@ -49,7 +49,7 @@ fn apply_authored_collisions(id: i32, def: i32) {
     };
 
     // unit_collisions.lua
-    let rule = collision(def);
+    let rule = params(def);
     if rule.scenery_wall {
         clear_volume();
         clear_blocking(false);

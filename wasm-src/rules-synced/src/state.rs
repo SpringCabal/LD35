@@ -52,6 +52,8 @@ pub struct World {
     pub level_ids: BTreeMap<i32, i32>,
     pub active_triggers: Vec<i32>,
     pub active_triggerables: Vec<i32>,
+    /// The frame the level was last spawned on.
+    pub spawn_frame: i32,
 }
 
 /// End-of-game sequencing and the fate of each NPC wisp.

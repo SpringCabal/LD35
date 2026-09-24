@@ -64,18 +64,21 @@ impl Defs {
     }
 }
 
-/// How the authored gadgets treat a def's collision, from its custom params.
+/// How the authored gadgets treat a def, from its custom params.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Collision {
+pub struct DefParams {
     /// `wall` is set and not "false"/"0": pinned to the floor height.
     pub pinned_wall: bool,
     /// `wall` without `wall_blocking` (unit_collisions.lua).
     pub scenery_wall: bool,
     /// `trigger` (unit_plate.lua).
     pub trigger: bool,
+    /// `dungeonElement`: scenery the map places, which game_custom_spawn.lua
+    /// keeps when it (re)loads the level.
+    pub dungeon_element: bool,
 }
 
-impl Collision {
+impl DefParams {
     fn resolve(def: i32) -> Self {
         // The engine reports a missing key as an empty string, which Lua sees
         // as nil.
@@ -91,35 +94,36 @@ impl Collision {
                 .is_some_and(|value| value != "false" && value != "0"),
             scenery_wall: wall.is_some() && param("wall_blocking").is_none(),
             trigger: param("trigger").is_some(),
+            dungeon_element: param("dungeonelement").is_some(),
         }
     }
 }
 
-/// Every unit def's collision rules, indexed by def id.  Def ids run from 1
-/// up to the last def the engine can name.
-fn resolve_collisions() -> Vec<Collision> {
-    let mut collisions = vec![Collision::default()];
-    while spring::unit_defs::get_unit_def_name_bytes(collisions.len() as i32).is_ok() {
-        collisions.push(Collision::resolve(collisions.len() as i32));
+/// Every unit def's params, indexed by def id.  Def ids run from 1 up to the
+/// last def the engine can name.
+fn resolve_params() -> Vec<DefParams> {
+    let mut params = vec![DefParams::default()];
+    while spring::unit_defs::get_unit_def_name_bytes(params.len() as i32).is_ok() {
+        params.push(DefParams::resolve(params.len() as i32));
     }
-    collisions
+    params
 }
 
 thread_local! {
     static DEFS: OnceCell<Defs> = const { OnceCell::new() };
-    static COLLISIONS: OnceCell<Vec<Collision>> = const { OnceCell::new() };
+    static PARAMS: OnceCell<Vec<DefParams>> = const { OnceCell::new() };
 }
 
 pub fn defs() -> Defs {
     DEFS.with(|defs| *defs.get_or_init(Defs::resolve))
 }
 
-pub fn collision(def: i32) -> Collision {
-    COLLISIONS.with(|collisions| {
-        let collisions = collisions.get_or_init(resolve_collisions);
+pub fn params(def: i32) -> DefParams {
+    PARAMS.with(|params| {
+        let params = params.get_or_init(resolve_params);
         usize::try_from(def)
             .ok()
-            .and_then(|def| collisions.get(def).copied())
+            .and_then(|def| params.get(def).copied())
             .unwrap_or_default()
     })
 }

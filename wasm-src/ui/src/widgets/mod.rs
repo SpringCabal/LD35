@@ -2,6 +2,8 @@ pub mod api_sync;
 pub mod camera_follow;
 #[cfg(feature = "e2e")]
 pub mod dbg_e2e;
+#[cfg(all(feature = "headless-integration", not(feature = "e2e")))]
+pub mod dbg_restart;
 pub mod gallery;
 pub mod gfx_blood;
 pub mod gfx_eyes_effect;
@@ -18,6 +20,8 @@ pub use api_sync::ApiSyncWidget;
 pub use camera_follow::CameraFollowWidget;
 #[cfg(feature = "e2e")]
 pub use dbg_e2e::DbgE2eWidget;
+#[cfg(all(feature = "headless-integration", not(feature = "e2e")))]
+pub use dbg_restart::DbgRestartWidget;
 pub use gfx_blood::GfxBloodWidget;
 pub use gfx_eyes_effect::GfxEyesEffectWidget;
 pub use gfx_highlight::GfxHighlightWidget;

@@ -47,8 +47,8 @@ fn handle_command(global: &Global, command: Command) {
             wisp.pieces_dirty = true;
         }
         Command::PullLever(id) => pull_lever(global, id),
-        // The status gadget answers it.
-        Command::Hello => {}
+        // The status gadget answers the hello, the level gadget restarts.
+        Command::Hello | Command::Restart => {}
     }
 }
 

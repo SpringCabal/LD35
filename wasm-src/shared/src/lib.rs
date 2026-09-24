@@ -209,11 +209,15 @@ pub enum Command {
     /// The UI (re)started and needs the current status: after a LuaUI reload
     /// the rules would otherwise only send it on the next change.
     Hello,
+    /// The end screen's restart: start the level over (ui_endgame.lua's
+    /// `luarules reload`). The rules take it only once the game is over.
+    Restart,
 }
 
 const SWITCH_FORM: &str = "switch_form";
 const PULL_LEVER: &str = "pull_lever";
 const HELLO: &str = "parts_hello";
+const RESTART: &str = "parts_restart";
 
 impl Command {
     pub fn encode(&self) -> String {
@@ -221,6 +225,7 @@ impl Command {
             Command::SwitchForm => Encoder::new(SWITCH_FORM).finish(),
             Command::PullLever(unit) => Encoder::new(PULL_LEVER).field(unit).finish(),
             Command::Hello => Encoder::new(HELLO).finish(),
+            Command::Restart => Encoder::new(RESTART).finish(),
         }
     }
 
@@ -230,6 +235,9 @@ impl Command {
         }
         if fields(message, HELLO).is_some() {
             return Some(Command::Hello);
+        }
+        if fields(message, RESTART).is_some() {
+            return Some(Command::Restart);
         }
         Some(Command::PullLever(fields(message, PULL_LEVER)?.i32()?))
     }
@@ -294,7 +302,12 @@ mod tests {
 
     #[test]
     fn command_round_trip() {
-        for command in [Command::SwitchForm, Command::PullLever(77), Command::Hello] {
+        for command in [
+            Command::SwitchForm,
+            Command::PullLever(77),
+            Command::Hello,
+            Command::Restart,
+        ] {
             assert_eq!(Command::decode(&command.encode()), Some(command));
         }
         assert_eq!(Command::decode("movement|1|0"), None);

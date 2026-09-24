@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
-use spring_addons::rules::Gadget;
+use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::cages;
 use crate::state::Global;
@@ -58,5 +58,16 @@ impl Gadget<Global> for TriggersGadget {
         for (cage, kill) in due {
             cages::resolve_cage(global, cage, kill);
         }
+    }
+
+    /// A cage destroyed while opening (the level restarting) frees no one.
+    fn unit_destroyed(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global>,
+        event: &UnitDestroyedEvent,
+    ) {
+        self.opening_cages
+            .borrow_mut()
+            .retain(|(cage, _, _)| *cage != event.unit_id);
     }
 }

@@ -3,7 +3,6 @@ extern crate alloc;
 pub mod audio;
 pub mod commands;
 pub mod defs;
-pub mod restart;
 pub mod shader;
 pub mod state;
 pub mod widgets;

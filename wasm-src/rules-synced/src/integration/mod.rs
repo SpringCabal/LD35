@@ -8,6 +8,7 @@ use crate::state::{Endgame, Global, Wisp, World};
 mod checks;
 pub mod ending;
 mod probes;
+pub mod restart;
 pub mod scenario;
 
 use checks::*;

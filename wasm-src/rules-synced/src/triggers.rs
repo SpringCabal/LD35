@@ -11,14 +11,14 @@ use crate::state::{Global, PUBLIC, World};
 /// not just decoration: the authored Lua game raises the height map while a
 /// gate is closed, so a wisp cannot walk through the doorway.
 #[allow(clippy::excessive_precision, clippy::inconsistent_digit_grouping)]
-const GATE_AREAS: &[(i32, f32, f32, f32, f32)] = &[
+pub(crate) const GATE_AREAS: &[(i32, f32, f32, f32, f32)] = &[
     (20, 4105.493_16, 1250.606_93, 4340.235_35, 1300.816_77),
     (21, 5100.146_97, 1518.489_01, 5158.723_14, 1784.553_59),
     (22, 5968.859_86, 1843.365_36, 6152.629_39, 1920.571_29),
     (23, 6616.530_52, 1519.306_52, 6675.505_37, 1801.675_17),
 ];
 
-const GATE_CLOSED_HEIGHT: f32 = 499.0;
+pub(crate) const GATE_CLOSED_HEIGHT: f32 = 499.0;
 const GATE_OPEN_HEIGHT: f32 = 411.5;
 
 /// The standing plates, by level key.  A plate is pressed once an embodied
