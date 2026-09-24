@@ -81,6 +81,10 @@ impl BodyParts {
         self.0 |= part.bit();
     }
 
+    pub fn remove(&mut self, part: BodyPart) {
+        self.0 &= !part.bit();
+    }
+
     pub const fn is_empty(self) -> bool {
         self.0 == 0
     }
@@ -94,6 +98,60 @@ impl BodyParts {
     }
 }
 
+/// game_end.lua's four endings, chosen when the last body part is picked up.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ending {
+    /// Ending #1: NPC wisps are still alive and none was saved or killed.
+    WelcomeBack,
+    /// Ending #2: every NPC wisp was saved.  The only ending with a
+    /// ceremony: spirits arrive from all sides before the end screen.
+    SoulsFreed,
+    /// Ending #3: every NPC wisp was killed.
+    SacrificeAccepted,
+    /// Ending #4: anything else.
+    NothingNoteworthy,
+}
+
+impl Ending {
+    /// game_end.lua's choice, from its counters as they are at the pickup.
+    /// A wisp being freed or killed stays alive, and uncounted, until its
+    /// death animation ends (unit_wisp_death.lua), so a pickup during one
+    /// counts it as alive.
+    pub fn from_counts(alive_wisps: usize, saved_wisps: i32, killed_wisps: i32) -> Self {
+        match (alive_wisps == 0, saved_wisps > 0, killed_wisps > 0) {
+            (false, false, false) => Ending::WelcomeBack,
+            (true, true, false) => Ending::SoulsFreed,
+            (true, false, true) => Ending::SacrificeAccepted,
+            _ => Ending::NothingNoteworthy,
+        }
+    }
+
+    /// game_end.lua's `game_over_type`, 0-3.
+    pub const fn number(self) -> i32 {
+        self as i32
+    }
+
+    pub const fn from_number(number: i32) -> Option<Self> {
+        match number {
+            0 => Some(Ending::WelcomeBack),
+            1 => Some(Ending::SoulsFreed),
+            2 => Some(Ending::SacrificeAccepted),
+            3 => Some(Ending::NothingNoteworthy),
+            _ => None,
+        }
+    }
+
+    /// The end screen's line (ui_endgame.lua).
+    pub const fn text(self) -> &'static str {
+        match self {
+            Ending::WelcomeBack => "Welcome back, Master.   Ending #1",
+            Ending::SoulsFreed => "The souls have been freed.   Ending #2",
+            Ending::SacrificeAccepted => "Their sacrifice is accepted.   Ending #3",
+            Ending::NothingNoteworthy => "You have achieved nothing noteworthy.   Ending #4",
+        }
+    }
+}
+
 /// What the UI is told about the player and the ending, sent whenever it
 /// changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,8 +161,8 @@ pub struct Status {
     /// The player wisp's unit id, or -1.
     pub wisp: i32,
     pub parts: BodyParts,
-    /// game_end.lua's ending, 0-3; meaningful once `game_over` is set.
-    pub ending_type: i32,
+    /// The ending, once the game is over.
+    pub ending: Option<Ending>,
     /// The ending's visual sequence is over and the end screen may show.
     pub sequence_complete: bool,
 }
@@ -118,7 +176,7 @@ impl Status {
             .flag(self.game_over)
             .field(self.wisp)
             .field(self.parts.bits())
-            .field(self.ending_type)
+            .field(self.ending.map_or(-1, Ending::number))
             .flag(self.sequence_complete)
             .finish()
     }
@@ -130,7 +188,10 @@ impl Status {
             game_over: fields.flag()?,
             wisp: fields.i32()?,
             parts: BodyParts::from_bits(u8::try_from(fields.i32()?).ok()?),
-            ending_type: fields.i32()?,
+            ending: match fields.i32()? {
+                -1 => None,
+                number => Some(Ending::from_number(number)?),
+            },
             sequence_complete: fields.flag()?,
         };
         fields.is_done().then_some(status)
@@ -185,12 +246,50 @@ mod tests {
             game_over: false,
             wisp: 1234,
             parts: BodyParts::from_bits(0b101),
-            ending_type: 2,
+            ending: Some(Ending::SacrificeAccepted),
             sequence_complete: true,
         };
         assert_eq!(status.encode(), "PARTS_STATUS|1|0|1234|5|2|1");
         assert_eq!(Status::decode(&status.encode()), Some(status));
         assert_eq!(Status::decode("PARTS_STATUS|1|0|1234|5|2|1|9"), None);
+        assert_eq!(Status::decode("PARTS_STATUS|1|0|1234|5|4|1"), None);
+        let playing = Status {
+            ending: None,
+            ..status
+        };
+        assert_eq!(Status::decode(&playing.encode()), Some(playing));
+    }
+
+    #[test]
+    fn ending_from_counts() {
+        use Ending::*;
+        assert_eq!(Ending::from_counts(10, 0, 0), WelcomeBack);
+        assert_eq!(Ending::from_counts(0, 3, 0), SoulsFreed);
+        assert_eq!(Ending::from_counts(0, 0, 4), SacrificeAccepted);
+        assert_eq!(Ending::from_counts(0, 3, 4), NothingNoteworthy);
+        assert_eq!(Ending::from_counts(3, 7, 0), NothingNoteworthy);
+        assert_eq!(Ending::from_counts(0, 0, 0), NothingNoteworthy);
+        // Three rescues still in their death animation: alive and not yet
+        // saved, so game_end.lua welcomes the master back.
+        assert_eq!(Ending::from_counts(3, 0, 0), WelcomeBack);
+        for ending in [
+            WelcomeBack,
+            SoulsFreed,
+            SacrificeAccepted,
+            NothingNoteworthy,
+        ] {
+            assert_eq!(Ending::from_number(ending.number()), Some(ending));
+        }
+    }
+
+    #[test]
+    fn body_parts_insert_remove() {
+        let mut parts = BodyParts::ALL;
+        parts.remove(BodyPart::Mouth);
+        assert!(!parts.contains(BodyPart::Mouth) && !parts.is_complete());
+        assert_eq!(parts.len(), 5);
+        parts.insert(BodyPart::Mouth);
+        assert!(parts.is_complete());
     }
 
     #[test]

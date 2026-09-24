@@ -1,4 +1,4 @@
-use partsneeded_shared::BodyParts;
+use partsneeded_shared::{BodyParts, Ending};
 use spring_addons::Resource;
 
 pub const FORM_CHANGE_FRAMES: i32 = 15;
@@ -17,7 +17,7 @@ const LUA_PI: f32 = 3.14;
 pub struct Player {
     pub spirit: bool,
     pub game_over: bool,
-    pub ending_type: i32,
+    pub ending: Option<Ending>,
     pub game_over_sequence: bool,
     pub wisp: i32,
     pub parts: BodyParts,
@@ -56,7 +56,7 @@ impl Default for Player {
         Self {
             spirit: true,
             game_over: false,
-            ending_type: -1,
+            ending: None,
             game_over_sequence: false,
             wisp: -1,
             parts: BodyParts::NONE,

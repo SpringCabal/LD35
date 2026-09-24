@@ -2,7 +2,7 @@
 
 use alloc::format;
 
-use partsneeded_shared::BodyPart;
+use partsneeded_shared::{BodyPart, Ending};
 
 use super::probes::*;
 use super::scenario::{
@@ -311,7 +311,7 @@ pub(super) fn game_over(t: &mut Tracker, state: &Snapshot<'_>) {
         "all parts trigger the authored game-over state",
     );
     t.suite.check(
-        state.endgame.ending_type == 0,
+        state.endgame.ending == Some(Ending::WelcomeBack),
         "living wisps select the authored Welcome back ending",
     );
     t.suite.check(

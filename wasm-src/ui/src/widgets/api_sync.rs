@@ -78,7 +78,7 @@ impl Widget<Global> for ApiSyncWidget {
         player.game_over = status.game_over;
         player.wisp = status.wisp;
         player.parts = status.parts;
-        player.ending_type = status.ending_type;
+        player.ending = status.ending;
         if status.sequence_complete != player.game_over_sequence {
             player.sequence_since = if status.sequence_complete {
                 spring::game::current_frame()

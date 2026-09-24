@@ -40,12 +40,10 @@ impl Widget<Global> for GuiHudWidget {
         if !global.end_screen_shown() {
             return;
         }
-        let status = match global.ending_type {
-            0 => "Welcome back, Master.   Ending #1",
-            1 => "The souls have been freed.   Ending #2",
-            2 => "Their sacrifice is accepted.   Ending #3",
-            _ => "You have achieved nothing noteworthy.   Ending #4",
+        let Some(ending) = global.ending else {
+            return;
         };
+        let status = ending.text();
         let _ = spring::gfx::begin_text(false);
         let _ = spring::gfx::color(0.8, 0.9, 1.0, 1.0);
         let _ = spring::gfx::text(

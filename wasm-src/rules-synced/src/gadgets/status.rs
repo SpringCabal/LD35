@@ -51,7 +51,7 @@ impl Gadget<Global> for StatusGadget {
                 game_over: endgame.game_over,
                 wisp: wisp.id,
                 parts: wisp.collected_parts,
-                ending_type: endgame.ending_type,
+                ending: endgame.ending,
                 sequence_complete: endgame.sequence_complete,
             }
         };

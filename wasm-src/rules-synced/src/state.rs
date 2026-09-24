@@ -3,7 +3,7 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use partsneeded_shared::BodyParts;
+use partsneeded_shared::{BodyParts, Ending};
 use spring_addons::Resource;
 use springcabal_control::goal::Steering;
 
@@ -58,7 +58,7 @@ pub struct World {
 #[derive(Default)]
 pub struct Endgame {
     pub game_over: bool,
-    pub ending_type: i32,
+    pub ending: Option<Ending>,
     pub dying_wisps: Vec<(i32, bool, i32)>,
     pub saved_wisps: i32,
     pub killed_wisps: i32,

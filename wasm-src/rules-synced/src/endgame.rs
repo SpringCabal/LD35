@@ -2,39 +2,32 @@
 
 use alloc::vec::Vec;
 
+use partsneeded_shared::Ending;
+
 use crate::sound::play_unit_sound;
 use crate::state::{ENDING_WISP_DESTROY_DELAY, Global, PUBLIC, WISP_DESTROY_DELAY};
 
 pub fn update_game_end(global: &Global) {
-    let (has_all_parts, already_over, alive_wisps, saved_wisps, killed_wisps, settling) = {
+    let (has_all_parts, already_over, alive_wisps, saved_wisps, killed_wisps) = {
         let wisp = global.wisp.access();
         let endgame = global.endgame.access();
         let world = global.world.access();
-        let all_parts = wisp.collected_parts.is_complete();
-        // A rescued NPC remains in npc_wisps until its authored 1.5 second
-        // death/cleanup delay expires. If every remaining NPC is already in
-        // that saved/dead lifecycle, wait for the counters to settle instead
-        // of incorrectly selecting Ending #1 (Welcome back) while the saves
-        // are still pending.
-        let settling = !world.npc_wisps.is_empty()
-            && world
-                .npc_wisps
-                .iter()
-                .all(|id| endgame.dying_wisps.iter().any(|(dying, _, _)| dying == id));
         (
-            all_parts,
+            wisp.collected_parts.is_complete(),
             endgame.game_over,
             world.npc_wisps.len(),
             endgame.saved_wisps,
             endgame.killed_wisps,
-            settling,
         )
     };
-    if !has_all_parts || already_over || settling {
+    if !has_all_parts || already_over {
         return;
     }
 
-    let over_type = game_over_type(alive_wisps, saved_wisps, killed_wisps) as f32;
+    // As in game_end.lua, the counters decide as they are now: wisps still
+    // being freed or killed count as alive.
+    let ending = Ending::from_counts(alive_wisps, saved_wisps, killed_wisps);
+    let souls_freed = ending == Ending::SoulsFreed;
     {
         let mut endgame = global.endgame.access_mut();
         // Keep the state transition one-shot if a nested callin reaches this
@@ -43,21 +36,19 @@ pub fn update_game_end(global: &Global) {
             return;
         }
         endgame.game_over = true;
-        endgame.ending_type = over_type as i32;
+        endgame.ending = Some(ending);
         // Only the souls-freed ending has a delayed visual sequence.  The
         // other three outcomes go straight to the end screen after the
         // screen-effect fade, so expose that sequence as complete immediately
         // through the same status path used by the WASM UI.
-        endgame.sequence_complete = over_type != 1.0;
-        if over_type == 1.0 {
-            endgame.release_wisps = true;
-        }
+        endgame.sequence_complete = !souls_freed;
+        endgame.release_wisps = souls_freed;
     }
     // Input is rejected from now on, so the release of a held movement key
     // would never arrive: stop the wisp here.  (unit_wisp_controller.lua's
     // last movement message goes stale six frames later.)
     global.wisp.access_mut().steering.release();
-    if over_type == 1.0 {
+    if souls_freed {
         let wisp_id = {
             let mut wisp = global.wisp.access_mut();
             wisp.spirit = true;
@@ -74,15 +65,6 @@ pub fn update_game_end(global: &Global) {
             wisp_id,
             spring::move_ctrl::move_ctrl(wisp_id, true),
         );
-    }
-}
-
-pub(crate) fn game_over_type(alive_wisps: usize, saved_wisps: i32, killed_wisps: i32) -> i32 {
-    match (alive_wisps == 0, saved_wisps > 0, killed_wisps > 0) {
-        (false, false, false) => 0,
-        (true, true, false) => 1,
-        (true, false, true) => 2,
-        _ => 3,
     }
 }
 

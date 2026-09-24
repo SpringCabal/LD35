@@ -1,5 +1,6 @@
 use core::cell::Cell;
 
+use partsneeded_shared::Ending;
 use spring_addons::ui::Widget;
 use springcabal::shots::{Clock, Screenshots, screenshot};
 
@@ -77,7 +78,10 @@ impl Widget<Global> for DbgE2eWidget {
         // ending the run so the converging wisps and final overlay are tested,
         // not just the rules-side marker.
         let ending = ctx.global().player.access();
-        if ending.ending_type == 1 && ending.game_over_sequence && self.ending_start.get() < 0 {
+        if ending.ending == Some(Ending::SoulsFreed)
+            && ending.game_over_sequence
+            && self.ending_start.get() < 0
+        {
             self.ending_start.set(frame);
             screenshot("ending start");
             return;
