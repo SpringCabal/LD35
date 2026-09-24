@@ -40,10 +40,15 @@ fn set_vertex(vertex: &mut GfxVertexData, point: spring::Float3, color: [f32; 4]
     vertex.color.copy_from_slice(&color);
 }
 
+/// The most simulation frames one update catches up on, after a stall.
+const MAX_CATCH_UP_FRAMES: i32 = 4;
+
 #[derive(Default)]
 pub struct Trail {
     particles: Vec<TrailParticle>,
     last_position: Option<spring::Float3>,
+    /// The simulation frame the particles were last advanced on.
+    last_frame: Option<i32>,
     /// One puff's fan, reused so drawing allocates nothing.
     vertices: Vec<GfxVertexData>,
 }
@@ -52,10 +57,19 @@ impl Trail {
     pub fn clear(&mut self) {
         self.particles.clear();
         self.last_position = None;
+        self.last_frame = None;
     }
 
-    /// Advance the particles and emit new ones behind the wisp at `position`.
+    /// Advance the particles and emit new ones behind the wisp at `position`,
+    /// once per simulation frame however often it is drawn.
     pub fn update(&mut self, position: spring::Float3, frame: i32) {
+        let steps = self
+            .last_frame
+            .map_or(1, |last| (frame - last).clamp(0, MAX_CATCH_UP_FRAMES));
+        if steps == 0 {
+            return;
+        }
+        self.last_frame = Some(frame);
         let (motion_x, motion_z, motion_length) = self
             .last_position
             .replace(position)
@@ -73,14 +87,16 @@ impl Trail {
         // random-number dependency in the render widget.
         {
             let particles = &mut self.particles;
-            for particle in particles.iter_mut() {
-                particle.position.x += particle.velocity.x;
-                particle.position.y += particle.velocity.y;
-                particle.position.z += particle.velocity.z;
-                particle.velocity.x *= 0.96;
-                particle.velocity.y = particle.velocity.y * 0.96 + 0.02;
-                particle.velocity.z *= 0.96;
-                particle.life -= 1.0;
+            for _ in 0..steps {
+                for particle in particles.iter_mut() {
+                    particle.position.x += particle.velocity.x;
+                    particle.position.y += particle.velocity.y;
+                    particle.position.z += particle.velocity.z;
+                    particle.velocity.x *= 0.96;
+                    particle.velocity.y = particle.velocity.y * 0.96 + 0.02;
+                    particle.velocity.z *= 0.96;
+                    particle.life -= 1.0;
+                }
             }
             particles.retain(|particle| particle.life > 0.0);
             if motion_length > 0.25 {
