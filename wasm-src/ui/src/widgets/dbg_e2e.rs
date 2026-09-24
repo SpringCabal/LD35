@@ -55,7 +55,7 @@ impl Widget<Global> for DbgE2eWidget {
     }
 
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
-        let frame = crate::state::current_frame();
+        let frame = spring::game::current_frame();
         let quit_frame = self.quit_frame.get();
         if quit_frame >= 0 && frame >= quit_frame {
             let _ = spring::system_control::quit(0);

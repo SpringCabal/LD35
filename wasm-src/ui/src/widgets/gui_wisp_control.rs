@@ -96,7 +96,7 @@ impl Widget<Global> for GuiWispControlWidget {
             // Mirror the rules module's form-change cooldown.  Predicting a
             // switch it is going to refuse just means the prediction snaps back
             // when it times out.
-            let now = crate::state::current_frame();
+            let now = spring::game::current_frame();
             let off_cooldown = now - self.last_form_change.get() > FORM_COOLDOWN;
             if wanted != current && off_cooldown {
                 self.last_form_change.set(now);
@@ -104,7 +104,7 @@ impl Widget<Global> for GuiWispControlWidget {
                 player.spirit = wanted;
                 let wisp = player.wisp;
                 player.pending_spirit = Some(wanted);
-                player.pending_since = crate::state::current_frame();
+                player.pending_since = spring::game::current_frame();
                 let position = spring::get_unit_position(player.wisp, false, false)
                     .unwrap_or_else(|_| spring::types::Float3::default());
                 drop(player);
@@ -178,20 +178,10 @@ impl Widget<Global> for GuiWispControlWidget {
         let unit_id = if let Some(hovered) = hovered {
             hovered
         } else {
-            let Ok(trace) = spring::camera::trace_screen_ray(
-                x as f32,
-                y as f32,
-                spring::camera::TraceScreenRayOptions {
-                    only_coords: false,
-                    use_minimap: false,
-                    include_sky: false,
-                    ignore_water: false,
-                    height_offset: 0.0,
-                },
-            ) else {
+            let Some(unit_id) = spring::pick::unit_at(x as f32, y as f32) else {
                 return EventResult::Handled;
             };
-            trace.hit_id
+            unit_id
         };
         if unit_def(unit_id) != defs().lever {
             return EventResult::Handled;

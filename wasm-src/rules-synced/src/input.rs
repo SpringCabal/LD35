@@ -30,7 +30,7 @@ pub fn handle_command(global: &Global, command: Command) {
     if global.endgame.access().game_over {
         return;
     }
-    let frame = crate::state::frame();
+    let frame = spring::game::current_frame();
     match command {
         Command::SwitchForm => {
             let mut wisp = global.wisp.access_mut();

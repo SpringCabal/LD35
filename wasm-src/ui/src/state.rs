@@ -47,7 +47,7 @@ impl Player {
     pub fn end_screen_shown(&self) -> bool {
         self.game_over_sequence
             && self.sequence_since >= 0
-            && current_frame() - self.sequence_since > GAME_END_DURATION * 2
+            && spring::game::current_frame() - self.sequence_since > GAME_END_DURATION * 2
     }
 }
 
@@ -97,15 +97,16 @@ impl FormTransition {
         // unit_wisp_draw.lua uses CHANGE_DURATION=15. Its spirit-to-body branch
         // multiplies progress by five, so the visible fade completes in three
         // frames; body-to-spirit takes the full authored fifteen frames.
-        self.start = current_frame();
+        self.start = spring::game::current_frame();
         self.from = f32::from(from_spirit);
         self.to = f32::from(to_spirit);
         self.duration = if from_spirit { 3 } else { FORM_CHANGE_FRAMES };
     }
 
     pub fn amount(&self) -> f32 {
-        let progress =
-            ((current_frame() - self.start) as f32 / self.duration.max(1) as f32).clamp(0.0, 1.0);
+        let progress = ((spring::game::current_frame() - self.start) as f32
+            / self.duration.max(1) as f32)
+            .clamp(0.0, 1.0);
         self.from + (self.to - self.from) * progress
     }
 
@@ -118,7 +119,7 @@ impl FormTransition {
     /// burst entirely, so leaving spirit form was a silent cut rather than the
     /// authored blast of grain.
     pub fn screen_amounts(&self) -> (f32, f32) {
-        let elapsed = current_frame() - self.start;
+        let elapsed = spring::game::current_frame() - self.start;
         let entering = self.to > self.from;
         if !(0..=FORM_CHANGE_FRAMES).contains(&elapsed) {
             let steady = if self.to > 0.5 { 1.0 } else { 0.0 };
@@ -134,10 +135,6 @@ impl FormTransition {
             )
         }
     }
-}
-
-pub fn current_frame() -> i32 {
-    spring::game::frame().map_or(0, |frame| frame as i32)
 }
 
 /// The shared communication namespace for the UI module.

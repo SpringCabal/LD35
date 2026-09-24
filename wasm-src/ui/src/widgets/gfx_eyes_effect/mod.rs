@@ -6,7 +6,7 @@ use core::cell::{Cell, RefCell};
 use spring::gl;
 use spring_addons::ui::Widget;
 
-use crate::state::{GAME_END_DURATION, Global, current_frame};
+use crate::state::{GAME_END_DURATION, Global};
 
 mod bloom;
 mod npcs;
@@ -60,7 +60,7 @@ impl GfxEyesEffectWidget {
             (player.form.screen_amounts(), player.game_over_sequence)
         };
         let (mut spirit, mut noise) = form;
-        let frame = current_frame();
+        let frame = spring::game::current_frame();
         let game_over = if !sequence {
             self.game_end_start.set(-1);
             0.0
@@ -128,7 +128,7 @@ impl Widget<Global> for GfxEyesEffectWidget {
             trail.clear();
             return;
         };
-        let frame = current_frame();
+        let frame = spring::game::current_frame();
         trail.update(position, frame);
         trail.draw(&camera, frame);
     }

@@ -156,7 +156,7 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
     if !global.world.access().npc_wisps.contains(&id) {
         return;
     }
-    let frame = crate::state::frame();
+    let frame = spring::game::current_frame();
     let destroy_frame = frame + delay;
     {
         let mut endgame = global.endgame.access_mut();
@@ -186,7 +186,7 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
 }
 
 pub fn expire_dying_wisps(global: &Global) -> Vec<(i32, bool, i32)> {
-    let now = crate::state::frame();
+    let now = spring::game::current_frame();
     let mut expired = Vec::new();
     let mut endgame = global.endgame.access_mut();
     endgame.dying_wisps.retain(|(id, saved, frame)| {

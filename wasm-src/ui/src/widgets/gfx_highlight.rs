@@ -67,20 +67,9 @@ fn find_hovered_lever(player_wisp: i32) -> i32 {
     if mouse.offscreen {
         return -1;
     }
-    let Ok(trace) = spring::camera::trace_screen_ray(
-        mouse.x,
-        mouse.y,
-        spring::camera::TraceScreenRayOptions {
-            only_coords: false,
-            use_minimap: false,
-            include_sky: false,
-            ignore_water: false,
-            height_offset: 0.0,
-        },
-    ) else {
+    let Some(unit_id) = spring::pick::unit_at(mouse.x, mouse.y) else {
         return -1;
     };
-    let unit_id = trace.hit_id;
     if crate::defs::unit_def(unit_id) != crate::defs::defs().lever {
         return -1;
     }

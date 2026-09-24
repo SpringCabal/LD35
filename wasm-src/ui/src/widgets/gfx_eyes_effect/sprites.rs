@@ -4,7 +4,6 @@ use spring::gl;
 
 use super::Camera;
 use crate::shader;
-use crate::state::current_frame;
 
 const WISP_SPRITE_FRAGMENT: &str = include_str!("../../shaders/wisp_sprite.frag");
 
@@ -54,7 +53,7 @@ impl Sprites {
         let _ = spring::gfx::load_matrix(&camera.modelview);
         if self.ensure_shader() {
             let _ = spring::gfx::use_shader(self.shader);
-            let frame = current_frame() as f32;
+            let frame = spring::game::current_frame() as f32;
             // unit_wisp_draw.lua quantises its time to a tenth of a second, so
             // the per-pixel noise resamples in visible steps instead of
             // shimmering every frame.

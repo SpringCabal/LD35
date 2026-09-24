@@ -22,7 +22,7 @@ impl Default for SndMusicWidget {
         Self {
             // Both tracks are about 202-204 s; the hint is used only when the
             // engine can't report the stream's length.
-            music: MusicLoop::new(MUFFLED_MUSIC, 0.6).length_hint(202.0),
+            music: MusicLoop::new(MUFFLED_MUSIC, 0.6),
             ears: Cell::new(None),
         }
     }

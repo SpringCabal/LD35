@@ -72,11 +72,6 @@ pub struct Endgame {
     pub sequence_complete: bool,
 }
 
-/// The current simulation frame.
-pub fn frame() -> i32 {
-    spring::game::frame().map_or(0, |frame| frame as i32)
-}
-
 /// The shared communication namespace.
 ///
 /// Each subsystem is an independently borrowable [`Resource`], so a nested

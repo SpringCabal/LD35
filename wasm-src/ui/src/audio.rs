@@ -69,7 +69,7 @@ pub fn play_ambient(audio: &mut Audio, parts: BodyParts, spirit: bool, wisp: i32
     let Ok(position) = spring::unit_rendering::get_unit_view_position(wisp, true) else {
         return;
     };
-    let frame = crate::state::current_frame();
+    let frame = spring::game::current_frame();
     if audio.next_play.is_empty() {
         // Each cooldown is drawn first, so the level does not play every
         // sample on its first frame.

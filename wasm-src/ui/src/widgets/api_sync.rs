@@ -1,7 +1,7 @@
 use partsneeded_shared::{Command, Status};
 use spring_addons::ui::Widget;
 
-use crate::state::{Global, current_frame};
+use crate::state::Global;
 
 /// Frames to trust a local form prediction before assuming the rules module
 /// refused the switch.  The round trip is a few frames; this is generous.
@@ -33,7 +33,7 @@ impl Widget<Global> for ApiSyncWidget {
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
         let mut player = ctx.global().player.access_mut();
         if player.pending_spirit.is_none()
-            || current_frame() - player.pending_since <= PENDING_TIMEOUT
+            || spring::game::current_frame() - player.pending_since <= PENDING_TIMEOUT
         {
             return;
         }
@@ -81,7 +81,7 @@ impl Widget<Global> for ApiSyncWidget {
         player.ending_type = status.ending_type;
         if status.sequence_complete != player.game_over_sequence {
             player.sequence_since = if status.sequence_complete {
-                current_frame()
+                spring::game::current_frame()
             } else {
                 -1
             };
