@@ -27,6 +27,13 @@ const STEER: MoveGoal = MoveGoal::ahead(120.0)
         clamp: Clamp::KeepHeading,
     });
 
+/// unit_wisp_controller.lua's stop: a wisp still moving faster than this
+/// (elmos per frame) when the keys are released glides on a little, towards
+/// a goal this much shorter than the steering one.  Its top speed is 5, so
+/// only a push (a collision) makes it glide.
+const GLIDE_SPEED: f32 = 6.0;
+const GLIDE: MoveGoal = STEER.reach(20.0);
+
 /// unit_powerup_controller.lua picks a part up within 50 elmos.
 const PICKUP_RADIUS: f32 = 50.0;
 
@@ -35,6 +42,23 @@ pub fn move_wisp(wisp: &Wisp) -> bool {
         return false;
     };
     STEER.apply(wisp.id, direction).unwrap_or(false)
+}
+
+/// Stop the wisp once its keys are released (unit_wisp_controller.lua).
+/// Orders can raise callins: call this with no state borrowed.
+pub fn stop_wisp(id: i32) {
+    crate::log::check(
+        "STOP order",
+        id,
+        spring::give_order_to_unit(id, spring::cmd::STOP, &[], 0, 0),
+    );
+    let Ok(velocity) = spring::get_unit_velocity(id) else {
+        return;
+    };
+    let speed = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
+    if speed > GLIDE_SPEED {
+        let _ = GLIDE.apply(id, (velocity.x, velocity.z));
+    }
 }
 
 /// Ground-unit collision resolution can leave a positive vertical velocity at

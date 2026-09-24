@@ -56,13 +56,7 @@ impl Gadget<Global> for WispGadget {
         }
         if stop {
             // An order can raise command callins synchronously.
-            ctx.delay(move |_| {
-                crate::log::check(
-                    "STOP order",
-                    id,
-                    spring::give_order_to_unit(id, spring::cmd::STOP, &[], 0, 0),
-                );
-            });
+            ctx.delay(move |_| wisp::stop_wisp(id));
         }
     }
 }
