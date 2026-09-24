@@ -1,13 +1,9 @@
-//! The music and ambient sounds, ported from snd_music.lua and
-//! snd_ambient.lua.
+//! The ambient sounds, ported from snd_ambient.lua.
 
 use alloc::vec::Vec;
 
 use partsneeded_shared::{BodyPart, BodyParts};
 use spring::random::unsynced as random;
-
-const FULL_MUSIC: &str = "sounds/music.ogg";
-const MUFFLED_MUSIC: &str = "sounds/muffled.ogg";
 
 /// One of snd_ambient.lua's ambient sounds.
 struct AmbientSound {
@@ -57,32 +53,16 @@ const AMBIENT_SOUNDS: [AmbientSound; 5] = [
 const MIN_COORD_DISTANCE: f32 = 100.0;
 const MAX_COORD_DISTANCE: f32 = 500.0;
 
-/// Everything the sound widget remembers between updates.
+/// Everything the ambience widget remembers between updates.
 #[derive(Default)]
 pub struct Audio {
-    /// Whether the unmuffled music is playing; `None` before the first update.
-    ears: Option<bool>,
     /// The frame each ambient sound may play next; empty until the first
     /// update draws their cooldowns.
     next_play: Vec<i32>,
 }
 
-/// Match snd_music.lua: the world is muffled until the player recovers ears.
-pub fn update(audio: &mut Audio, parts: BodyParts, spirit: bool, wisp: i32) {
-    let has_ears = parts.contains(BodyPart::Ears);
-    if audio.ears.replace(has_ears) != Some(has_ears) {
-        let _ = spring::sound::stop_sound_stream(0);
-        let _ = spring::sound::play_sound_stream(
-            if has_ears { FULL_MUSIC } else { MUFFLED_MUSIC },
-            if has_ears { 1.0 } else { 0.6 },
-            false,
-        );
-    }
-    play_ambient(audio, parts, spirit, wisp);
-}
-
 /// snd_ambient.lua: the moan always, the rest once the player can hear.
-fn play_ambient(audio: &mut Audio, parts: BodyParts, spirit: bool, wisp: i32) {
+pub fn play_ambient(audio: &mut Audio, parts: BodyParts, spirit: bool, wisp: i32) {
     if wisp < 0 {
         return;
     }

@@ -19,6 +19,7 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
             ),
             CameraFollowWidget::new(),
             GuiWispControlWidget::new(),
+            SndMusicWidget::new(),
             SndAmbienceWidget::new(),
             GfxBloodWidget::new(),
             GfxEyesEffectWidget::new(),

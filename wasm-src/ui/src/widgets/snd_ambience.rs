@@ -26,6 +26,6 @@ impl Widget<Global> for SndAmbienceWidget {
             let player = ctx.global().player.access();
             (player.parts, player.spirit, player.wisp)
         };
-        audio::update(&mut self.audio.borrow_mut(), parts, spirit, wisp);
+        audio::play_ambient(&mut self.audio.borrow_mut(), parts, spirit, wisp);
     }
 }

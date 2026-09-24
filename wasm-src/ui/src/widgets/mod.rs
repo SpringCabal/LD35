@@ -9,6 +9,7 @@ pub mod gui_hud;
 pub mod gui_wisp_control;
 pub mod setup;
 pub mod snd_ambience;
+pub mod snd_music;
 #[cfg(feature = "unit-script-probe")]
 pub mod unit_script_probe;
 
@@ -23,5 +24,6 @@ pub use gui_hud::GuiHudWidget;
 pub use gui_wisp_control::GuiWispControlWidget;
 pub use setup::setup;
 pub use snd_ambience::SndAmbienceWidget;
+pub use snd_music::SndMusicWidget;
 #[cfg(feature = "unit-script-probe")]
 pub use unit_script_probe::UnitScriptProbeWidget;
