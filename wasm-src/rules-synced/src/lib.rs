@@ -13,6 +13,7 @@ pub mod sound;
 pub mod state;
 pub mod triggers;
 pub mod unit_scripts;
+pub mod units;
 pub mod wisp;
 
 spring_addons::export_rules_gadgets! {

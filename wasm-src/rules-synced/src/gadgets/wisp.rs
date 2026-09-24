@@ -1,4 +1,8 @@
+use core::cell::Cell;
+
 use spring_addons::rules::Gadget;
+
+use crate::log::SECTION;
 
 use crate::state::{Global, param};
 use crate::wisp;
@@ -10,11 +14,14 @@ const MOVE_STALE_FRAMES: i32 = 6;
 
 /// The player wisp controller, ported from `unit_wisp_controller.lua`.
 #[derive(Default)]
-pub struct WispGadget;
+pub struct WispGadget {
+    /// Whether the engine refused the last move goal; logged when it starts.
+    move_rejected: Cell<bool>,
+}
 
 impl WispGadget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -28,26 +35,20 @@ impl Gadget<Global> for WispGadget {
     }
 
     /// The callouts made while the wisp is borrowed (positions, move goal,
-    /// velocity, rotation, rules params) raise no callins; the orders and
-    /// piece changes go through the reaper.
+    /// velocity, rotation, rules params, piece visibility) raise no callins;
+    /// the STOP order and the pickups' removal run after the frame.
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
         let mut wisp = global.wisp.access_mut();
         if wisp.id >= 0 {
             wisp::cancel_upward_velocity(&wisp);
-            #[cfg(feature = "headless-integration")]
-            {
-                let move_goal_accepted = wisp::move_wisp(&wisp);
-                if wisp.movement.is_some() && !move_goal_accepted {
-                    let _ = spring::echo("[PartsNeeded-Rust-Test] move goal was rejected", "");
-                }
+            let rejected = wisp.movement.is_some() && !wisp::move_wisp(&wisp);
+            if rejected && !self.move_rejected.get() {
+                spring::log_warning!(SECTION, "the engine refused the wisp's move goal");
             }
-            #[cfg(not(feature = "headless-integration"))]
-            {
-                let _ = wisp::move_wisp(&wisp);
-            }
+            self.move_rejected.set(rejected);
             let collected = wisp::collect_body_parts(&mut wisp);
-            global.pending.access_mut().destroys.extend(collected);
+            crate::units::destroy_later(ctx, collected);
         }
         if wisp.movement.is_some() && frame > wisp.movement_frame + MOVE_STALE_FRAMES {
             wisp.movement = None;
@@ -63,12 +64,18 @@ impl Gadget<Global> for WispGadget {
         let id = wisp.id;
         drop(wisp);
 
-        let mut pending = global.pending.access_mut();
-        if stop {
-            pending.stop_wisp = Some(id);
+        if let Some((id, spirit, parts)) = pieces {
+            wisp::sync_wisp_pieces(id, spirit, parts);
         }
-        if pieces.is_some() {
-            pending.wisp_pieces = pieces;
+        if stop {
+            // An order can raise command callins synchronously.
+            ctx.delay(move |_| {
+                crate::log::check(
+                    "STOP order",
+                    id,
+                    spring::give_order_to_unit(id, spring::cmd::STOP, &[], 0, 0),
+                );
+            });
         }
     }
 }

@@ -75,20 +75,6 @@ pub struct Endgame {
     pub sequence_complete: bool,
 }
 
-/// Engine callouts deferred to the reaper gadget, which runs them at the end
-/// of the frame while no resource is borrowed.
-#[derive(Default)]
-pub struct Pending {
-    /// Cages whose prisoner still has to be spawned.
-    pub cage_wisps: Vec<i32>,
-    pub cage_activations: Vec<i32>,
-    pub destroys: Vec<(i32, bool, i32)>,
-    pub spawn_level: bool,
-    pub spawn_end_wisp: bool,
-    pub stop_wisp: Option<i32>,
-    pub wisp_pieces: Option<(i32, bool, BodyParts)>,
-}
-
 pub fn param(name: &str, value: f32) {
     let _ = spring::set_game_rules_param(
         name,
@@ -116,5 +102,4 @@ pub struct Global {
     pub wisp: Resource<Wisp>,
     pub world: Resource<World>,
     pub endgame: Resource<Endgame>,
-    pub pending: Resource<Pending>,
 }

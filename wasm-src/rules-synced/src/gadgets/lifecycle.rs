@@ -123,7 +123,8 @@ impl Gadget<Global> for LifecycleGadget {
         }
         apply_authored_collisions(id, def);
         if def == defs.cage {
-            global.pending.access_mut().cage_wisps.push(id);
+            // unit_cage.lua: each cage holds a prisoner from the start.
+            ctx.delay(move |_| crate::cages::spawn_cage_wisp(id));
         }
         if def == defs.npcwisp {
             let alive = {

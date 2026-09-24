@@ -115,7 +115,7 @@ pub fn update_triggers(global: &Global) {
             // animation would re-trigger the prisoner lifecycle.
             give_onoff(id, true);
             if crate::defs::unit_def(id) == crate::defs::defs().cage {
-                global.pending.access_mut().cage_activations.push(id);
+                crate::cages::activate_cage(global, id);
             }
         }
     }

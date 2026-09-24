@@ -31,8 +31,7 @@ impl Gadget<Global> for EndgameGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
-        let expired = endgame::expire_dying_wisps(global);
-        global.pending.access_mut().destroys.extend(expired);
+        crate::units::destroy_later(ctx, endgame::expire_dying_wisps(global));
         endgame::update_game_end(global);
 
         let wisp_id = global.wisp.access().id;
@@ -56,7 +55,7 @@ impl Gadget<Global> for EndgameGadget {
                     let mut endgame = global.endgame.access_mut();
                     endgame.end_spawned += 1;
                     endgame.end_spawn_frame = frame;
-                    global.pending.access_mut().spawn_end_wisp = true;
+                    ctx.delay(endgame::spawn_ending_wisp);
                     false
                 } else if end_spawned >= endgame::ENDING_SPAWN_AMOUNT {
                     let mut endgame = global.endgame.access_mut();

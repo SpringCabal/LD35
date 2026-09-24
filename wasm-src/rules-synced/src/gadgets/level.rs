@@ -26,7 +26,13 @@ impl Gadget<Global> for LevelGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         if frame >= SPAWN_FRAME && !self.requested.replace(true) {
-            ctx.global().pending.access_mut().spawn_level = true;
+            // Creating units raises UnitCreated, which needs the world.
+            ctx.delay(|global| {
+                let ids = crate::level::spawn();
+                let mut world = global.world.access_mut();
+                world.level_ids = ids.into_iter().collect();
+                crate::triggers::initialize_gate_terrain(&world);
+            });
         }
     }
 }

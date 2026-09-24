@@ -4,9 +4,9 @@ use spring_addons::rules::GadgetHandler;
 use super::*;
 use crate::state::Global;
 
-/// Gadgets run in registration order.  The reaper goes last: it performs the
-/// engine callouts the others queued this frame, once none of them holds a
-/// resource.
+/// Gadgets run in registration order.  Callouts that raise callins
+/// synchronously (creating, destroying and ordering units) are delayed with
+/// `ctx.delay` until the frame's callins have returned.
 pub fn setup(handler: &mut GadgetHandler<Global>) {
     register_gadgets!(handler, [UnitScriptsGadget::new(), LevelGadget::new()]);
 
@@ -27,6 +27,4 @@ pub fn setup(handler: &mut GadgetHandler<Global>) {
     register_gadgets!(handler, [IntegrationGadget::new()]);
 
     register_gadgets!(handler, [LifecycleGadget::new(), InputGadget::new()]);
-
-    register_gadgets!(handler, [ReaperGadget::new()]);
 }

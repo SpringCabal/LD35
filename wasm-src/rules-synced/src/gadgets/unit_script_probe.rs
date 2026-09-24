@@ -52,7 +52,7 @@ impl Gadget<Global> for UnitScriptProbeGadget {
                 wisp.spirit = false;
                 wisp.pieces_dirty = true;
             }
-            assemble(ctx.global(), frame);
+            assemble(ctx, frame);
         } else if frame == 46 {
             let mut wisp = ctx.global().wisp.access_mut();
             wisp.spirit = true;
@@ -75,7 +75,8 @@ impl Gadget<Global> for UnitScriptProbeGadget {
     }
 }
 
-fn assemble(global: &Global, frame: i32) {
+fn assemble(ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+    let global = ctx.global();
     let wisp_id = global.wisp.access().id;
     if wisp_id < 0 {
         return;
@@ -115,11 +116,13 @@ fn assemble(global: &Global, frame: i32) {
         wisp.body_parts.clear();
         wisp.pieces_dirty = true;
     }
-    global
-        .pending
-        .access_mut()
-        .destroys
-        .extend(parts.into_iter().map(|(id, _)| (id, true, wisp_id)));
+    crate::units::destroy_later(
+        ctx,
+        parts
+            .into_iter()
+            .map(|(id, _)| (id, true, wisp_id))
+            .collect(),
+    );
     let _ = spring::echo(
         &alloc::format!("[UnitScriptProbeAssembly] COLLECTED frame={frame} parts=6"),
         "",
