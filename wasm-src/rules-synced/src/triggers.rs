@@ -188,7 +188,12 @@ fn set_gate_physics(id: i32, x1: f32, z1: f32, x2: f32, z2: f32, open: bool) {
     } else {
         GATE_CLOSED_HEIGHT
     };
-    let _ = spring::level_height_map(x1, z1, x2, z2, height);
+    // The terrain is what actually blocks a closed doorway.
+    crate::log::check(
+        "gate terrain",
+        id,
+        spring::level_height_map(x1, z1, x2, z2, height),
+    );
     // The terrain is the gate's collision. The model itself stays embedded in
     // the wall and must never become a second, offset blocker.
     crate::level::clear_blocking(id, false);

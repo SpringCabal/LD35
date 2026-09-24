@@ -3,6 +3,7 @@ use core::cell::Cell;
 use partsneeded_shared::Status;
 use spring_addons::rules::Gadget;
 
+use crate::log::SECTION;
 use crate::state::Global;
 
 /// Sends the UI the player's and the ending's status whenever it changes.
@@ -35,8 +36,14 @@ impl Gadget<Global> for StatusGadget {
                 sequence_complete: endgame.sequence_complete,
             }
         };
-        if self.last_sent.replace(Some(status)) != Some(status) {
-            let _ = spring::send_to_unsynced(&status.encode());
+        if self.last_sent.get() == Some(status) {
+            return;
+        }
+        match spring::send_to_unsynced(&status.encode()) {
+            Ok(_) => self.last_sent.set(Some(status)),
+            // Unsent, the UI keeps showing the old form and parts: retry on
+            // the next frame.
+            Err(error) => spring::log_warning!(SECTION, "sending the status failed: {error:?}"),
         }
     }
 }

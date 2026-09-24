@@ -22,7 +22,9 @@ const RESTART_PROMPT_TOP: i32 = -52;
 const RESTART_PROMPT_BOTTOM: i32 = -12;
 
 fn send(command: Command) {
-    let _ = spring::send_lua_rules_msg(&command.encode());
+    if let Err(error) = spring::send_lua_rules_msg(&command.encode()) {
+        spring::log_warning!("partsneeded", "sending {command:?} failed: {error:?}");
+    }
 }
 
 /// Direct player control, ported from `ui_wisp_control.lua`: movement, form

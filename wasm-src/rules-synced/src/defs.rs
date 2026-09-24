@@ -1,7 +1,8 @@
 //! Unit def ids and the per-def custom params the rules use, resolved once.
 
-use alloc::collections::BTreeMap;
-use core::cell::{OnceCell, RefCell};
+use alloc::vec;
+use alloc::vec::Vec;
+use core::cell::OnceCell;
 
 use partsneeded_shared::BodyPart;
 
@@ -76,9 +77,19 @@ impl Collision {
     }
 }
 
+/// Every unit def's collision rules, indexed by def id.  Def ids run from 1
+/// up to the last def the engine can name.
+fn resolve_collisions() -> Vec<Collision> {
+    let mut collisions = vec![Collision::default()];
+    while spring::unit_defs::get_unit_def_name_bytes(collisions.len() as i32).is_ok() {
+        collisions.push(Collision::resolve(collisions.len() as i32));
+    }
+    collisions
+}
+
 thread_local! {
     static DEFS: OnceCell<Defs> = const { OnceCell::new() };
-    static COLLISIONS: RefCell<BTreeMap<i32, Collision>> = const { RefCell::new(BTreeMap::new()) };
+    static COLLISIONS: OnceCell<Vec<Collision>> = const { OnceCell::new() };
 }
 
 pub fn defs() -> Defs {
@@ -86,7 +97,13 @@ pub fn defs() -> Defs {
 }
 
 pub fn collision(def: i32) -> Collision {
-    COLLISIONS.with_borrow_mut(|cache| *cache.entry(def).or_insert_with(|| Collision::resolve(def)))
+    COLLISIONS.with(|collisions| {
+        let collisions = collisions.get_or_init(resolve_collisions);
+        usize::try_from(def)
+            .ok()
+            .and_then(|def| collisions.get(def).copied())
+            .unwrap_or_default()
+    })
 }
 
 /// The def id of a unit, or -1.
