@@ -5,15 +5,8 @@ use crate::defs::{defs, unit_def};
 use crate::state::Global;
 
 use partsneeded_shared::{BodyPart, Command, FORM_COOLDOWN};
-
-const KEY_A: i32 = b'a' as i32;
-const KEY_D: i32 = b'd' as i32;
-const KEY_S: i32 = b's' as i32;
-const KEY_W: i32 = b'w' as i32;
-const KEY_UP: i32 = 273;
-const KEY_DOWN: i32 = 274;
-const KEY_RIGHT: i32 = 275;
-const KEY_LEFT: i32 = 276;
+use springcabal::keys::{MoveKeys, code};
+use springcabal::menu;
 
 /// The clickable band around the end screen's "Click or press R to restart"
 /// line, relative to the screen centre.
@@ -31,12 +24,7 @@ fn send(command: Command) {
 /// switches, lever pulls and the end screen's restart.
 #[derive(Default)]
 pub struct GuiWispControlWidget {
-    left: core::cell::Cell<bool>,
-    right: core::cell::Cell<bool>,
-    up: core::cell::Cell<bool>,
-    down: core::cell::Cell<bool>,
-    /// The movement the rules module was last told about.
-    sent_movement: core::cell::Cell<(i32, i32)>,
+    keys: MoveKeys,
     last_form_change: core::cell::Cell<i32>,
     screen_width: core::cell::Cell<i32>,
     screen_height: core::cell::Cell<i32>,
@@ -50,29 +38,24 @@ impl GuiWispControlWidget {
         }
     }
 
-    fn movement(&self) -> (i32, i32) {
-        (
-            i32::from(self.right.get()) - i32::from(self.left.get()),
-            i32::from(self.down.get()) - i32::from(self.up.get()),
-        )
-    }
-
-    fn update_movement(&self, key: i32, pressed: bool) -> EventResult {
-        match key {
-            KEY_A | KEY_LEFT => self.left.set(pressed),
-            KEY_D | KEY_RIGHT => self.right.set(pressed),
-            KEY_W | KEY_UP => self.up.set(pressed),
-            KEY_S | KEY_DOWN => self.down.set(pressed),
-            _ => return EventResult::Ignored,
-        }
-        let (x, z) = self.movement();
-        // Key repeat sends presses for keys already down: tell the rules only
+    fn update_movement(&self, event: &KeyEvent<'_>, pressed: bool) -> EventResult {
+        // Key repeat sends presses for keys already down: the rules hear only
         // about changes.
-        if self.sent_movement.replace((x, z)) != (x, z) {
+        if self.keys.set(event, pressed) {
+            let (x, z) = self.keys.axis();
             send(Command::Move { x, z });
+            return EventResult::Handled;
         }
-        EventResult::Handled
+        is_move_key(event).into()
     }
+}
+
+/// WASD or an arrow key, so a repeat of a held one is claimed too.
+fn is_move_key(event: &KeyEvent<'_>) -> bool {
+    matches!(
+        event.key_code,
+        code::LEFT | code::RIGHT | code::UP | code::DOWN
+    ) || ["a", "d", "w", "s"].iter().any(|key| event.matches(key))
 }
 
 impl Widget<Global> for GuiWispControlWidget {
@@ -112,10 +95,8 @@ impl Widget<Global> for GuiWispControlWidget {
             crate::restart::restart();
             return EventResult::Handled;
         }
-        if event.ctrl && event.matches("q") {
-            // Return to the WASM menu in the current engine process.  Calling
-            // system_control::quit exits the process, which skips the menu.
-            let _ = spring::send_commands("reloadforce", "");
+        if menu::is_quit_to_menu(event) {
+            menu::quit_to_menu();
             return EventResult::Handled;
         }
         if event.matches("space") {
@@ -167,7 +148,7 @@ impl Widget<Global> for GuiWispControlWidget {
             }
             return EventResult::Handled;
         }
-        self.update_movement(event.key_code, true)
+        self.update_movement(event, true)
     }
 
     fn key_release(
@@ -175,7 +156,7 @@ impl Widget<Global> for GuiWispControlWidget {
         _ctx: &spring_addons::AddonContext<'_, Global>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
-        self.update_movement(event.key_code, false)
+        self.update_movement(event, false)
     }
 
     fn mouse_press(
