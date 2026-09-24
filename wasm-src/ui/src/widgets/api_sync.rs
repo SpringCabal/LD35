@@ -1,12 +1,13 @@
-use partsneeded_shared::Status;
+use partsneeded_shared::{Command, Status};
 use spring_addons::ui::Widget;
 
-use crate::state::Global;
+use crate::state::{Global, current_frame};
 
 /// Frames to trust a local form prediction before assuming the rules module
 /// refused the switch.  The round trip is a few frames; this is generous.
 const PENDING_TIMEOUT: i32 = 30;
 
+/// Applies the rules module's status, sent whenever it changes.
 #[derive(Default)]
 pub struct ApiSyncWidget;
 
@@ -21,31 +22,51 @@ impl Widget<Global> for ApiSyncWidget {
         "ApiSync"
     }
 
+    /// The rules only send the status when it changes, so a UI that starts
+    /// mid-game (a LuaUI reload) asks for it.
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        crate::commands::send(Command::Hello);
+    }
+
+    /// A refused switch changes nothing on the rules side, so no status
+    /// arrives to correct the prediction: undo it here once it times out.
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
+        let mut player = ctx.global().player.access_mut();
+        if player.pending_spirit.is_none()
+            || current_frame() - player.pending_since <= PENDING_TIMEOUT
+        {
+            return;
+        }
+        player.pending_spirit = None;
+        let (predicted, confirmed) = (player.spirit, player.rules_spirit);
+        if predicted == confirmed {
+            return;
+        }
+        player.form.begin(predicted, confirmed);
+        player.spirit = confirmed;
+        let wisp = player.wisp;
+        drop(player);
+        let _ = spring::unsynced_ctrl::set_unit_no_draw(wisp, confirmed);
+    }
+
     fn recv_from_synced(&self, ctx: &spring_addons::AddonContext<'_, Global>, message: &[u8]) {
         let Some(status) = core::str::from_utf8(message).ok().and_then(Status::decode) else {
             return;
         };
         let new_spirit = status.spirit;
         let mut player = ctx.global().player.access_mut();
+        player.rules_spirit = new_spirit;
 
         // While a form change is in flight the status still reports the old
-        // form.  Keep the local prediction until the synced side agrees -- or
-        // until it clearly never will, because the rules module refused the
-        // switch (form-change cooldown).
+        // form.  Keep the local prediction until the synced side agrees;
+        // `update` drops it if the rules module never does.
         let predicted = player.pending_spirit.is_some();
         let stale = match player.pending_spirit {
             Some(wanted) if wanted == new_spirit => {
                 player.pending_spirit = None;
                 false
             }
-            Some(_) => {
-                if crate::state::current_frame() - player.pending_since > PENDING_TIMEOUT {
-                    player.pending_spirit = None;
-                    false
-                } else {
-                    true
-                }
-            }
+            Some(_) => true,
             None => false,
         };
 
@@ -58,6 +79,13 @@ impl Widget<Global> for ApiSyncWidget {
         player.wisp = status.wisp;
         player.parts = status.parts;
         player.ending_type = status.ending_type;
+        if status.sequence_complete != player.game_over_sequence {
+            player.sequence_since = if status.sequence_complete {
+                current_frame()
+            } else {
+                -1
+            };
+        }
         player.game_over_sequence = status.sequence_complete;
         drop(player);
         if stale {

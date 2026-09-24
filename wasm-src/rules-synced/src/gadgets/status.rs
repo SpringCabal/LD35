@@ -1,4 +1,4 @@
-use partsneeded_shared::Status;
+use partsneeded_shared::{Command, Status};
 use spring_addons::rules::Gadget;
 use springcabal::message::SendOnChange;
 
@@ -20,6 +20,26 @@ impl StatusGadget {
 impl Gadget<Global> for StatusGadget {
     fn name(&self) -> &'static str {
         "Status"
+    }
+
+    /// A UI that (re)started asks for the status; send it on the next frame
+    /// even if nothing changed.  This works during the ending too, when
+    /// every other command is refused.
+    fn handle_lua_msg(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _player_id: i32,
+        _script: i32,
+        _mode: i32,
+        data: &[u8],
+    ) {
+        let hello = core::str::from_utf8(data)
+            .ok()
+            .and_then(Command::decode)
+            .is_some_and(|command| command == Command::Hello);
+        if hello {
+            self.sent.reset();
+        }
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {

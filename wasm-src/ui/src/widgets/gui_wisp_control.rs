@@ -1,6 +1,7 @@
 use spring_addons::event::{EventResult, KeyEvent};
 use spring_addons::ui::Widget;
 
+use crate::commands::send;
 use crate::defs::{defs, unit_def};
 use crate::state::Global;
 
@@ -13,12 +14,6 @@ use springcabal_control::keyboard::{KeyMovement, send_direction};
 const RESTART_PROMPT_HALF_WIDTH: i32 = 190;
 const RESTART_PROMPT_TOP: i32 = -52;
 const RESTART_PROMPT_BOTTOM: i32 = -12;
-
-fn send(command: Command) {
-    if let Err(error) = spring::send_lua_rules_msg(&command.encode()) {
-        spring::log_warning!("partsneeded", "sending {command:?} failed: {error:?}");
-    }
-}
 
 /// Direct player control, ported from `ui_wisp_control.lua`: movement, form
 /// switches, lever pulls and the end screen's restart.
@@ -80,7 +75,7 @@ impl Widget<Global> for GuiWispControlWidget {
         ctx: &spring_addons::AddonContext<'_, Global>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
-        if event.matches("r") && ctx.global().player.access().game_over_sequence {
+        if event.matches("r") && ctx.global().player.access().end_screen_shown() {
             // The Lua endgame's Restart button reloads the current game.
             // Use the Core lifecycle API so this resets the WASM module
             // and synced state without leaving the WASM menu.
@@ -159,7 +154,7 @@ impl Widget<Global> for GuiWispControlWidget {
         button: i32,
     ) -> EventResult {
         let (center_x, center_y) = (self.screen_width.get() / 2, self.screen_height.get() / 2);
-        let in_restart_prompt = ctx.global().player.access().game_over_sequence
+        let in_restart_prompt = ctx.global().player.access().end_screen_shown()
             && button == 1
             && (x - center_x).abs() <= RESTART_PROMPT_HALF_WIDTH
             && (center_y + RESTART_PROMPT_TOP..=center_y + RESTART_PROMPT_BOTTOM).contains(&y);

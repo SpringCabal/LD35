@@ -50,6 +50,8 @@ pub fn handle_command(global: &Global, command: Command) {
             wisp.pieces_dirty = true;
         }
         Command::PullLever(id) => pull_lever(global, id),
+        // The status gadget answers it.
+        Command::Hello => {}
     }
 }
 

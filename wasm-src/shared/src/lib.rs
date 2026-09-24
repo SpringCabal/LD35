@@ -141,22 +141,30 @@ pub enum Command {
     SwitchForm,
     /// Pull the clicked lever.
     PullLever(i32),
+    /// The UI (re)started and needs the current status: after a LuaUI reload
+    /// the rules would otherwise only send it on the next change.
+    Hello,
 }
 
 const SWITCH_FORM: &str = "switch_form";
 const PULL_LEVER: &str = "pull_lever";
+const HELLO: &str = "parts_hello";
 
 impl Command {
     pub fn encode(&self) -> String {
         match self {
             Command::SwitchForm => Encoder::new(SWITCH_FORM).finish(),
             Command::PullLever(unit) => Encoder::new(PULL_LEVER).field(unit).finish(),
+            Command::Hello => Encoder::new(HELLO).finish(),
         }
     }
 
     pub fn decode(message: &str) -> Option<Self> {
         if fields(message, SWITCH_FORM).is_some() {
             return Some(Command::SwitchForm);
+        }
+        if fields(message, HELLO).is_some() {
+            return Some(Command::Hello);
         }
         Some(Command::PullLever(fields(message, PULL_LEVER)?.i32()?))
     }
@@ -183,7 +191,7 @@ mod tests {
 
     #[test]
     fn command_round_trip() {
-        for command in [Command::SwitchForm, Command::PullLever(77)] {
+        for command in [Command::SwitchForm, Command::PullLever(77), Command::Hello] {
             assert_eq!(Command::decode(&command.encode()), Some(command));
         }
         assert_eq!(Command::decode("movement|1|0"), None);

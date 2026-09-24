@@ -1,23 +1,14 @@
 use partsneeded_shared::BodyPart;
 use spring_addons::ui::Widget;
 
-use crate::state::{GAME_END_DURATION, Global};
+use crate::state::Global;
 
-pub struct GuiHudWidget {
-    sequence_start: core::cell::Cell<i32>,
-}
-
-impl Default for GuiHudWidget {
-    fn default() -> Self {
-        Self {
-            sequence_start: core::cell::Cell::new(-1),
-        }
-    }
-}
+#[derive(Default)]
+pub struct GuiHudWidget;
 
 impl GuiHudWidget {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 }
 
@@ -44,22 +35,9 @@ impl Widget<Global> for GuiHudWidget {
             );
             let _ = spring::gfx::end_text(0);
         }
-        if !global.game_over_sequence {
-            self.sequence_start.set(-1);
-            return;
-        }
-        let frame = crate::state::current_frame();
-        let start = match self.sequence_start.get() {
-            start if start >= 0 => start,
-            _ => {
-                self.sequence_start.set(frame);
-                frame
-            }
-        };
         // gfx_eyes_effect.lua waits for the fade and bright spirit hold before
-        // calling ShowEndgameUI. Keep that one-shot timing here, without a
-        // Chili window that could be accidentally recreated every frame.
-        if frame - start <= GAME_END_DURATION * 2 {
+        // calling ShowEndgameUI.
+        if !global.end_screen_shown() {
             return;
         }
         let status = match global.ending_type {

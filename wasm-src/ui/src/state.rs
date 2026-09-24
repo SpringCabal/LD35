@@ -35,6 +35,20 @@ pub struct Player {
     /// while you are a spirit -- ate the click as well.
     pub pending_spirit: Option<bool>,
     pub pending_since: i32,
+    /// The form the rules module last reported.
+    pub rules_spirit: bool,
+    /// The frame the ending's visual sequence completed, or -1.
+    pub sequence_since: i32,
+}
+
+impl Player {
+    /// Whether the end screen, with its restart prompt, is on screen:
+    /// gfx_eyes_effect.lua shows it after the fade and the bright spirit hold.
+    pub fn end_screen_shown(&self) -> bool {
+        self.game_over_sequence
+            && self.sequence_since >= 0
+            && current_frame() - self.sequence_since > GAME_END_DURATION * 2
+    }
 }
 
 impl Default for Player {
@@ -50,6 +64,8 @@ impl Default for Player {
             space_used: false,
             pending_spirit: None,
             pending_since: 0,
+            rules_spirit: true,
+            sequence_since: -1,
         }
     }
 }
