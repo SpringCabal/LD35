@@ -170,18 +170,4 @@ pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: BodyParts) {
     crate::with_cus_module_or_defer(move |host| {
         crate::unit_scripts::set_piece_mask(host, id, parts);
     });
-    // Lua's Show(parent) semantics differ on the Core renderer: making the
-    // body visible can implicitly re-enable children that Lua had hidden.
-    // Apply the exact authored mask at the engine piece level as well.
-    if let Ok(pieces) = spring::get_unit_piece_map(id) {
-        for piece in pieces {
-            let visible = WISP_PIECE_GROUPS
-                .iter()
-                .find(|(name, _)| *name == piece.name)
-                .is_some_and(|(_, group)| group_visible(*group, parts));
-            // GetUnitPieceMap exposes Lua's one-based piece numbers; the Core
-            // visibility call is zero-based.
-            let _ = spring::unit_control::set_unit_piece_visible(id, piece.piece_num - 1, visible);
-        }
-    }
 }
