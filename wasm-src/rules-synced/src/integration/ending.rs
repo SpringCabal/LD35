@@ -26,8 +26,8 @@ impl Default for EndingTracker {
             suite: Suite::new(
                 "[PartsNeeded-Rust-Test]",
                 "PARTS NEEDED ENDING INTEGRATION TEST",
-            )
-            .require_at_least(4),
+                4,
+            ),
             prepared: false,
             first_arrival: None,
             spawn_checked: false,

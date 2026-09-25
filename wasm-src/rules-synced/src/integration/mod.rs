@@ -47,8 +47,11 @@ pub struct Tracker {
 impl Default for Tracker {
     fn default() -> Self {
         Self {
-            suite: Suite::new("[PartsNeeded-Rust-Test]", "PARTS NEEDED INTEGRATION TESTS")
-                .require_at_least(CHECKS),
+            suite: Suite::new(
+                "[PartsNeeded-Rust-Test]",
+                "PARTS NEEDED INTEGRATION TESTS",
+                CHECKS,
+            ),
             initial_npc_wisps: 0,
             ui_hello: false,
             messages: (0, 0),

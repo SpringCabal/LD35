@@ -2,7 +2,7 @@
 
 use alloc::vec;
 use alloc::vec::Vec;
-use core::cell::OnceCell;
+use springcabal::defs::DefCache;
 
 use partsneeded_shared::BodyPart;
 
@@ -109,23 +109,18 @@ fn resolve_params() -> Vec<DefParams> {
     params
 }
 
-thread_local! {
-    static DEFS: OnceCell<Defs> = const { OnceCell::new() };
-    static PARAMS: OnceCell<Vec<DefParams>> = const { OnceCell::new() };
-}
+static DEFS: DefCache<Defs> = DefCache::new(Defs::resolve);
+static PARAMS: DefCache<Vec<DefParams>> = DefCache::new(resolve_params);
 
 pub fn defs() -> Defs {
-    DEFS.with(|defs| *defs.get_or_init(Defs::resolve))
+    *DEFS.get()
 }
 
 pub fn params(def: i32) -> DefParams {
-    PARAMS.with(|params| {
-        let params = params.get_or_init(resolve_params);
-        usize::try_from(def)
-            .ok()
-            .and_then(|def| params.get(def).copied())
-            .unwrap_or_default()
-    })
+    usize::try_from(def)
+        .ok()
+        .and_then(|def| PARAMS.get().get(def).copied())
+        .unwrap_or_default()
 }
 
 /// The def id of a unit, or -1.

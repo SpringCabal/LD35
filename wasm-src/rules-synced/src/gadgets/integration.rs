@@ -150,11 +150,8 @@ impl IntegrationGadget {
     /// Send a message the way the UI does: over the network, back to the
     /// rules' RecvLuaMsg.
     fn send_message(&self, message: &str) {
-        match spring::send_lua_rules_msg(message) {
-            Ok(_) => self.sent.set(self.sent.get() + 1),
-            Err(error) => {
-                spring::log_warning!(crate::log::SECTION, "sending {message} failed: {error:?}")
-            }
+        if springcabal::message::send_to_rules(message) {
+            self.sent.set(self.sent.get() + 1);
         }
     }
 

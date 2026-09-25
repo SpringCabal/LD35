@@ -63,8 +63,8 @@ impl Default for RestartTracker {
             suite: Suite::new(
                 "[PartsNeeded-Rust-Test]",
                 "PARTS NEEDED RESTART INTEGRATION TEST",
-            )
-            .require_at_least(4),
+                4,
+            ),
             first_round: None,
         }
     }

@@ -1,6 +1,6 @@
 //! Unit def ids the UI tells apart, resolved once.
 
-use core::cell::OnceCell;
+use springcabal::defs::DefCache;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Defs {
@@ -10,22 +10,18 @@ pub struct Defs {
     pub light: i32,
 }
 
-thread_local! {
-    static DEFS: OnceCell<Defs> = const { OnceCell::new() };
-}
+static DEFS: DefCache<Defs> = DefCache::new(|| {
+    let id = |name: &str| spring::get_unit_def_id_by_name(name).unwrap_or(-1);
+    Defs {
+        wisp: id("wisp"),
+        npcwisp: id("npcwisp"),
+        lever: id("lever"),
+        light: id("light"),
+    }
+});
 
 pub fn defs() -> Defs {
-    DEFS.with(|defs| {
-        *defs.get_or_init(|| {
-            let id = |name: &str| spring::get_unit_def_id_by_name(name).unwrap_or(-1);
-            Defs {
-                wisp: id("wisp"),
-                npcwisp: id("npcwisp"),
-                lever: id("lever"),
-                light: id("light"),
-            }
-        })
-    })
+    *DEFS.get()
 }
 
 /// The def id of a unit, or -1.

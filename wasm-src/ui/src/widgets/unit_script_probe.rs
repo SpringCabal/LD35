@@ -32,7 +32,7 @@ impl Widget<Global> for UnitScriptProbeWidget {
     fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
         if !self.begin_sent.replace(true) {
             let _ = spring::echo("[UnitScriptProbeDriver] BEGIN", "");
-            let _ = spring::send_lua_rules_msg("probe_begin");
+            springcabal::message::send_to_rules("probe_begin");
         }
     }
 }

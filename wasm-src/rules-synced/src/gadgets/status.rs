@@ -2,7 +2,6 @@ use partsneeded_shared::{Command, Status};
 use spring_addons::rules::Gadget;
 use springcabal::message::SendOnChange;
 
-use crate::log::SECTION;
 use crate::state::Global;
 
 /// Sends the UI the player's and the ending's status whenever it changes.
@@ -58,11 +57,7 @@ impl Gadget<Global> for StatusGadget {
         // Unsent, the UI keeps showing the old form and parts: retried on the
         // next frame.
         self.sent.send_if_changed(status, |status| {
-            spring::send_to_unsynced(&status.encode())
-                .inspect_err(|error| {
-                    spring::log_warning!(SECTION, "sending the status failed: {error:?}")
-                })
-                .is_ok()
+            springcabal::message::send_to_ui(&status.encode())
         });
     }
 }

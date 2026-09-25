@@ -13,7 +13,7 @@ pub const HIDDEN_INTERFACE: u32 =
     CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS;
 
 pub fn setup(handler: &mut WidgetHandler<Global>) {
-    if gallery::active() {
+    if springcabal::gallery::active() {
         gallery::setup(handler);
         return;
     }

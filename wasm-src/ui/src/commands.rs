@@ -2,8 +2,7 @@
 
 use partsneeded_shared::Command;
 
+/// Send `command` to the rules; a failure is logged.
 pub fn send(command: Command) {
-    if let Err(error) = spring::send_lua_rules_msg(&command.encode()) {
-        spring::log_warning!("partsneeded", "sending {command:?} failed: {error:?}");
-    }
+    springcabal::message::send_to_rules(&command.encode());
 }
