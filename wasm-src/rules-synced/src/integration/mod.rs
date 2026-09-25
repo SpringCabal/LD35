@@ -9,6 +9,7 @@ mod checks;
 pub mod ending;
 mod probes;
 pub mod restart;
+pub mod same_pass;
 pub mod scenario;
 
 use checks::*;

@@ -6,6 +6,7 @@ use partsneeded_shared::{BodyPart, Command};
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
+use crate::integration::same_pass::{self, Step};
 use crate::integration::scenario::{
     KILL_PLATE, LAST_ROOM_PLATE, LEVER_GATE_PULLS, TEST_LEVER, TEST_PLATE,
 };
@@ -22,6 +23,7 @@ pub struct IntegrationGadget {
     tracker: RefCell<Tracker>,
     ending: RefCell<ending::EndingTracker>,
     restart: RefCell<restart::RestartTracker>,
+    same_pass: RefCell<same_pass::SamePassTracker>,
     /// Whether the UI module's hello arrived over RecvLuaMsg.
     ui_hello: Cell<bool>,
     /// The scenario's own commands and movement messages: how many it sent,
@@ -71,6 +73,12 @@ impl Gadget<Global> for IntegrationGadget {
         }
         ending::update(&mut self.ending.borrow_mut(), global, frame);
         restart::update(&mut self.restart.borrow_mut(), global, frame);
+        if self.restart.borrow().is_finished() {
+            let step = same_pass::update(&mut self.same_pass.borrow_mut(), global, frame);
+            if let Some(step) = step {
+                self.same_pass_step(global, step);
+            }
+        }
         match frame {
             20 => self.steer(MOVE_RIGHT),
             // Release the key again before the frame-30 check.
@@ -162,6 +170,24 @@ impl IntegrationGadget {
     /// The held movement keys, as the UI reports them.
     fn steer(&self, direction: (i32, i32)) {
         self.send_message(&protocol::encode_direction(direction));
+    }
+
+    /// Carry out a step of the same-pass scenario, in the restarted round.
+    fn same_pass_step(&self, global: &Global, step: Step) {
+        match step {
+            Step::CollectParts => {
+                for part in [BodyPart::Eyes, BodyPart::Arms, BodyPart::Legs] {
+                    move_part_to_wisp(global, Some(part));
+                }
+            }
+            Step::SwitchForm => self.send(Command::SwitchForm),
+            Step::PullLever(key) => self.bring_and_pull_lever(global, key),
+            Step::StandOn(key) => {
+                if let Some(plate) = level_unit(global, key) {
+                    move_wisp_next_to(global, plate, 0.0);
+                }
+            }
+        }
     }
 
     fn bring_and_pull_lever(&self, global: &Global, key: i32) {

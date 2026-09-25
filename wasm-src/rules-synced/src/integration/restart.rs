@@ -70,6 +70,13 @@ impl Default for RestartTracker {
     }
 }
 
+impl RestartTracker {
+    /// Whether the restarted round has been checked.
+    pub fn is_finished(&self) -> bool {
+        self.suite.is_finished()
+    }
+}
+
 pub fn update(t: &mut RestartTracker, global: &Global, frame: i32) {
     if t.suite.is_finished() {
         return;
