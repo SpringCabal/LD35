@@ -1,3 +1,4 @@
+use spring::commands;
 use spring_addons::rules::Gadget;
 
 use crate::endgame;
@@ -25,7 +26,7 @@ impl Gadget<Global> for EndgameGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
-        crate::units::destroy_later(ctx, endgame::expire_dying_wisps(global));
+        crate::units::destroy(endgame::expire_dying_wisps(global));
         endgame::update_game_end(global);
 
         let wisp_id = global.wisp.access().id;
@@ -39,7 +40,9 @@ impl Gadget<Global> for EndgameGadget {
         } else if frame - endgame.end_spawn_frame > ENDING_SPAWN_INTERVAL {
             endgame.end_spawned += 1;
             endgame.end_spawn_frame = frame;
-            ctx.delay(endgame::spawn_ending_wisp);
+            // After the commands queued before it: a restart queued by the
+            // level gadget has ended the round by then, and none spawns.
+            commands::run(|| crate::with_global(endgame::spawn_ending_wisp));
         }
     }
 }

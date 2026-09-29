@@ -1,4 +1,7 @@
+use alloc::rc::Rc;
+
 use partsneeded_shared::{Command, Status};
+use spring::commands;
 use spring_addons::rules::Gadget;
 use springcabal::message::SendOnChange;
 
@@ -7,7 +10,7 @@ use crate::state::Global;
 /// Sends the UI the player's and the ending's status whenever it changes.
 #[derive(Default)]
 pub struct StatusGadget {
-    sent: SendOnChange<Status>,
+    sent: Rc<SendOnChange<Status>>,
 }
 
 impl StatusGadget {
@@ -54,10 +57,19 @@ impl Gadget<Global> for StatusGadget {
                 sequence_complete: endgame.sequence_complete,
             }
         };
-        // Unsent, the UI keeps showing the old form and parts: retried on the
-        // next frame.
+        // Unsent, the UI keeps showing the old form and parts: forgotten, so
+        // it is retried on the next frame.
         self.sent.send_if_changed(status, |status| {
-            springcabal::message::send_to_ui(&status.encode())
+            let message = status.encode();
+            let sent = Rc::clone(&self.sent);
+            commands::queue(move || springcabal::message::send_to_ui(&message)).then(
+                move |delivered| {
+                    if !delivered {
+                        sent.reset();
+                    }
+                },
+            );
+            true
         });
     }
 }

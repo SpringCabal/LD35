@@ -5,8 +5,8 @@ use super::*;
 use crate::state::Global;
 
 /// Gadgets run in registration order.  Callouts that raise callins
-/// synchronously (creating, destroying and ordering units) are delayed with
-/// `ctx.delay` until the frame's callins have returned.
+/// synchronously (creating, destroying and ordering units) are
+/// `spring::commands`, applied once the outermost callin has returned.
 pub fn setup(handler: &mut GadgetHandler<Global>) {
     register_gadgets!(handler, [UnitScriptsGadget::new(), LevelGadget::new()]);
 

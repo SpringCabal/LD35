@@ -111,8 +111,7 @@ fn assemble(ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         wisp.body_parts.clear();
         wisp.pieces_dirty = true;
     }
-    crate::units::destroy_later(
-        ctx,
+    crate::units::destroy(
         parts
             .into_iter()
             .map(|(id, _)| (id, true, wisp_id))

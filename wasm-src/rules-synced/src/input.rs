@@ -1,7 +1,7 @@
 //! Player commands arriving from the UI over `RecvLuaMsg`.
 
 use partsneeded_shared::{BodyPart, Command, LEVER_REACH};
-use spring::cmd;
+use spring::{cmd, commands};
 use springcabal_control::protocol;
 
 use crate::state::{FORM_COOLDOWN, Global};
@@ -69,14 +69,13 @@ fn pull_lever(global: &Global, id: i32) {
     }
     let enabled = {
         let mut world = global.world.access_mut();
-        let was_active = world.active_triggers.contains(&id);
-        crate::triggers::set_trigger(&mut world, id, !was_active);
-        !was_active
+        let enabled = !world.active_triggers.contains(&id);
+        crate::triggers::set_trigger(&mut world, id, enabled);
+        enabled
     };
-    // The world borrow has ended: the order can raise callins synchronously.
-    crate::log::check(
-        "lever ONOFF order",
-        id,
-        spring::give_order_to_unit(id, cmd::ONOFF, &[f32::from(u8::from(enabled))], 0, 0),
+    commands::give_order_to_unit(id, cmd::ONOFF, &[f32::from(u8::from(enabled))], 0, 0).then(
+        move |result| {
+            crate::log::check("lever ONOFF order", id, result);
+        },
     );
 }

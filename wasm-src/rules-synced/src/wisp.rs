@@ -5,6 +5,7 @@
 use alloc::vec::Vec;
 
 use partsneeded_shared::{BodyPart, BodyParts};
+use spring::commands;
 use springcabal_control::goal::{Bounds, Clamp, GoalHeight, MoveGoal};
 
 use crate::state::Wisp;
@@ -45,20 +46,19 @@ pub fn move_wisp(wisp: &Wisp) -> bool {
 }
 
 /// Stop the wisp once its keys are released (unit_wisp_controller.lua).
-/// Orders can raise callins: call this with no state borrowed.
 pub fn stop_wisp(id: i32) {
-    crate::log::check(
-        "STOP order",
-        id,
-        spring::give_order_to_unit(id, spring::cmd::STOP, &[], 0, 0),
-    );
-    let Ok(velocity) = spring::get_unit_velocity(id) else {
-        return;
-    };
-    let speed = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
-    if speed > GLIDE_SPEED {
-        let _ = GLIDE.apply(id, (velocity.x, velocity.z));
-    }
+    commands::give_order_to_unit(id, spring::cmd::STOP, &[], 0, 0).then(move |result| {
+        crate::log::check("STOP order", id, result);
+        // The move goal is set at once: give it after the STOP, which would
+        // clear it.
+        let Ok(velocity) = spring::get_unit_velocity(id) else {
+            return;
+        };
+        let speed = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
+        if speed > GLIDE_SPEED {
+            let _ = GLIDE.apply(id, (velocity.x, velocity.z));
+        }
+    });
 }
 
 /// Ground-unit collision resolution can leave a positive vertical velocity at
@@ -163,11 +163,9 @@ pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: BodyParts) {
     if id < 0 {
         return;
     }
-    // The unit script owns the piece groups and the gait they select.  This
-    // runs from the rules' own GameFrame, never inside a unit-script export,
-    // so the module is free and the mask applies now.
+    // The unit script owns the piece groups and the gait they select.
     let parts = (!spirit).then_some(collected_parts);
-    crate::with_cus_module_or_defer(move |host| {
+    crate::unit_scripts::with_host(|host| {
         crate::unit_scripts::set_piece_mask(host, id, parts);
     });
 }

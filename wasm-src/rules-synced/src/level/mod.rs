@@ -1,6 +1,8 @@
+use alloc::rc::Rc;
 use alloc::vec::Vec;
+use core::cell::RefCell;
 
-use spring::{Float3, ResultExt};
+use spring::{Float3, ResultExt, commands};
 
 use crate::log::check;
 
@@ -51,37 +53,58 @@ pub struct LevelUnit {
     pub aim: Option<spring::Float3>,
 }
 
-/// Create a unit of the player's team at `position`.
-pub fn spawn_unit(name: &str, def: i32, position: Float3) -> Option<i32> {
-    let created = spring::create_unit(
-        spring::UnitDefRef { name, id: def },
-        position,
-        0,
-        spring::CreateUnitOptions {
-            build: false,
-            flatten_ground: false,
-            unit_id: -1,
-            builder_id: -1,
+/// Create a unit of the player's team at `position`; `then` gets its id once
+/// it exists, after its UnitCreated.
+pub fn spawn_unit(
+    name: &'static str,
+    def: i32,
+    position: Float3,
+    then: impl FnOnce(i32) + 'static,
+) {
+    let options = spring::CreateUnitOptions {
+        build: false,
+        flatten_ground: false,
+        unit_id: -1,
+        builder_id: -1,
+    };
+    commands::create_unit(spring::UnitDefRef { name, id: def }, position, 0, options).then(
+        move |created| match created {
+            Ok(id) => then(id),
+            Err(error) => spring::log_warning!(
+                crate::log::SECTION,
+                "creating {name} at ({:.0}, {:.0}) failed: {error:?}",
+                position.x,
+                position.z
+            ),
         },
     );
-    if let Err(error) = &created {
-        spring::log_warning!(
-            crate::log::SECTION,
-            "creating {name} at ({:.0}, {:.0}) failed: {error:?}",
-            position.x,
-            position.z
-        );
-    }
-    created.ok()
 }
 
-fn create(unit: &LevelUnit) -> Option<i32> {
-    let defs = crate::defs::defs();
-    let Some(def) = defs.by_name(unit.name) else {
+/// Engine unit id by map_customs.lua content key, filled in as the level's
+/// units are created.
+type Ids = Rc<RefCell<Vec<(i32, i32)>>>;
+
+fn create(unit: LevelUnit, ids: &Ids) {
+    let Some(def) = crate::defs::defs().by_name(unit.name) else {
         spring::log_warning!(crate::log::SECTION, "unknown level unit {}", unit.name);
-        return None;
+        return;
     };
-    let id = spawn_unit(unit.name, def, Float3::new(unit.x, unit.y, unit.z))?;
+    let ids = Rc::clone(ids);
+    spawn_unit(
+        unit.name,
+        def,
+        Float3::new(unit.x, unit.y, unit.z),
+        move |id| {
+            configure(&unit, def, id);
+            ids.borrow_mut().push((unit.key, id));
+        },
+    );
+}
+
+/// Runs as soon as the unit exists, so its calls apply in order: the gate
+/// setup reads back the position set here.
+fn configure(unit: &LevelUnit, def: i32, id: i32) {
+    let defs = crate::defs::defs();
     // All authored static level geometry is placed at an explicit map height.
     // The player wisp is also an authored entry, but it must retain its normal
     // ground move type; putting it under MoveCtrl makes the walk animation run
@@ -106,7 +129,6 @@ fn create(unit: &LevelUnit) -> Option<i32> {
     if def == defs.gate {
         configure_gate(id, unit.y);
     }
-    Some(id)
 }
 
 fn configure_fixed_height(unit_id: i32, position: Float3) {
@@ -180,10 +202,11 @@ fn configure_gate(unit_id: i32, floor_y: f32) {
 /// they were registered with s11n.  The map's own gates are already in the
 /// right places facing the right way, so adopt them and only build one if the
 /// map somehow did not.
-fn adopt_map_gates(ids: &mut Vec<(i32, i32)>) {
+fn adopt_map_gates(ids: &Ids) {
     // A gate slot is only ever matched by a gate standing essentially on it.
     const MATCH_RADIUS_SQUARED: f32 = 64.0 * 64.0;
     let mut claimed = [false; GATES.len()];
+    let mut adopted = Vec::new();
 
     let gate_def = crate::defs::defs().gate;
     if let Ok(units) = spring::get_all_units() {
@@ -206,26 +229,35 @@ fn adopt_map_gates(ids: &mut Vec<(i32, i32)>) {
                 .min_by(|a, b| a.1.total_cmp(&b.1));
             if let Some((slot, _)) = nearest.filter(|(_, d)| *d <= MATCH_RADIUS_SQUARED) {
                 claimed[slot] = true;
-                configure_gate(unit_id, GATES[slot].y);
-                ids.push((GATES[slot].key, unit_id));
+                adopted.push((slot, unit_id));
             }
         }
     }
 
+    // Set up in queue order: after the level units created above.
+    let adopted_ids = Rc::clone(ids);
+    commands::run(move || {
+        for (slot, unit_id) in adopted {
+            configure_gate(unit_id, GATES[slot].y);
+            adopted_ids.borrow_mut().push((GATES[slot].key, unit_id));
+        }
+    });
     for (slot, gate) in GATES.iter().enumerate() {
-        if let Some(id) = (!claimed[slot]).then(|| create(gate)).flatten() {
-            ids.push((gate.key, id));
+        if !claimed[slot] {
+            create(*gate, ids);
         }
     }
 }
 
-pub fn spawn() -> Vec<(i32, i32)> {
-    let mut ids = Vec::with_capacity(LEVEL_UNITS.len() + GATES.len());
-    for unit in LEVEL_UNITS.iter() {
-        if let Some(id) = create(unit) {
-            ids.push((unit.key, id));
-        }
+/// Build the level. `done` gets each unit's engine id by content key once
+/// every unit exists and is configured.
+pub fn spawn(done: impl FnOnce(Vec<(i32, i32)>) + 'static) {
+    let ids: Ids = Rc::new(RefCell::new(Vec::with_capacity(
+        LEVEL_UNITS.len() + GATES.len(),
+    )));
+    for unit in LEVEL_UNITS {
+        create(unit, &ids);
     }
-    adopt_map_gates(&mut ids);
-    ids
+    adopt_map_gates(&ids);
+    commands::run(move || done(ids.take()));
 }

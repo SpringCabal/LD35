@@ -1,8 +1,11 @@
 //! Drives the headless integration scenario through the real message path.
 
+use alloc::rc::Rc;
+use alloc::string::String;
 use core::cell::{Cell, RefCell};
 
 use partsneeded_shared::{BodyPart, Command};
+use spring::commands;
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
@@ -28,7 +31,7 @@ pub struct IntegrationGadget {
     ui_hello: Cell<bool>,
     /// The scenario's own commands and movement messages: how many it sent,
     /// and how many came back over RecvLuaMsg.
-    sent: Cell<u32>,
+    sent: Rc<Cell<u32>>,
     received: Cell<u32>,
     /// Where the player stood before the kill-plate step, restored for the
     /// ending scenario.
@@ -138,7 +141,7 @@ impl Gadget<Global> for IntegrationGadget {
             }
             180 => {
                 if let Some(position) = self.before_kill_plate.get() {
-                    let _ = spring::set_unit_position(global.wisp.access().id, position);
+                    let _ = commands::set_unit_position(global.wisp.access().id, position);
                 }
             }
             _ => {}
@@ -155,12 +158,20 @@ fn wisp_position(global: &Global) -> Option<spring::Float3> {
 }
 
 impl IntegrationGadget {
-    /// Send a message the way the UI does: over the network, back to the
-    /// rules' RecvLuaMsg.
+    /// Send a message the way the UI does, back to the rules' RecvLuaMsg.
+    /// Sent from the synced rules, it is handled inside the call: queued, it
+    /// comes after the scenario's other commands of the frame (a lever it
+    /// pulls is already next to the player).
     fn send_message(&self, message: &str) {
-        if springcabal::message::send_to_rules(message) {
-            self.sent.set(self.sent.get() + 1);
-        }
+        let message = String::from(message);
+        let sent = Rc::clone(&self.sent);
+        commands::queue(move || springcabal::message::send_to_rules(&message)).then(
+            move |delivered| {
+                if delivered {
+                    sent.set(sent.get() + 1);
+                }
+            },
+        );
     }
 
     fn send(&self, command: Command) {
@@ -192,7 +203,7 @@ impl IntegrationGadget {
 
     fn bring_and_pull_lever(&self, global: &Global, key: i32) {
         if let (Some(lever), Some(position)) = (level_unit(global, key), wisp_position(global)) {
-            let _ = spring::set_unit_position(lever, position);
+            let _ = commands::set_unit_position(lever, position);
             self.send(Command::PullLever(lever));
         }
     }
@@ -214,7 +225,7 @@ fn move_part_to_wisp(global: &Global, part: Option<BodyPart>) {
         }
     };
     if let (Some(pickup), Some(position)) = (pickup, wisp_position(global)) {
-        let _ = spring::set_unit_position(pickup, position);
+        let _ = commands::set_unit_position(pickup, position);
     }
 }
 
@@ -222,7 +233,7 @@ fn move_part_to_wisp(global: &Global, part: Option<BodyPart>) {
 fn move_wisp_next_to(global: &Global, unit: i32, dx: f32) {
     let wisp = global.wisp.access().id;
     if let Ok(position) = spring::get_unit_position(unit, false, false) {
-        let _ = spring::set_unit_position(
+        let _ = commands::set_unit_position(
             wisp,
             spring::Float3::new(position.x + dx, position.y, position.z),
         );

@@ -1,3 +1,4 @@
+use spring::commands;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::defs::defs;
@@ -38,8 +39,8 @@ impl Gadget<Global> for RosterGadget {
         } else if def == defs.npcwisp {
             global.world.access_mut().npc_wisps.push(id);
         } else if def == defs.cage {
-            // Creating the prisoner raises UnitCreated again.
-            ctx.delay(move |_| crate::cages::spawn_cage_wisp(id));
+            // The prisoner goes where the cage stands once it has been placed.
+            commands::run(move || crate::cages::spawn_cage_wisp(id));
         }
     }
 

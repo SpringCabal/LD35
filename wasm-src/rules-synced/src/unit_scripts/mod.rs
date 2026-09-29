@@ -15,7 +15,7 @@ mod module;
 mod props;
 mod wisp;
 
-pub use module::{PartsCusModule, set_piece_mask};
+pub use module::{PartsCusModule, set_piece_mask, with_host};
 
 use props::{
     PropPieces, Props, cage_close, cage_open, gate_close, gate_open, lever_off, lever_on,

@@ -1,7 +1,7 @@
 //! Levers, plates and the doors they drive.
 
 use partsneeded_shared::BodyPart;
-use spring::cmd;
+use spring::{cmd, commands};
 
 use alloc::vec::Vec;
 
@@ -61,74 +61,66 @@ pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
             wisp.id,
         )
     };
-    // The ONOFF orders go out after the world borrow ends: an order can raise
-    // AllowCommand and other callins synchronously.
-    let (plates, targets, cages) = {
-        let mut world = global.world.access_mut();
-        let standing = has_legs && !spirit && wisp_id >= 0;
-        let mut plates = Vec::new();
-        for key in PLATES {
-            let Some(plate) = level_id(&world, key) else {
-                continue;
-            };
-            if standing && !is_trigger_active(&world, plate) && nearby(wisp_id, plate, PLATE_RADIUS)
-            {
-                set_trigger(&mut world, plate, true);
-                plates.push(plate);
-            }
+    let mut world = global.world.access_mut();
+    let standing = has_legs && !spirit && wisp_id >= 0;
+    for key in PLATES {
+        let Some(plate) = level_id(&world, key) else {
+            continue;
+        };
+        if standing && !is_trigger_active(&world, plate) && nearby(wisp_id, plate, PLATE_RADIUS) {
+            set_trigger(&mut world, plate, true);
+            give_onoff(plate, true);
         }
-        let mut targets = Vec::new();
-        let mut cages = Vec::new();
-        for link in LINKS {
-            let (Some(source), Some(target)) =
-                (level_id(&world, link.source), level_id(&world, link.target))
-            else {
-                continue;
-            };
-            if !is_trigger_active(&world, source) {
-                continue;
-            }
-            if link.kill {
-                crate::log::check(
-                    "do_kill rules param",
-                    target,
-                    spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC),
-                );
-            }
-            if switch_on(&mut world, target) {
-                targets.push((target, gate_area(&world, target)));
-                if crate::defs::unit_def(target) == crate::defs::defs().cage {
-                    cages.push((target, crate::cages::kills(target)));
-                }
-            }
-        }
-        if let Some(gate) = level_id(&world, LEVER_GATE) {
-            let open = LEVER_GATE_COMBINATION.into_iter().all(|(key, expected)| {
-                level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
-            });
-            if open && switch_on(&mut world, gate) {
-                targets.push((gate, gate_area(&world, gate)));
-            }
-        }
-        (plates, targets, cages)
-    };
-    for plate in plates {
-        give_onoff(plate, true);
     }
-    for (id, gate) in targets {
-        if let Some((_, x1, z1, x2, z2)) = gate {
-            set_gate_physics(id, x1, z1, x2, z2, true);
+    let mut cages = Vec::new();
+    for link in LINKS {
+        let (Some(source), Some(target)) =
+            (level_id(&world, link.source), level_id(&world, link.target))
+        else {
+            continue;
+        };
+        if !is_trigger_active(&world, source) {
+            continue;
         }
-        give_onoff(id, true);
+        if link.kill {
+            crate::log::check(
+                "do_kill rules param",
+                target,
+                spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC),
+            );
+        }
+        if switch_on(&mut world, target) {
+            open(&world, target);
+            if crate::defs::unit_def(target) == crate::defs::defs().cage {
+                cages.push((target, crate::cages::kills(target)));
+            }
+        }
+    }
+    if let Some(gate) = level_id(&world, LEVER_GATE) {
+        let open_gate = LEVER_GATE_COMBINATION.into_iter().all(|(key, expected)| {
+            level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
+        });
+        if open_gate && switch_on(&mut world, gate) {
+            open(&world, gate);
+        }
     }
     cages
 }
 
+/// Open a door or cage: a gate's doorway terrain drops now, its model and a
+/// cage's bars follow the ONOFF order.
+fn open(world: &World, id: i32) {
+    if let Some((_, x1, z1, x2, z2)) = gate_area(world, id) {
+        set_gate_physics(id, x1, z1, x2, z2, true);
+    }
+    give_onoff(id, true);
+}
+
 fn give_onoff(id: i32, on: bool) {
-    crate::log::check(
-        "ONOFF order",
-        id,
-        spring::give_order_to_unit(id, cmd::ONOFF, &[if on { 1.0 } else { 0.0 }], 0, 0),
+    commands::give_order_to_unit(id, cmd::ONOFF, &[if on { 1.0 } else { 0.0 }], 0, 0).then(
+        move |result| {
+            crate::log::check("ONOFF order", id, result);
+        },
     );
 }
 

@@ -3,6 +3,7 @@
 use alloc::vec::Vec;
 
 use partsneeded_shared::Ending;
+use spring::commands;
 
 use crate::sound::play_unit_sound;
 use crate::state::{ENDING_WISP_DESTROY_DELAY, Global, PUBLIC, WISP_DESTROY_DELAY};
@@ -30,11 +31,6 @@ pub fn update_game_end(global: &Global) {
     let souls_freed = ending == Ending::SoulsFreed;
     {
         let mut endgame = global.endgame.access_mut();
-        // Keep the state transition one-shot if a nested callin reaches this
-        // function after the snapshot above but before this write.
-        if endgame.game_over {
-            return;
-        }
         endgame.game_over = true;
         endgame.ending = Some(ending);
         // Only the souls-freed ending has a delayed visual sequence.  The
@@ -97,32 +93,38 @@ pub fn spawn_ending_wisp(global: &Global) {
     let dx = ending_offset();
     let dz = ending_offset();
     let spawn_position = spring::Float3::new(position.x + dx, position.y, position.z + dz);
-    let Some(id) = crate::level::spawn_unit("npcwisp", crate::defs::defs().npcwisp, spawn_position)
-    else {
-        return;
-    };
-    // Match game_end.lua: a normal MOVE order, so the engine's own movement
-    // (acceleration, speed) carries each arrival to the player.
-    crate::log::check(
-        "ending wisp MOVE order",
-        id,
-        spring::give_order_to_unit(
-            id,
-            spring::cmd::MOVE,
-            &[position.x, position.y, position.z],
-            0,
-            0,
-        ),
+    crate::level::spawn_unit(
+        "npcwisp",
+        crate::defs::defs().npcwisp,
+        spawn_position,
+        move |id| {
+            // Match game_end.lua: a normal MOVE order, so the engine's own
+            // movement (acceleration, speed) carries each arrival to the player.
+            commands::give_order_to_unit(
+                id,
+                spring::cmd::MOVE,
+                &[position.x, position.y, position.z],
+                0,
+                0,
+            )
+            .then(move |result| {
+                crate::log::check("ending wisp MOVE order", id, result);
+            });
+            // The original immediately marks each arrival as saved, then
+            // removes it after the short death animation. That both gives the
+            // sprite a dissolving lifecycle and prevents 500 lingering units
+            // after the ending. Roster's UnitCreated has listed it as an NPC
+            // wisp by now.
+            crate::with_global(|global| {
+                mark_wisp_dying_with_delay(global, id, true, ENDING_WISP_DESTROY_DELAY);
+                global
+                    .endgame
+                    .access_mut()
+                    .ending_wisps
+                    .push((id, position));
+            });
+        },
     );
-    // The original immediately marks each arrival as saved, then removes it
-    // after the short death animation. That both gives the sprite a dissolving
-    // lifecycle and prevents 500 lingering units after the ending.
-    mark_wisp_dying_with_delay(global, id, true, ENDING_WISP_DESTROY_DELAY);
-    global
-        .endgame
-        .access_mut()
-        .ending_wisps
-        .push((id, position));
 }
 
 /// Drop ending wisps that no longer exist from the tracking list.

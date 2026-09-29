@@ -2,6 +2,7 @@ use core::cell::Cell;
 
 use alloc::vec::Vec;
 use partsneeded_shared::Command;
+use spring::commands;
 use spring_addons::rules::Gadget;
 
 use crate::state::{Endgame, Global, Wisp, World};
@@ -64,22 +65,21 @@ impl Gadget<Global> for LevelGadget {
         }
     }
 
-    fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+    fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         if self.restart_requested.take() && self.spawn_frame.get().is_none() {
             spring::log_info!(crate::log::SECTION, "the level restarts at frame {frame}");
             self.spawn_frame.set(Some(frame + RESPAWN_DELAY));
-            // Destroying raises UnitDestroyed, which needs the state.
-            ctx.delay(clear_level);
+            clear_level();
         }
         if self.spawn_frame.get().is_some_and(|at| frame >= at) {
             self.spawn_frame.set(None);
-            // Creating units raises UnitCreated, which needs the world.
-            ctx.delay(move |global| {
-                let ids = crate::level::spawn();
-                let mut world = global.world.access_mut();
-                world.level_ids = ids.into_iter().collect();
-                world.spawn_frame = frame;
-                crate::triggers::initialize_gate_terrain(&world);
+            crate::level::spawn(move |ids| {
+                crate::with_global(|global| {
+                    let mut world = global.world.access_mut();
+                    world.level_ids = ids.into_iter().collect();
+                    world.spawn_frame = frame;
+                    crate::triggers::initialize_gate_terrain(&world);
+                });
             });
         }
     }
@@ -87,7 +87,7 @@ impl Gadget<Global> for LevelGadget {
 
 /// game_custom_spawn.lua's clear: destroy every unit but the map's scenery
 /// (the gates too: they are built again closed), then forget the round.
-fn clear_level(global: &Global) {
+fn clear_level() {
     let units: Vec<i32> = spring::get_all_units()
         .unwrap_or_default()
         .into_iter()
@@ -97,21 +97,25 @@ fn clear_level(global: &Global) {
         })
         .collect();
     for id in units {
-        crate::log::check(
-            "restart: destroy",
+        commands::destroy_unit(
             id,
-            spring::destroy_unit(
-                id,
-                spring::rules_synced::unit_control::DestroyUnitOptions {
-                    selfd: false,
-                    reclaimed: false,
-                    attacker_id: -1,
-                    recycle_id: false,
-                },
-            ),
-        );
+            spring::rules_synced::unit_control::DestroyUnitOptions {
+                selfd: false,
+                reclaimed: false,
+                attacker_id: -1,
+                recycle_id: false,
+            },
+        )
+        .then(move |result| {
+            crate::log::check("restart: destroy", id, result);
+        });
     }
-    *global.wisp.access_mut() = Wisp::default();
-    *global.world.access_mut() = World::default();
-    *global.endgame.access_mut() = Endgame::default();
+    // After the units' UnitDestroyed, which still belong to the old round.
+    commands::run(|| {
+        crate::with_global(|global| {
+            *global.wisp.access_mut() = Wisp::default();
+            *global.world.access_mut() = World::default();
+            *global.endgame.access_mut() = Endgame::default();
+        });
+    });
 }

@@ -1,6 +1,6 @@
 use core::cell::Cell;
 
-use spring::ResultExt;
+use spring::{ResultExt, commands};
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, params};
@@ -18,11 +18,13 @@ fn pin_authored_wall_height(id: i32, def: i32) {
     };
     spring::move_ctrl::move_ctrl(id, true).log_err_once("pinning a wall: MoveCtrl");
     spring::move_ctrl::set_move_ctrl_gravity(id, 0.0).log_err_once("pinning a wall: gravity");
-    spring::set_unit_position(
+    commands::set_unit_position(
         id,
         spring::Float3::new(position.x, crate::level::FLOOR_Y, position.z),
     )
-    .log_err_once("pinning a wall: floor height");
+    .then(|result| {
+        result.log_err_once("pinning a wall: floor height");
+    });
 }
 
 /// Everything unit_collisions.lua and unit_plate.lua do to a unit's collision

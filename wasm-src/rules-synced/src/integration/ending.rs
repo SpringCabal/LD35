@@ -153,7 +153,7 @@ fn pick_up_last_part_again(global: &Global) {
     let def = crate::defs::defs().part_def(BodyPart::Mouth);
     match position {
         Ok(position) => {
-            crate::level::spawn_unit(BodyPart::Mouth.name(), def, position);
+            crate::level::spawn_unit(BodyPart::Mouth.name(), def, position, |_| {});
         }
         Err(error) => spring::log_warning!(
             crate::log::SECTION,
