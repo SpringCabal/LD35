@@ -3,11 +3,6 @@ use spring_addons::rules::Gadget;
 
 use crate::state::Global;
 
-/// Synced control for the runtime unit-script comparison.
-///
-/// The UI arms this scenario with one message. All state changes after that
-/// happen at fixed game frames, which removes render/update cadence from the
-/// pose comparison while still exercising the normal unit and CUS callbacks.
 #[derive(Default)]
 pub struct UnitScriptProbeGadget {
     active: core::cell::Cell<bool>,
@@ -43,10 +38,6 @@ impl Gadget<Global> for UnitScriptProbeGadget {
         }
 
         if frame == 43 {
-            // The Lua fixture picks up the six parts while entering corporal
-            // form, then returns to spirit form at frame 46. Reproduce that
-            // transition here before the measured switch at frame 89 so both
-            // runtimes arrive with the same active unit-script tasks.
             {
                 let mut wisp = ctx.global().wisp.access_mut();
                 wisp.spirit = false;
@@ -63,8 +54,6 @@ impl Gadget<Global> for UnitScriptProbeGadget {
             wisp.form_frame = frame;
             wisp.pieces_dirty = true;
         } else if frame == 105 || frame == 171 {
-            // Walk right through the last sampled frame, 170, as the Lua
-            // fixture's move goals do.
             let direction = if frame == 105 { (1.0, 0.0) } else { (0.0, 0.0) };
             ctx.global().wisp.access_mut().steering.set(direction);
         }

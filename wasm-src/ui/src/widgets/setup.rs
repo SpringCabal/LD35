@@ -8,12 +8,11 @@ use spring_addons::ui::WidgetHandler;
 use super::*;
 use crate::state::Global;
 
-/// hide_default_layout.lua's list, plus the distance icons.
 pub const HIDDEN_INTERFACE: u32 =
     CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS;
 
 pub fn setup(handler: &mut WidgetHandler<Global>) {
-    if springcabal::gallery::active() {
+    if springcabal::verification::world_only() {
         gallery::setup(handler);
         return;
     }
@@ -36,7 +35,6 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
     register_widgets!(handler, [UnitScriptProbeWidget::new()]);
     #[cfg(feature = "e2e")]
     register_widgets!(handler, [DbgE2eWidget::new()]);
-    // The visual suite's last shot is the ending's end screen: no restart.
     #[cfg(all(feature = "headless-integration", not(feature = "e2e")))]
     register_widgets!(handler, [DbgRestartWidget::new()]);
 }

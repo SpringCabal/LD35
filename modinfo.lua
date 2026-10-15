@@ -3,7 +3,7 @@ local modinfo = {
 	shortname = "PartsNeededWASM",
 	game = "Parts Needed WASM",
 	shortgame = "Parts Needed WASM",
-	version = "0.1.0-wasm",
+	version = "$VERSION",
 	description = "Ludum Dare 35 entry",
 	modtype = "1",
 	-- Single-player only: without this the engine binds a UDP socket and warns

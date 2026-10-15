@@ -1,5 +1,3 @@
-//! The spirit billboards, ported from `DrawWisp` in unit_wisp_draw.lua.
-
 use spring::gl;
 
 use super::Camera;
@@ -7,7 +5,6 @@ use crate::shader;
 
 const WISP_SPRITE_FRAGMENT: &str = include_str!("../../shaders/wisp_sprite.frag");
 
-/// The wisp billboard is a 40x40 elmo quad in unit_wisp_draw.lua.
 const WISP_SPRITE_SIZE: f32 = 40.0;
 
 #[derive(Default)]
@@ -33,9 +30,6 @@ impl Sprites {
         self.shader != 0
     }
 
-    /// Draw every wisp's billboard at `opacity`: additive, depth-tested against
-    /// the world so the glow is hidden behind walls, under the camera matrices
-    /// rather than the screen ones the calling callin arrives with.
     pub fn draw(&mut self, camera: &Camera, wisps: impl Iterator<Item = i32>, opacity: f32) {
         let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
         let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
@@ -54,9 +48,6 @@ impl Sprites {
         if self.ensure_shader() {
             let _ = spring::gfx::use_shader(self.shader);
             let frame = spring::game::current_frame() as f32;
-            // unit_wisp_draw.lua quantises its time to a tenth of a second, so
-            // the per-pixel noise resamples in visible steps instead of
-            // shimmering every frame.
             let seconds = frame / spring::consts::GAME_SPEED as f32;
             let _ = spring::gfx::uniform(self.loc_time, &[(seconds * 10.0).floor() / 10.0], 1);
             let _ = spring::gfx::uniform(self.loc_spirit, &[opacity], 1);
@@ -73,8 +64,6 @@ impl Sprites {
     }
 
     fn draw_one(&self, unit_id: i32, frame: f32) {
-        // unit_wisp_draw.lua calls Spring.GetUnitViewPosition(unitID) with no
-        // second argument, i.e. the unit's base position.
         let Ok(position) = spring::unit_rendering::get_unit_view_position(unit_id, false) else {
             return;
         };
@@ -97,9 +86,6 @@ impl Sprites {
     }
 }
 
-/// unit_wisp_draw.lua fades every saved or killed wisp through the public
-/// is_dying/killed_frame/destroy_frame rules params.  The player is never in
-/// that lifecycle, so absent params give it no fade.
 fn death_amount(unit_id: i32, frame: f32) -> f32 {
     if spring::get_unit_rules_param_f32(unit_id, "is_dying") != Ok(1.0) {
         return 0.0;

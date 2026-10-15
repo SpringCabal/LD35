@@ -3,17 +3,11 @@ use spring_addons::Resource;
 
 pub const FORM_CHANGE_FRAMES: i32 = 15;
 
-/// gfx_eyes_effect.lua's GAME_END_DURATION: the ending fades the screen for
-/// this many frames, holds it as long again, then shows the end screen.
 pub const GAME_END_DURATION: i32 = 80;
 
-/// gfx_eyes_effect.lua writes `3.14` rather than `math.pi` in its transition
-/// curves.  Substituting the real constant would change the authored shape of
-/// the noise burst, so keep the literal the widget actually uses.
 #[allow(clippy::approx_constant)]
 const LUA_PI: f32 = 3.14;
 
-/// What the rules module last told the UI about the player wisp.
 pub struct Player {
     pub spirit: bool,
     pub game_over: bool,
@@ -22,28 +16,14 @@ pub struct Player {
     pub wisp: i32,
     pub parts: BodyParts,
     pub form: FormTransition,
-    /// Set once the player first presses space.  ui_wisp_control.lua shows its
-    /// "Press Space" prompt as a one-shot hint that the first press dismisses,
-    /// not for as long as you happen to be an eyed spirit.
     pub space_used: bool,
-    /// The form we asked the rules module for, and when we asked.
-    ///
-    /// The synced snapshot takes a few frames to come back, and until it does
-    /// it still reports the old form.  Without this, applying every snapshot
-    /// blindly undid the local prediction: pressing space put you back into
-    /// wisp form, re-hid the body, and -- because lever clicks are refused
-    /// while you are a spirit -- ate the click as well.
     pub pending_spirit: Option<bool>,
     pub pending_since: i32,
-    /// The form the rules module last reported.
     pub rules_spirit: bool,
-    /// The frame the ending's visual sequence completed, or -1.
     pub sequence_since: i32,
 }
 
 impl Player {
-    /// Whether the end screen, with its restart prompt, is on screen:
-    /// gfx_eyes_effect.lua shows it after the fade and the bright spirit hold.
     pub fn end_screen_shown(&self) -> bool {
         self.game_over_sequence
             && self.sequence_since >= 0
@@ -70,7 +50,6 @@ impl Default for Player {
     }
 }
 
-/// The spirit/body cross-fade, ported from `unit_wisp_draw.lua`.
 pub struct FormTransition {
     pub start: i32,
     pub from: f32,
@@ -94,9 +73,6 @@ impl FormTransition {
         if from_spirit == to_spirit {
             return;
         }
-        // unit_wisp_draw.lua uses CHANGE_DURATION=15. Its spirit-to-body branch
-        // multiplies progress by five, so the visible fade completes in three
-        // frames; body-to-spirit takes the full authored fifteen frames.
         self.start = spring::game::current_frame();
         self.from = f32::from(from_spirit);
         self.to = f32::from(to_spirit);
@@ -110,14 +86,6 @@ impl FormTransition {
         self.from + (self.to - self.from) * progress
     }
 
-    /// The `spiritAmount`/`noiseAmount` pair the screen treatment wants.
-    ///
-    /// gfx_eyes_effect.lua runs its own transition off the same event but on
-    /// its own timing: the full fifteen frames in *both* directions, and a
-    /// noise burst that peaks well above 1 while the form is changing.  Reusing
-    /// `amount()` here -- which is the sprite's three-frame exit -- skipped that
-    /// burst entirely, so leaving spirit form was a silent cut rather than the
-    /// authored blast of grain.
     pub fn screen_amounts(&self) -> (f32, f32) {
         let elapsed = spring::game::current_frame() - self.start;
         let entering = self.to > self.from;
@@ -137,14 +105,8 @@ impl FormTransition {
     }
 }
 
-/// The shared communication namespace for the UI module.
 #[derive(Default)]
 pub struct Global {
     pub player: Resource<Player>,
-    /// The lever the highlight glows on as of the last draw pass.
-    ///
-    /// The click handler uses it instead of tracing again: two TraceScreenRay
-    /// calls in one frame interfere, and the second returns no hit.  It also
-    /// guarantees a click lands on whatever is actually glowing.
     pub hovered_lever: Resource<Option<i32>>,
 }

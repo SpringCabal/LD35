@@ -8,12 +8,8 @@ use spring_addons::ui::Widget;
 
 use crate::state::Global;
 
-/// One ground decal, ported from the `groundDetailMapping` table and `areas`
-/// config that `gfx_blood.lua` reads out of `LuaRules/Configs/map_customs.lua`.
 struct Decal {
     texture: &'static str,
-    /// Blood marks show while embodied, spirit marks while a spirit, exactly as
-    /// the Lua widget switches on spiritMode.
     spirit: bool,
     x1: f32,
     z1: f32,
@@ -152,10 +148,8 @@ const DECALS: &[Decal] = &[
     },
 ];
 
-/// Lift the quad off the floor so it does not z-fight with the floor units.
 const GROUND_OFFSET: f32 = 1.5;
 
-/// A decal ready to draw: its texture and its quad draped on the ground.
 struct Quad {
     spirit: bool,
     texture: String,
@@ -202,9 +196,6 @@ impl Quad {
     }
 }
 
-/// The floor markers that tell you which levers to pull, ported from
-/// `gfx_blood.lua`.  None of them lies on a gate, the only terrain that
-/// changes, so their geometry is built once.
 #[derive(Default)]
 pub struct GfxBloodWidget {
     quads: RefCell<Vec<Quad>>,
@@ -234,7 +225,6 @@ impl Widget<Global> for GfxBloodWidget {
             func: 0,
         });
         let _ = spring::gfx::blending(true);
-        // gfx_blood.lua draws these additively so they glow on the dark floor.
         let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE);
         let _ = spring::gfx::use_shader(0);
         for quad in quads.iter().filter(|quad| quad.spirit == spirit) {

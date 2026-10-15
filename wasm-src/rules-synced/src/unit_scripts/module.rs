@@ -1,8 +1,3 @@
-//! The Core-CUS module: the engine's `CusHost` over Parts Needed's scripts.
-//!
-//! The rules reach it through [`with_host`] to attach scripts and apply
-//! piece masks.
-
 use partsneeded_shared::BodyParts;
 use spring::UnitId;
 use spring::cus::host::{CusHost, UnitDefScript};
@@ -23,8 +18,6 @@ impl UnitDefScript for PartsUnitScript {
     }
 }
 
-/// Apply a wisp piece mask (wisp.lua's SetPieceVisible groups); `None` is a
-/// spirit, with every piece hidden.
 pub fn set_piece_mask(host: &mut PartsCusModule, unit_id: i32, parts: Option<BodyParts>) {
     if host
         .with_script(UnitId(unit_id), |ctx, script| {
@@ -36,12 +29,6 @@ pub fn set_piece_mask(host: &mut PartsCusModule, unit_id: i32, parts: Option<Bod
     }
 }
 
-/// Run `f` on the module's scripts now.
-///
-/// The engine sets the module up when it loads it, before any callin, and
-/// nothing holds it when the rules run: the scripts make no engine calls that
-/// come back to the rules, and the rules' own such calls are commands, applied
-/// after they return.
 pub fn with_host(f: impl FnOnce(&mut PartsCusModule)) {
     if crate::with_cus_module(f).is_none() {
         spring::log_warning!(SECTION, "the unit-script module is busy");

@@ -9,11 +9,8 @@ use crate::state::Global;
 const FULL_MUSIC: &str = "sounds/music.ogg";
 const MUFFLED_MUSIC: &str = "sounds/muffled.ogg";
 
-/// The looping music, ported from snd_music.lua: the world sounds muffled
-/// until the player recovers the ears.
 pub struct SndMusicWidget {
     music: MusicLoop,
-    /// Whether the unmuffled track is playing; `None` before the first update.
     ears: Cell<Option<bool>>,
 }
 

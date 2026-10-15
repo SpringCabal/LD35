@@ -1,7 +1,3 @@
-//! The headless integration build's restart: once the souls-freed ending's
-//! end screen shows, ask for the restart the way its R key and click do. The
-//! rules check the new round (`integration/restart.rs`).
-
 use core::cell::Cell;
 
 use partsneeded_shared::{Command, Ending};

@@ -1,5 +1,3 @@
-//! wisp_float_arms.lua: swimming with arms but no legs.
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
@@ -19,8 +17,6 @@ pub(crate) async fn wisp_float_arms(state: Rc<RefCell<WispAnimationState>>, ctx:
     }
 }
 
-// The complete sparse wisp_hover_arms.lua animation. An omitted command
-// must remain omitted: it lets the previous turn continue as in Lua.
 #[allow(clippy::excessive_precision)]
 const FRAMES: &[(u64, &[TurnCommand])] = &[
     (

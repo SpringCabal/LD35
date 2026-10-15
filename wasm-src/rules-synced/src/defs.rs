@@ -1,12 +1,9 @@
-//! Unit def ids and the per-def custom params the rules use, resolved once.
-
 use alloc::vec;
 use alloc::vec::Vec;
 use springcabal::defs::DefCache;
 
 use partsneeded_shared::BodyPart;
 
-/// The unit defs the rules and unit scripts tell apart.
 #[derive(Clone, Copy, Debug)]
 pub struct Defs {
     pub wisp: i32,
@@ -16,7 +13,6 @@ pub struct Defs {
     pub plate: i32,
     pub cage: i32,
     pub light: i32,
-    /// Indexed by `BodyPart as usize`.
     pub parts: [i32; 6],
 }
 
@@ -35,7 +31,6 @@ impl Defs {
         }
     }
 
-    /// The def of a level unit, by its name in game_custom_spawn.lua.
     pub fn by_name(&self, name: &str) -> Option<i32> {
         let def = match name {
             "wisp" => self.wisp,
@@ -64,24 +59,16 @@ impl Defs {
     }
 }
 
-/// How the authored gadgets treat a def, from its custom params.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DefParams {
-    /// `wall` is set and not "false"/"0": pinned to the floor height.
     pub pinned_wall: bool,
-    /// `wall` without `wall_blocking` (unit_collisions.lua).
     pub scenery_wall: bool,
-    /// `trigger` (unit_plate.lua).
     pub trigger: bool,
-    /// `dungeonElement`: scenery the map places, which game_custom_spawn.lua
-    /// keeps when it (re)loads the level.
     pub dungeon_element: bool,
 }
 
 impl DefParams {
     fn resolve(def: i32) -> Self {
-        // The engine reports a missing key as an empty string, which Lua sees
-        // as nil.
         let param = |key: &str| {
             spring::unit_defs::get_unit_def_custom_param(def, key)
                 .ok()
@@ -99,8 +86,6 @@ impl DefParams {
     }
 }
 
-/// Every unit def's params, indexed by def id.  Def ids run from 1 up to the
-/// last def the engine can name.
 fn resolve_params() -> Vec<DefParams> {
     let mut params = vec![DefParams::default()];
     while spring::unit_defs::get_unit_def_name_bytes(params.len() as i32).is_ok() {
@@ -123,7 +108,6 @@ pub fn params(def: i32) -> DefParams {
         .unwrap_or_default()
 }
 
-/// The def id of a unit, or -1.
 pub fn unit_def(unit: i32) -> i32 {
     spring::get_unit_def_id(unit).map_or(-1, |def| def.0)
 }

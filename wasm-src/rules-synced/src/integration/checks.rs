@@ -1,5 +1,3 @@
-//! The scenario's checks, one function per step.
-
 use alloc::format;
 
 use partsneeded_shared::{BodyPart, Ending};
@@ -10,7 +8,7 @@ use super::scenario::{
 };
 use super::{Snapshot, Tracker};
 use crate::defs::defs;
-use crate::triggers::{LEVER_GATE, level_id};
+use crate::gadgets::triggers::behavior::{LEVER_GATE, level_id};
 
 pub(super) fn level_spawned(t: &mut Tracker, state: &Snapshot<'_>) {
     t.initial_npc_wisps = state.world.npc_wisps.len();
@@ -102,8 +100,6 @@ pub(super) fn movement_message(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn cages_hold(t: &mut Tracker, state: &Snapshot<'_>) {
-    // And they have to still be there: nothing should be nudging a
-    // prisoner out through the bars while the player is elsewhere.
     t.suite.check(
         worst_wisp_cage_distance(state) < 20.0,
         format!(
@@ -165,8 +161,6 @@ pub(super) fn body_form_and_lever(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn form_persists(t: &mut Tracker, state: &Snapshot<'_>) {
-    // The form must stay switched: the UI's prediction must not race
-    // the status snapshot back into spirit form.
     t.suite.check(
         !state.wisp.spirit,
         "body form persists after the switch instead of bouncing back to spirit",
@@ -174,9 +168,6 @@ pub(super) fn form_persists(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn lever_at_rest(t: &mut Tracker, state: &Snapshot<'_>) {
-    // Before the lever is pulled.  Scripts/lever.lua turns Base_001 in
-    // its SetWasmActivated, so the piece moving is proof the unit script
-    // actually ran -- the Rust-side trigger state alone is not.
     t.lever_piece = lever_piece_offset(state);
     t.suite.check(
         t.lever_piece.is_some(),
@@ -198,8 +189,6 @@ pub(super) fn lever_pulled(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn gate_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
-    // Sampled before the combination is set, as the baseline for the
-    // frame-140 check.
     t.gate_piece = piece_offset(state, LEVER_GATE, GATE_PIECE);
     t.suite.check(
         t.gate_piece.is_some(),
@@ -208,11 +197,6 @@ pub(super) fn gate_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn gate_opened(t: &mut Tracker, state: &Snapshot<'_>) {
-    // gate.lua sleeps half a second and then slides the slab, so give
-    // the door time to finish opening before measuring it.
-    //
-    // Reading the negative ids in game_custom_spawn.lua as "must be
-    // off" inverts all four levers and leaves this door unopenable.
     let now = piece_offset(state, LEVER_GATE, GATE_PIECE);
     let opened = match (t.gate_piece, now) {
         (Some(before), Some(after)) => (before - after).abs() > 1.0,
@@ -225,9 +209,6 @@ pub(super) fn gate_opened(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn lever_released(t: &mut Tracker, state: &Snapshot<'_>) {
-    // Levers are toggles in ui_wisp_control.lua / unit_wisp_controller.lua:
-    // a second click flips them back off.  A one-shot lever would strand
-    // the player behind any door they opened by mistake.
     let lever = level_id(state.world, TEST_LEVER);
     t.suite.check(
         lever.is_some_and(|id| !state.world.active_triggers.contains(&id)),
@@ -277,8 +258,6 @@ pub(super) fn track_walk(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn walked(t: &mut Tracker) {
-    // A spirit has no walk animation; only its body bobs.  With legs,
-    // wisp.lua's StartMoving runs the walk cycle.
     t.suite.check(
         t.leg_walk_changed,
         format!(
@@ -321,8 +300,6 @@ pub(super) fn game_over(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn form_locked_after_game_over(t: &mut Tracker, state: &Snapshot<'_>) {
-    // A switch was sent at frame 160; before game over it would have
-    // returned the eyed body to spirit form.
     t.suite.check(
         !state.wisp.spirit,
         "game-over blocks further player form-switch input",
@@ -377,8 +354,6 @@ pub(super) fn finish(t: &mut Tracker, state: &Snapshot<'_>) {
     t.suite.finish();
 }
 
-/// The scenario sends its commands and movement the way the UI does, and
-/// the rules only act on what comes back over RecvLuaMsg.
 pub(super) fn messages_delivered(t: &mut Tracker) {
     let (sent, received) = t.messages;
     t.suite.check(
@@ -389,12 +364,6 @@ pub(super) fn messages_delivered(t: &mut Tracker) {
     );
 }
 
-pub(super) fn ui_hello(t: &mut Tracker) {
-    t.suite.check(
-        t.ui_hello,
-        "the UI module's hello reaches the rules over RecvLuaMsg",
-    );
-}
 
 pub(super) fn switch_refused_without_eyes(t: &mut Tracker, state: &Snapshot<'_>) {
     t.suite.check(
@@ -411,14 +380,11 @@ pub(super) fn plate_baseline(t: &mut Tracker, state: &Snapshot<'_>) {
     );
 }
 
-/// How far the plate's button has sunk since frame 77.
 fn plate_sunk(t: &Tracker, state: &Snapshot<'_>) -> Option<f32> {
     Some((t.plate_piece? - piece_offset(state, TEST_PLATE, PLATE_PIECE)?).abs())
 }
 
 pub(super) fn plate_sank(t: &mut Tracker, state: &Snapshot<'_>) {
-    // unit_plate.lua gives the plate itself ONOFF 1; plate.lua then sinks
-    // the button 2 elmos.
     let sunk = plate_sunk(t, state);
     t.suite.check(
         sunk.is_some_and(|sunk| sunk > 1.0),
@@ -427,7 +393,6 @@ pub(super) fn plate_sank(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn plate_stays_down(t: &mut Tracker, state: &Snapshot<'_>) {
-    // The player left it at frame 146.  unit_plate.lua never sends ONOFF 0.
     let sunk = plate_sunk(t, state);
     t.suite.check(
         sunk.is_some_and(|sunk| sunk > 1.0)
@@ -438,8 +403,6 @@ pub(super) fn plate_stays_down(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn bars_opened_before_release(t: &mut Tracker, state: &Snapshot<'_>) {
-    // The lever opened cage 23261 at frame 75.  cage.lua frees its prisoner
-    // only once the bars have slid open, 40 frames later.
     let before = t.dying_before_bars_open;
     let now = state.endgame.dying_wisps.len();
     t.suite.check(
@@ -451,8 +414,6 @@ pub(super) fn bars_opened_before_release(t: &mut Tracker, state: &Snapshot<'_>) 
 }
 
 pub(super) fn kill_plate(t: &mut Tracker, state: &Snapshot<'_>) {
-    // The player stepped on it at frame 166.  A killing cage doesn't open
-    // its bars: its prisoner dies on the same frame.
     let killed = state
         .endgame
         .dying_wisps
@@ -466,8 +427,6 @@ pub(super) fn kill_plate(t: &mut Tracker, state: &Snapshot<'_>) {
 }
 
 pub(super) fn cage_stays_open(t: &mut Tracker, state: &Snapshot<'_>) {
-    // Its lever was released at frame 78, and its other source, a plate, was
-    // never pressed.  unit_plate.lua never turns a triggerable back off.
     let cage = level_id(state.world, TEST_LEVER_CAGE);
     t.suite.check(
         cage.is_some_and(|id| state.world.active_triggerables.contains(&id)),

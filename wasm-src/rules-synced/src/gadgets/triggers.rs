@@ -1,3 +1,4 @@
+pub mod behavior;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
@@ -5,18 +6,11 @@ use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::cages;
 use crate::state::Global;
-use crate::triggers;
 
-/// unit_plate.lua's UPDATE_RATE: the trigger network is evaluated every this
-/// many frames.
 const UPDATE_RATE: i32 = 5;
 
-/// Plates, levers and the doors and cages they open, ported from
-/// `unit_plate.lua` and `cage.lua`.
 #[derive(Default)]
 pub struct TriggersGadget {
-    /// Opened cages whose prisoner is freed or killed on a later frame:
-    /// (cage, frame, kill).
     opening_cages: RefCell<Vec<(i32, i32, bool)>>,
 }
 
@@ -34,7 +28,7 @@ impl Gadget<Global> for TriggersGadget {
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
         if frame % UPDATE_RATE == 0 {
-            let opened = triggers::update_triggers(global);
+            let opened = behavior::update_triggers(global);
             let mut opening = self.opening_cages.borrow_mut();
             for (cage, kill) in opened {
                 let due = if kill {
@@ -60,7 +54,6 @@ impl Gadget<Global> for TriggersGadget {
         }
     }
 
-    /// A cage destroyed while opening (the level restarting) frees no one.
     fn unit_destroyed(
         &self,
         _ctx: &spring_addons::AddonContext<'_, Global>,

@@ -6,24 +6,8 @@ use springcabal::shots::{Clock, Screenshots, screenshot};
 
 use crate::state::Global;
 
-/// Shot 2 is the start room once the switch to body form (frame 66 in the
-/// rules' scenario) has settled. The screen's spirit-to-body fade runs 15
-/// frames from the update in which the UI hears of the switch, usually frame
-/// 67, so it is over by frame 84 unless the UI misses more than two frames. A
-/// shot inside the fade catches a different fade state whenever the capture
-/// lands a frame or two later, which happens whenever the UI's updates skip
-/// frames. The body itself is out of view by 84: the scenario moves it to a
-/// plate in another room at frame 82. Shot 2 shows the body-form view and the
-/// lever the body pulled twice, back at rest.
-///
 const SHOT_FRAMES: [u32; 2] = [30, 84];
 
-/// Shots 3 and 4 show the body standing on the plate the scenario moved it
-/// to at frame 82 (it stops at 91): with eyes, arms and legs, then with two
-/// parts more (picked up at 124 and 126). The camera follows the wisp with
-/// wall-clock smoothing, so where it is on a given frame depends on how long
-/// the earlier captures took; each shot waits for it to settle instead, from
-/// its first frame until the frame before the scenario changes the scene.
 const SETTLED_SHOTS: [SettledShot; 2] = [
     SettledShot {
         label: "3 (body on the plate)",
@@ -37,25 +21,18 @@ const SETTLED_SHOTS: [SettledShot; 2] = [
     },
 ];
 
-/// The camera has settled when it moved less than this (elmos) in each of
-/// `SETTLED_UPDATES` updates in a row.
 const SETTLED_STEP: f32 = 0.5;
 const SETTLED_UPDATES: u32 = 3;
 
-/// Without the ending scenario there is nothing left to capture: quit at
-/// frame 198.
 #[cfg(not(feature = "headless-integration"))]
 const QUIT_AFTER_LAST_SHOT: i32 = 60;
 
 struct SettledShot {
     label: &'static str,
     from: i32,
-    /// Taken on this frame even if the camera is still moving, and logged
-    /// as unsettled: the suite fails on that line.
     until: i32,
 }
 
-/// How long after the type-1 ending starts its final screenshot is taken.
 const ENDING_FINAL_SHOT_DELAY: i32 = 180;
 
 pub struct DbgE2eWidget {
@@ -87,7 +64,6 @@ impl DbgE2eWidget {
         Self::default()
     }
 
-    /// Updates in a row the camera has barely moved.
     fn track_camera(&self) -> u32 {
         let Ok(now) = spring::camera::get_camera_position(0) else {
             self.still_updates.set(0);
@@ -106,7 +82,6 @@ impl DbgE2eWidget {
         updates
     }
 
-    /// Take the next settled shot once its camera is still.
     fn settled_shot(&self, frame: i32) {
         let still_updates = self.track_camera();
         let Some(shot) = SETTLED_SHOTS.get(self.settled_taken.get()) else {
@@ -147,11 +122,6 @@ impl Widget<Global> for DbgE2eWidget {
             let _ = spring::system_control::quit(0);
             return;
         }
-        // The normal smoke screenshots finish before the ceremony starts.
-        // In the Parts Needed E2E build the synced integration scenario also
-        // exercises Ending #2; capture its completed visual sequence before
-        // ending the run so the converging wisps and final overlay are tested,
-        // not just the rules-side marker.
         let ending = ctx.global().player.access();
         if ending.ending == Some(Ending::SoulsFreed)
             && ending.game_over_sequence

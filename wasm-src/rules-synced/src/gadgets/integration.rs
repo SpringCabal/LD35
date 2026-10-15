@@ -1,5 +1,3 @@
-//! Drives the headless integration scenario through the real message path.
-
 use alloc::rc::Rc;
 use alloc::string::String;
 use core::cell::{Cell, RefCell};
@@ -9,13 +7,13 @@ use spring::commands;
 use spring_addons::rules::Gadget;
 
 use crate::defs::{defs, unit_def};
+use crate::gadgets::triggers::behavior::level_id;
 use crate::integration::same_pass::{self, Step};
 use crate::integration::scenario::{
     KILL_PLATE, LAST_ROOM_PLATE, LEVER_GATE_PULLS, TEST_LEVER, TEST_PLATE,
 };
 use crate::integration::{self, Tracker, ending, restart};
 use crate::state::Global;
-use crate::triggers::level_id;
 use springcabal_control::protocol;
 
 const MOVE_RIGHT: (i32, i32) = (1, 0);
@@ -27,14 +25,8 @@ pub struct IntegrationGadget {
     ending: RefCell<ending::EndingTracker>,
     restart: RefCell<restart::RestartTracker>,
     same_pass: RefCell<same_pass::SamePassTracker>,
-    /// Whether the UI module's hello arrived over RecvLuaMsg.
-    ui_hello: Cell<bool>,
-    /// The scenario's own commands and movement messages: how many it sent,
-    /// and how many came back over RecvLuaMsg.
     sent: Rc<Cell<u32>>,
     received: Cell<u32>,
-    /// Where the player stood before the kill-plate step, restored for the
-    /// ending scenario.
     before_kill_plate: Cell<Option<spring::Float3>>,
 }
 
@@ -58,7 +50,7 @@ impl Gadget<Global> for IntegrationGadget {
         data: &[u8],
     ) {
         if data == Command::Hello.encode().as_bytes() {
-            self.ui_hello.set(true);
+            let _ = spring::echo("[PartsNeeded-Rust-Test] PARTS NEEDED UI HANDSHAKE PASSED", "");
         } else if core::str::from_utf8(data).is_ok_and(|message| {
             Command::decode(message).is_some() || protocol::decode_direction(message).is_some()
         }) {
@@ -70,7 +62,6 @@ impl Gadget<Global> for IntegrationGadget {
         let global = ctx.global();
         {
             let mut tracker = self.tracker.borrow_mut();
-            tracker.ui_hello = self.ui_hello.get();
             tracker.messages = (self.sent.get(), self.received.get());
             integration::update(&mut tracker, global, frame);
         }
@@ -84,28 +75,19 @@ impl Gadget<Global> for IntegrationGadget {
         }
         match frame {
             20 => self.steer(MOVE_RIGHT),
-            // Release the key again before the frame-30 check.
             26 => self.steer(STAND_STILL),
-            // Walk right, from the start room and on the plate it is moved
-            // to at 82, then stand still on the plate for the visual suite's
-            // settled shots 3 and 4 (ui/src/widgets/dbg_e2e.rs).
             73 => self.steer(MOVE_RIGHT),
             91 => self.steer(STAND_STILL),
-            // Out of reach, and still a spirit: the rules must refuse it.
             25 => {
                 if let Some(lever) = level_unit(global, TEST_LEVER) {
                     self.send(Command::PullLever(lever));
                 }
             }
-            // Past the cooldown from frame 0, still without eyes: refused, and
-            // it must not start the cooldown that would refuse the next one.
             62 => self.send(Command::SwitchForm),
             63 => move_part_to_wisp(global, Some(BodyPart::Eyes)),
             66 => self.send(Command::SwitchForm),
             70 => move_part_to_wisp(global, Some(BodyPart::Arms)),
-            // Pull the same lever twice: the second pull has to toggle it off.
             72 | 78 => self.bring_and_pull_lever(global, TEST_LEVER),
-            // Set the first door's lever combination.
             79 => {
                 for key in LEVER_GATE_PULLS {
                     self.bring_and_pull_lever(global, key);
@@ -117,11 +99,7 @@ impl Gadget<Global> for IntegrationGadget {
                     move_wisp_next_to(global, plate, 45.0);
                 }
             }
-            // The last three parts: two after shot 3, one after shot 4.
             124 | 126 | 138 => move_part_to_wisp(global, None),
-            // Test the one-way last-room plate after the normal pickup and
-            // game-over checks have completed, so this scenario cannot alter
-            // the pickup sequence being tested above.
             146 => {
                 if let Some(plate) = level_unit(global, LAST_ROOM_PLATE) {
                     move_wisp_next_to(global, plate, 0.0);
@@ -131,7 +109,6 @@ impl Gadget<Global> for IntegrationGadget {
                 let wisp = global.wisp.access().id;
                 move_wisp_next_to(global, wisp, 180.0);
             }
-            // After game over, and past the cooldown from frame 66: refused.
             160 => self.send(Command::SwitchForm),
             166 => {
                 self.before_kill_plate.set(wisp_position(global));
@@ -158,10 +135,6 @@ fn wisp_position(global: &Global) -> Option<spring::Float3> {
 }
 
 impl IntegrationGadget {
-    /// Send a message the way the UI does, back to the rules' RecvLuaMsg.
-    /// Sent from the synced rules, it is handled inside the call: queued, it
-    /// comes after the scenario's other commands of the frame (a lever it
-    /// pulls is already next to the player).
     fn send_message(&self, message: &str) {
         let message = String::from(message);
         let sent = Rc::clone(&self.sent);
@@ -178,12 +151,10 @@ impl IntegrationGadget {
         self.send_message(&command.encode());
     }
 
-    /// The held movement keys, as the UI reports them.
     fn steer(&self, direction: (i32, i32)) {
         self.send_message(&protocol::encode_direction(direction));
     }
 
-    /// Carry out a step of the same-pass scenario, in the restarted round.
     fn same_pass_step(&self, global: &Global, step: Step) {
         match step {
             Step::CollectParts => {
@@ -209,7 +180,6 @@ impl IntegrationGadget {
     }
 }
 
-/// Place a body-part pickup on the player (`None`: the first one left).
 fn move_part_to_wisp(global: &Global, part: Option<BodyPart>) {
     let pickup = {
         let wisp = global.wisp.access();
@@ -229,7 +199,6 @@ fn move_part_to_wisp(global: &Global, part: Option<BodyPart>) {
     }
 }
 
-/// Place the player `dx` elmos east of `unit`.
 fn move_wisp_next_to(global: &Global, unit: i32, dx: f32) {
     let wisp = global.wisp.access().id;
     if let Ok(position) = spring::get_unit_position(unit, false, false) {

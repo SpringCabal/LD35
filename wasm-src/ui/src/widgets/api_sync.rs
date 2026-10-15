@@ -3,11 +3,8 @@ use spring_addons::ui::Widget;
 
 use crate::state::Global;
 
-/// Frames to trust a local form prediction before assuming the rules module
-/// refused the switch.  The round trip is a few frames; this is generous.
 const PENDING_TIMEOUT: i32 = 30;
 
-/// Applies the rules module's status, sent whenever it changes.
 #[derive(Default)]
 pub struct ApiSyncWidget;
 
@@ -22,14 +19,10 @@ impl Widget<Global> for ApiSyncWidget {
         "ApiSync"
     }
 
-    /// The rules only send the status when it changes, so a UI that starts
-    /// mid-game (a LuaUI reload) asks for it.
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
         crate::commands::send(Command::Hello);
     }
 
-    /// A refused switch changes nothing on the rules side, so no status
-    /// arrives to correct the prediction: undo it here once it times out.
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
         let mut player = ctx.global().player.access_mut();
         if player.pending_spirit.is_none()
@@ -57,9 +50,6 @@ impl Widget<Global> for ApiSyncWidget {
         let mut player = ctx.global().player.access_mut();
         player.rules_spirit = new_spirit;
 
-        // While a form change is in flight the status still reports the old
-        // form.  Keep the local prediction until the synced side agrees;
-        // `update` drops it if the rules module never does.
         let predicted = player.pending_spirit.is_some();
         let stale = match player.pending_spirit {
             Some(wanted) if wanted == new_spirit => {
@@ -93,9 +83,6 @@ impl Widget<Global> for ApiSyncWidget {
         }
         let wisp = status.wisp;
         crate::show_body(wisp, !new_spirit);
-        // Form changes we predicted already played this on the keypress; this
-        // covers changes that originate synced-side (game over forcing spirit
-        // form, for instance).
         if was_spirit != new_spirit && !predicted {
             let position = spring::get_unit_position(wisp, false, false)
                 .unwrap_or_else(|_| spring::types::Float3::default());

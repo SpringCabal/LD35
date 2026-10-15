@@ -10,14 +10,10 @@ use partsneeded_shared::{BodyPart, Command, FORM_COOLDOWN, LEVER_REACH};
 use springcabal::menu;
 use springcabal_control::keyboard::{KeyMovement, send_direction};
 
-/// The clickable band around the end screen's "Click or press R to restart"
-/// line, relative to the screen centre.
 const RESTART_PROMPT_HALF_WIDTH: i32 = 190;
 const RESTART_PROMPT_TOP: i32 = -52;
 const RESTART_PROMPT_BOTTOM: i32 = -12;
 
-/// Direct player control, ported from `ui_wisp_control.lua`: movement, form
-/// switches, lever pulls and the end screen's restart.
 #[derive(Default)]
 pub struct GuiWispControlWidget {
     movement: KeyMovement,
@@ -34,7 +30,6 @@ impl GuiWispControlWidget {
         }
     }
 
-    /// The rules hear about the held keys only when they change.
     fn update_movement(&self, event: &KeyEvent<'_>, pressed: bool) -> EventResult {
         let claimed = self.movement.key(event, pressed);
         if claimed {
@@ -50,9 +45,7 @@ impl Widget<Global> for GuiWispControlWidget {
     }
 
     fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
-        // Retries a direction the engine didn't take.
         self.movement.send(send_direction);
-        // The player never selects anything: the wisp is steered directly.
         if spring::selection::get_selected_units_count(0).unwrap_or(0) > 0 {
             let _ = spring::selection::select_unit_array(&[], false);
         }
@@ -69,7 +62,6 @@ impl Widget<Global> for GuiWispControlWidget {
         event: &KeyEvent<'_>,
     ) -> EventResult {
         if event.matches("r") && ctx.global().player.access().end_screen_shown() {
-            // ui_endgame.lua's Restart button: the rules start the level over.
             send(Command::Restart);
             return EventResult::Handled;
         }
@@ -80,21 +72,12 @@ impl Widget<Global> for GuiWispControlWidget {
         if event.matches("space") {
             send(Command::SwitchForm);
             let mut player = ctx.global().player.access_mut();
-            // Only dismiss the hint once it is actually on screen.  Latching on
-            // any space press meant tapping space before collecting the eyes
-            // suppressed the prompt for the rest of the game.
             let has_eyes = player.parts.contains(BodyPart::Eyes);
             if player.spirit && has_eyes {
                 player.space_used = true;
             }
-            // Predict the same result the rules module will compute, so the UI
-            // and the synced side cannot disagree about what was asked for:
-            // leaving spirit form needs eyes, otherwise it stays spirit.
             let current = player.spirit;
             let wanted = !(current && has_eyes);
-            // Mirror the rules module's form-change cooldown.  Predicting a
-            // switch it is going to refuse just means the prediction snaps back
-            // when it times out.
             let now = spring::game::current_frame();
             let off_cooldown = now - self.last_form_change.get() > FORM_COOLDOWN;
             if wanted != current && off_cooldown {
@@ -104,13 +87,9 @@ impl Widget<Global> for GuiWispControlWidget {
                 let wisp = player.wisp;
                 player.pending_spirit = Some(wanted);
                 player.pending_since = spring::game::current_frame();
-                let position = spring::get_unit_position(player.wisp, false, false)
-                    .unwrap_or_else(|_| spring::types::Float3::default());
                 drop(player);
-                // unit_wisp_controller.lua plays this when the form changes.  It
-                // has to be here, not in api_sync: the prediction above has
-                // already flipped our copy of `spirit`, so by the time the
-                // snapshot arrives there is no change left for it to notice.
+                let position = spring::get_unit_position(wisp, false, false)
+                    .unwrap_or_else(|_| spring::types::Float3::default());
                 let _ = spring::sound::play_sound_file(
                     "sounds/changestate.ogg",
                     1.0,
@@ -118,8 +97,6 @@ impl Widget<Global> for GuiWispControlWidget {
                     spring::types::Float3::default(),
                     0,
                 );
-                // Show the body now.  Waiting for the rules module to answer
-                // and api_sync to apply no-draw costs a visible round trip.
                 crate::show_body(wisp, !wanted);
             }
             return EventResult::Handled;
@@ -148,29 +125,19 @@ impl Widget<Global> for GuiWispControlWidget {
             && (x - center_x).abs() <= RESTART_PROMPT_HALF_WIDTH
             && (center_y + RESTART_PROMPT_TOP..=center_y + RESTART_PROMPT_BOTTOM).contains(&y);
         if in_restart_prompt {
-            // ui_endgame.lua's Restart button, like the R shortcut.
             send(Command::Restart);
             return EventResult::Handled;
         }
         let global = ctx.global().player.access();
-        // Match ui_wisp_control.lua: only the embodied, armed player can pull a
-        // nearby lever.  In particular, tracing a lever is not enough while the
-        // player is a spirit or looking across the map.
         if button != mouse::LEFT
             || global.game_over
             || global.spirit
             || !global.parts.contains(BodyPart::Arms)
         {
-            // Claim the middle button as well. The engine only gives its
-            // camera receiver the drag when no input receiver handles the
-            // press; handling it here disables camera rotation.
             return matches!(button, mouse::LEFT | mouse::MIDDLE | mouse::RIGHT).into();
         }
-        // Prefer the lever the highlight widget is already glowing: it traced
-        // the cursor this frame, and a second TraceScreenRay in the same frame
-        // interferes with the first and comes back with no hit at all.  Falling
-        // back to our own trace keeps clicks working if the glow never
-        // initialised (no GL, or a shader that failed to build).
+        let wisp = global.wisp;
+        drop(global);
         let hovered = *ctx.global().hovered_lever.access();
         let unit_id = if let Some(hovered) = hovered {
             hovered
@@ -183,7 +150,6 @@ impl Widget<Global> for GuiWispControlWidget {
         if unit_def(unit_id) != defs().lever {
             return EventResult::Handled;
         }
-        let wisp = global.wisp;
         let (Ok(lever_position), Ok(wisp_position)) = (
             spring::get_unit_position(unit_id, false, false),
             spring::get_unit_position(wisp, false, false),

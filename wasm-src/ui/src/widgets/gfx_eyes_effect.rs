@@ -1,6 +1,3 @@
-//! The authored screen treatment, spirit sprites and trail, ported from
-//! `gfx_eyes_effect.lua` and `unit_wisp_draw.lua`.
-
 use core::cell::{Cell, RefCell};
 
 use spring::gl;
@@ -18,7 +15,6 @@ use npcs::Npcs;
 use sprites::Sprites;
 use trail::Trail;
 
-/// The world camera, captured where it is the live one.
 #[derive(Default)]
 pub struct Camera {
     pub projection: [f32; 16],
@@ -52,8 +48,6 @@ impl GfxEyesEffectWidget {
         Self::default()
     }
 
-    /// The combine pass's inputs: the form transition, and the ending's fade
-    /// to white and back.
     fn screen_amounts(&self, ctx: &spring_addons::AddonContext<'_, Global>) -> ScreenAmounts {
         let (form, sequence) = {
             let player = ctx.global().player.access();
@@ -100,11 +94,6 @@ impl Widget<Global> for GfxEyesEffectWidget {
         self.npcs.borrow_mut().refresh(ending);
     }
 
-    /// Remember the camera matrices for the billboard pass, and draw the trail.
-    ///
-    /// unit_wisp_draw.lua gets them with gl.LoadMatrix("camprj"/"camera");
-    /// there is no named-matrix callout here, so capture them in a world callin
-    /// where they are the live ones.
     fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
         let mut camera = self.camera.borrow_mut();
         if let Ok(projection) = spring::gfx::get_matrix_data(gl::PROJECTION)

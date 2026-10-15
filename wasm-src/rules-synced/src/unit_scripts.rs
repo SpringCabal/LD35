@@ -1,5 +1,3 @@
-//! Parts Needed's unit scripts, implemented on top of the portable CUS API.
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
@@ -9,7 +7,7 @@ use spring::cus::{
     WreckLevel,
 };
 
-use crate::wisp::group_visible;
+use crate::gadgets::wisp::behavior::group_visible;
 
 mod module;
 mod props;
@@ -26,7 +24,6 @@ use wisp::{
     wisp_idle,
 };
 
-// Signals are per unit and gates never walk, so the two share a bit.
 pub(crate) const SIG_GATE: SignalMask = SignalMask::new(1);
 pub(crate) const SIG_WALK: SignalMask = SignalMask::new(1);
 pub(crate) const SIG_FLOAT: SignalMask = SignalMask::new(4);
@@ -107,16 +104,9 @@ impl UnitScript for PartsUnitScript {
     fn create(&mut self, ctx: &UnitCtx) {
         match self.kind {
             Some(ScriptKind::Wisp) => {
-                // Every wisp starts as a spirit with all pieces hidden, as
-                // unit_powerup_controller.lua hides them the moment it is
-                // created.
                 for piece in self.pieces.all {
                     ctx.hide(piece);
                 }
-                // Lua's script.Create applies the first idle keyframe before
-                // creating any sleeping animation thread.  Do the same
-                // synchronously; putting this in a task shifts the whole
-                // startup pose by one simulation frame.
                 apply_wisp_idle_frame(ctx, self.pieces);
                 ctx.spawn(TaskDefinition::with_state(
                     "partsneeded-wisp-create",
@@ -238,8 +228,6 @@ impl UnitScript for PartsUnitScript {
 }
 
 impl PartsUnitScript {
-    /// Show the pieces of the collected body parts (`None`: a spirit, fully
-    /// hidden), and switch to the gait the limbs allow.
     fn set_piece_mask(&mut self, ctx: &UnitCtx, parts: Option<BodyParts>) {
         let p = self.pieces;
         let old_parts = self.animation.borrow().parts;
@@ -256,12 +244,6 @@ impl PartsUnitScript {
             }
         }
 
-        // SetPieceVisible() in the Lua script calls updateMovement() whenever
-        // the arms or legs group changes: a moving wisp switches to the gait
-        // its limbs allow (walk with legs, float_arms "swim" with arms only),
-        // a standing one to idle.  Without this, a wisp that gains arms while
-        // already moving keeps its old animation, and the first spirit ->
-        // corporal switch leaves the body frozen at its spirit-form pose.
         let limbs = |parts: BodyParts| {
             (
                 parts.contains(BodyPart::Arms),

@@ -10,11 +10,8 @@ mod units;
 
 use units::{GATES, LEVEL_UNITS};
 
-/// The dungeon floor height every authored unit stands on.
 pub const FLOOR_Y: f32 = 411.499_02;
 
-/// Take a unit out of the collision world.  Levers keep `quad_map_rays` so a
-/// screen trace can still find them to click.
 pub fn clear_blocking(id: i32, quad_map_rays: bool) {
     let result = spring::set_unit_blocking(
         id,
@@ -38,23 +35,11 @@ pub struct LevelUnit {
     pub x: f32,
     pub y: f32,
     pub z: f32,
-    /// Euler rotation from `map_customs.lua`, applied with SetUnitRotation the
-    /// way s11n's unit bridge does.
     pub rot: spring::Float3,
-    /// Mid/aim position offsets, relative to the unit, when the entry carries a
-    /// `midAimPos` override.
-    ///
-    /// These are not cosmetic.  A cage's collision volume centres on its mid
-    /// position, and the authored offset pushes it 31 elmos back into the cell;
-    /// without it the volume sits on the model origin, right where unit_cage.lua
-    /// spawns the prisoner, and the engine shoves the new wisp out through the
-    /// bars to the nearest free spot.
     pub mid: Option<spring::Float3>,
     pub aim: Option<spring::Float3>,
 }
 
-/// Create a unit of the player's team at `position`; `then` gets its id once
-/// it exists, after its UnitCreated.
 pub fn spawn_unit(
     name: &'static str,
     def: i32,
@@ -80,8 +65,6 @@ pub fn spawn_unit(
     );
 }
 
-/// Engine unit id by map_customs.lua content key, filled in as the level's
-/// units are created.
 type Ids = Rc<RefCell<Vec<(i32, i32)>>>;
 
 fn create(unit: LevelUnit, ids: &Ids) {
@@ -101,19 +84,11 @@ fn create(unit: LevelUnit, ids: &Ids) {
     );
 }
 
-/// Runs as soon as the unit exists, so its calls apply in order: the gate
-/// setup reads back the position set here.
 fn configure(unit: &LevelUnit, def: i32, id: i32) {
     let defs = crate::defs::defs();
-    // All authored static level geometry is placed at an explicit map height.
-    // The player wisp is also an authored entry, but it must retain its normal
-    // ground move type; putting it under MoveCtrl makes the walk animation run
-    // while the unit itself remains completely immobile.
     if def != defs.wisp {
         configure_fixed_height(id, Float3::new(unit.x, unit.y, unit.z));
     }
-    // game_custom_spawn.lua restores these through s11n's unit bridge, which
-    // replays every serialised field, rotation and mid/aim positions included.
     check(
         "level unit rotation",
         id,
@@ -149,10 +124,6 @@ fn configure_fixed_height(unit_id: i32, position: Float3) {
     );
 }
 
-/// Gates are terrain doors, not free-standing blockers. Keep their model at
-/// the floor height that was authored for the map while the closed terrain is
-/// raised around it. MoveCtrl prevents the engine from lifting the model onto
-/// that raised terrain, matching Gravitas' wall setup.
 fn configure_gate(unit_id: i32, floor_y: f32) {
     check(
         "gate always visible",
@@ -196,14 +167,7 @@ fn configure_gate(unit_id: i32, floor_y: f32) {
     clear_blocking(unit_id, false);
 }
 
-/// Claim the four gates the map's featureplacer has already built.
-///
-/// game_custom_spawn.lua destroyed the map's gates and rebuilt them, purely so
-/// they were registered with s11n.  The map's own gates are already in the
-/// right places facing the right way, so adopt them and only build one if the
-/// map somehow did not.
 fn adopt_map_gates(ids: &Ids) {
-    // A gate slot is only ever matched by a gate standing essentially on it.
     const MATCH_RADIUS_SQUARED: f32 = 64.0 * 64.0;
     let mut claimed = [false; GATES.len()];
     let mut adopted = Vec::new();
@@ -234,7 +198,6 @@ fn adopt_map_gates(ids: &Ids) {
         }
     }
 
-    // Set up in queue order: after the level units created above.
     let adopted_ids = Rc::clone(ids);
     commands::run(move || {
         for (slot, unit_id) in adopted {
@@ -249,8 +212,6 @@ fn adopt_map_gates(ids: &Ids) {
     }
 }
 
-/// Build the level. `done` gets each unit's engine id by content key once
-/// every unit exists and is configured.
 pub fn spawn(done: impl FnOnce(Vec<(i32, i32)>) + 'static) {
     let ids: Ids = Rc::new(RefCell::new(Vec::with_capacity(
         LEVEL_UNITS.len() + GATES.len(),

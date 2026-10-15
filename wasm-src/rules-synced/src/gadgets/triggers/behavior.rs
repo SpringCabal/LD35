@@ -1,5 +1,3 @@
-//! Levers, plates and the doors they drive.
-
 use partsneeded_shared::BodyPart;
 use spring::{cmd, commands};
 
@@ -7,9 +5,6 @@ use alloc::vec::Vec;
 
 use crate::state::{Global, PUBLIC, World};
 
-/// The four gate rectangles from map_customs.lua.  These are terrain walls,
-/// not just decoration: the authored Lua game raises the height map while a
-/// gate is closed, so a wisp cannot walk through the doorway.
 #[allow(clippy::excessive_precision, clippy::inconsistent_digit_grouping)]
 pub(crate) const GATE_AREAS: &[(i32, f32, f32, f32, f32)] = &[
     (20, 4105.493_16, 1250.606_93, 4340.235_35, 1300.816_77),
@@ -21,37 +16,15 @@ pub(crate) const GATE_AREAS: &[(i32, f32, f32, f32, f32)] = &[
 pub(crate) const GATE_CLOSED_HEIGHT: f32 = 499.0;
 const GATE_OPEN_HEIGHT: f32 = 411.5;
 
-/// The standing plates, by level key.  A plate is pressed once an embodied
-/// player with legs stands on it.
 const PLATES: [i32; 8] = [26492, 31488, 12701, 12688, 13688, 14688, 15688, 11688];
 
-/// Gate 20 opens from a lever combination instead of a link.
 pub const LEVER_GATE: i32 = 20;
 
-/// game_custom_spawn.lua: `["20"] = {-29318, 23884, -14619, -19115}`.
-///
-/// The sign is *not* "must be off".  A negative id sets `reverseEff`, which
-/// BitmaskLink stores as the second tuple element, and unit_plate.lua then
-/// fails the mask on `triggerObj[2] ~= active` -- so a negative id means the
-/// lever must be ON, and the one positive id means it must be OFF.  The floor
-/// markers in that room show the same three circles and one cross.
 const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
     [(29318, true), (23884, false), (14619, true), (19115, true)];
 
-/// unit_plate.lua's radius: a plate is pressed by a player standing this close.
 const PLATE_RADIUS: f32 = 60.0;
 
-/// One pass of unit_plate.lua's GameFrame.  Returns the cages it opened,
-/// each with whether it kills its prisoner.
-///
-/// unit_plate.lua only ever sends ONOFF 1 (its ONOFF 0 is commented out), so
-/// everything but a lever latches: a pressed plate stays down, and a door or
-/// cage stays open once any of its sources has opened it.  Levers are the
-/// only toggles; the player flips them (`input::pull_lever`).
-///
-/// cage.lua reads `do_kill` when the cage activates, so the first link that
-/// opens a cage decides its prisoner's fate: a lever link ahead of a kill
-/// link in the same pass saves it, and a kill link set later changes nothing.
 pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
     let (has_legs, spirit, wisp_id) = {
         let wisp = global.wisp.access();
@@ -107,8 +80,6 @@ pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
     cages
 }
 
-/// Open a door or cage: a gate's doorway terrain drops now, its model and a
-/// cage's bars follow the ONOFF order.
 fn open(world: &World, id: i32) {
     if let Some((_, x1, z1, x2, z2)) = gate_area(world, id) {
         set_gate_physics(id, x1, z1, x2, z2, true);
@@ -124,9 +95,6 @@ fn give_onoff(id: i32, on: bool) {
     );
 }
 
-/// Apply the initial closed state after the level units have been created.
-/// Map gates can predate the WASM rules module, so this also covers adopted
-/// map units rather than relying on UnitCreated.
 pub fn initialize_gate_terrain(world: &World) {
     for (key, x1, z1, x2, z2) in GATE_AREAS {
         let Some(id) = level_id(world, *key) else {
@@ -154,7 +122,6 @@ pub fn set_trigger(world: &mut World, id: i32, active: bool) {
     }
 }
 
-/// Turn a triggerable on; true if it was off.
 fn switch_on(world: &mut World, id: i32) -> bool {
     if world.active_triggerables.contains(&id) {
         return false;
@@ -176,14 +143,11 @@ fn set_gate_physics(id: i32, x1: f32, z1: f32, x2: f32, z2: f32, open: bool) {
     } else {
         GATE_CLOSED_HEIGHT
     };
-    // The terrain is what actually blocks a closed doorway.
     crate::log::check(
         "gate terrain",
         id,
         spring::level_height_map(x1, z1, x2, z2, height),
     );
-    // The terrain is the gate's collision. The model itself stays embedded in
-    // the wall and must never become a second, offset blocker.
     crate::level::clear_blocking(id, false);
     crate::log::check(
         "gate collision update",

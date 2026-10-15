@@ -1,5 +1,3 @@
-//! wisp_walk_arms.lua.
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 

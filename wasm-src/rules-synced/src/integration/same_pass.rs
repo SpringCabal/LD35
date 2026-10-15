@@ -1,58 +1,33 @@
-//! A lever and a kill plate opening the same cage in one trigger pass, run in
-//! the restarted round once the restart suite is done, where every cage is
-//! closed again.
-//!
-//! cage.lua reads `do_kill` when the cage activates, so the first link that
-//! opens it decides its prisoner's fate. The port walks the links in
-//! game_custom_spawn.lua's table order: in the first room the levers are
-//! listed before the kill plate, in the right-hand room the kill plates
-//! before the lever. Each room is played once: the lever is pulled between
-//! two passes, and the player steps on the plate on the frame before the
-//! next one.
-
 use alloc::format;
 use alloc::vec::Vec;
 
 use springcabal::check::Suite;
 
 use crate::cages::OPEN_FRAMES;
+use crate::gadgets::triggers::behavior::{is_trigger_active, level_id, nearby};
 use crate::state::Global;
-use crate::triggers::{is_trigger_active, level_id, nearby};
 
-/// What the scenario asks the integration gadget to do on a frame.
 pub enum Step {
-    /// Put the eyes, arms and legs pickups on the player.
     CollectParts,
     SwitchForm,
-    /// Bring the lever with this level key to the player and pull it.
     PullLever(i32),
-    /// Put the player on the plate with this level key.
     StandOn(i32),
 }
 
-/// A room where a lever and a kill plate both open cages. The keys and
-/// fates are read from game_custom_spawn.lua, not from the rules' table, so
-/// a mistake there can't make the check pass.
 struct Room {
     name: &'static str,
     lever: i32,
     plate: i32,
-    /// The plate's cages, each with whether its prisoner is saved.
     cages: [(i32, bool); 4],
 }
 
 const ROOMS: [Room; 2] = [
-    // `[27806] = 15054` is listed before `[26492] = { -23261, -27501,
-    // -5316, -15054 }`: the lever's link comes first.
     Room {
         name: "first room",
         lever: 27806,
         plate: 26492,
         cages: [(23261, false), (27501, false), (5316, false), (15054, true)],
     },
-    // `[12688] = { -1811, -16824, -24489, -28033 }` is listed before
-    // `[18496] = { 1811, 16824, 24489, 28033 }`: the kill plate's links come
-    // first.
     Room {
         name: "right-hand room",
         lever: 18496,
@@ -66,29 +41,18 @@ const ROOMS: [Room; 2] = [
     },
 ];
 
-/// Frames after the restarted level spawned: the restart suite's checks are
-/// made on 12.
 const COLLECT_PARTS: i32 = 13;
 const SWITCH_FORM: i32 = 15;
-/// The first room's pass is the first trigger pass at least this late.
 const FIRST_PASS_AFTER: i32 = 25;
-/// Frames between the two rooms' passes: the first room's saved prisoner is
-/// checked on the pass frame plus `OPEN_FRAMES + 1`.
 const ROOM_GAP: i32 = 50;
-/// unit_plate.lua's UPDATE_RATE, as `gadgets::triggers` uses it.
 const UPDATE_RATE: i32 = 5;
-/// cage.lua looks for its prisoner within this radius.
 const PRISONER_RADIUS: f32 = 50.0;
 
-/// Each room makes a precondition check and a same-pass check; the first
-/// room also checks the saved prisoner once its bars are open.
 const CHECKS: u32 = 5;
 
 pub struct SamePassTracker {
     suite: Suite,
-    /// The first room's pass frame, fixed once the restarted round is seen.
     first_pass: Option<i32>,
-    /// Each cage's prisoner, found on the frame before its room's pass.
     prisoners: Vec<(i32, Option<i32>)>,
 }
 
@@ -106,8 +70,6 @@ impl Default for SamePassTracker {
     }
 }
 
-/// Run the scenario for `frame`, after the restart suite has finished.
-/// Returns what the integration gadget has to do on this frame.
 pub fn update(t: &mut SamePassTracker, global: &Global, frame: i32) -> Option<Step> {
     if t.suite.is_finished() {
         return None;
@@ -126,7 +88,6 @@ pub fn update(t: &mut SamePassTracker, global: &Global, frame: i32) -> Option<St
     }
     for (index, room) in ROOMS.iter().enumerate() {
         let pass = first_pass + index as i32 * ROOM_GAP;
-        // Between two passes, so the lever is on before the plate's pass.
         if frame == pass - UPDATE_RATE + 1 {
             return Some(Step::PullLever(room.lever));
         }
@@ -202,8 +163,6 @@ fn after_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
             level_id(&world, *cage).is_some_and(|id| world.active_triggerables.contains(&id))
         })
         .count();
-    // A killing cage resolves at once; a saving one only once its bars are
-    // open, 40 frames later.
     let fates: Vec<(i32, Option<bool>)> = room
         .cages
         .iter()
@@ -255,8 +214,6 @@ fn prisoner_of(t: &SamePassTracker, cage: i32) -> Option<i32> {
         .and_then(|(_, prisoner)| *prisoner)
 }
 
-/// Whether the cage's prisoner is being saved (`Some(true)`), killed
-/// (`Some(false)`), or neither yet.
 fn fate(t: &SamePassTracker, dying: &[(i32, bool, i32)], cage: i32) -> Option<bool> {
     let prisoner = prisoner_of(t, cage)?;
     dying

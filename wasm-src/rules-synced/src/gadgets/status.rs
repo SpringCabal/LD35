@@ -7,7 +7,6 @@ use springcabal::message::SendOnChange;
 
 use crate::state::Global;
 
-/// Sends the UI the player's and the ending's status whenever it changes.
 #[derive(Default)]
 pub struct StatusGadget {
     sent: Rc<SendOnChange<Status>>,
@@ -24,9 +23,6 @@ impl Gadget<Global> for StatusGadget {
         "Status"
     }
 
-    /// A UI that (re)started asks for the status; send it on the next frame
-    /// even if nothing changed.  This works during the ending too, when
-    /// every other command is refused.
     fn handle_lua_msg(
         &self,
         _ctx: &spring_addons::AddonContext<'_, Global>,
@@ -57,8 +53,6 @@ impl Gadget<Global> for StatusGadget {
                 sequence_complete: endgame.sequence_complete,
             }
         };
-        // Unsent, the UI keeps showing the old form and parts: forgotten, so
-        // it is retried on the next frame.
         self.sent.send_if_changed(status, |status| {
             let message = status.encode();
             let sent = Rc::clone(&self.sent);

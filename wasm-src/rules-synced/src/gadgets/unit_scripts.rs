@@ -3,7 +3,6 @@ use spring_addons::rules::Gadget;
 
 use crate::state::Global;
 
-/// Attaches each unit's script in the unit-script module.
 #[derive(Default)]
 pub struct UnitScriptsGadget;
 
@@ -18,15 +17,10 @@ impl Gadget<Global> for UnitScriptsGadget {
         "UnitScripts"
     }
 
-    /// The map's featureplacer creates its units, the four gates among
-    /// them, before the rules load: they get their scripts here, every later
-    /// unit in `unit_created`.
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
         crate::unit_scripts::with_host(|host| host.attach_existing());
     }
 
-    /// Wake the scripts' sleeping tasks where Lua does: in `GameFrame`,
-    /// before the units update.
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         crate::unit_scripts::with_host(move |host| host.game_frame(frame));
     }

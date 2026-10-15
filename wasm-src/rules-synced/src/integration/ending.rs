@@ -1,6 +1,3 @@
-//! The ending scenario, run after the main one: a pickup while rescues are
-//! still under way, then the type-1 ("souls freed") ending.
-
 use alloc::format;
 use alloc::string::String;
 
@@ -8,14 +5,12 @@ use springcabal::check::Suite;
 
 use partsneeded_shared::{BodyPart, Ending};
 
-use crate::endgame::mark_wisp_dying;
+use crate::gadgets::endgame::behavior::mark_wisp_dying;
 use crate::state::{Endgame, Global, WISP_DESTROY_DELAY};
 
-/// The type-1 ending scenario's progress.
 pub struct EndingTracker {
     suite: Suite,
     prepared: bool,
-    /// The first ending arrival, where it appeared and on which frame.
     first_arrival: Option<(i32, spring::Float3, i32)>,
     spawn_checked: bool,
 }
@@ -35,23 +30,11 @@ impl Default for EndingTracker {
     }
 }
 
-/// The frame the ending scenario starts on, after the main scenario's last
-/// check: every NPC wisp left starts its rescue, and the last part is
-/// picked up again.
 const PREPARE_FRAME: i32 = 220;
-/// The pickup ended the game by now.
 const PENDING_CHECK_FRAME: i32 = PREPARE_FRAME + 2;
-/// The rescues are over (saved and gone) and the part is picked up again.
 const SECOND_PICKUP_FRAME: i32 = PREPARE_FRAME + WISP_DESTROY_DELAY + 1;
-/// The frame the first arrival is checked on, about 30 frames after it
-/// appears.
 const ARRIVAL_CHECK_FRAME: i32 = SECOND_PICKUP_FRAME + 34;
 
-/// How far the first ending arrival must have travelled by
-/// `ARRIVAL_CHECK_FRAME`, ~30
-/// frames after it appears; the npcwisp unit reaches its 5 elmo/frame top
-/// speed after 10 frames.  Its path may lead around a wall, so this checks
-/// that it travels, not that every step brings it closer.
 const ENDING_MIN_TRAVEL: f32 = 50.0;
 
 fn planar_distance(a: spring::Float3, b: spring::Float3) -> f32 {
@@ -63,8 +46,6 @@ fn unit_position(id: i32) -> Option<spring::Float3> {
     spring::get_unit_position(id, false, false).ok()
 }
 
-/// Whether the unit's current order is game_end.lua's MOVE to `target`, or it
-/// already arrived and has no order left.
 fn moving_to(id: i32, target: spring::Float3) -> bool {
     match spring::get_unit_commands(id, 1).ok().as_deref() {
         Some([]) => true,
@@ -78,11 +59,6 @@ fn moving_to(id: i32, target: spring::Float3) -> bool {
     }
 }
 
-/// Exercise the endings separately from the ordinary integration flow. The
-/// main test leaves three NPCs alive to cover Ending #1; this scenario
-/// resets the ending, saves those three and picks up the last part while
-/// they are being freed (Ending #1 again, as in game_end.lua), then once
-/// they are gone picks it up again for the full 500-arrival Ending #2.
 pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
     if frame == PREPARE_FRAME && !t.prepared {
         prepare(t, global);
@@ -91,7 +67,6 @@ pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
         check_pending_rescues(t, global);
     }
     if frame == SECOND_PICKUP_FRAME && t.prepared {
-        // A new ending, with the rescues counted.
         let saved_wisps = global.endgame.access().saved_wisps;
         *global.endgame.access_mut() = Endgame {
             saved_wisps,
@@ -120,8 +95,6 @@ pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
     }
 }
 
-/// Reset the ending, start saving every NPC wisp still alive, and pick the
-/// last part up again.
 fn prepare(t: &mut EndingTracker, global: &Global) {
     let ids = global.world.access().npc_wisps.clone();
     *global.endgame.access_mut() = Endgame::default();
@@ -142,8 +115,6 @@ fn prepare(t: &mut EndingTracker, global: &Global) {
     );
 }
 
-/// Take the mouth back and put a new mouth pickup on the player: the
-/// player collects it on the next frame, and the game ends there.
 fn pick_up_last_part_again(global: &Global) {
     let (wisp, position) = {
         let mut wisp = global.wisp.access_mut();
@@ -162,8 +133,6 @@ fn pick_up_last_part_again(global: &Global) {
     }
 }
 
-/// game_end.lua picks the ending from its counters as they are: wisps still
-/// in their rescue animation are alive and not yet saved.
 fn check_pending_rescues(t: &mut EndingTracker, global: &Global) {
     let (game_over, ending, pending) = {
         let endgame = global.endgame.access();
@@ -177,9 +146,6 @@ fn check_pending_rescues(t: &mut EndingTracker, global: &Global) {
     );
 }
 
-/// The arrivals spawn 100-400 elmos from the player on each axis, from the
-/// synced RNG, so where the first one is by now depends on the seed. Check
-/// that it was ordered to the player and is on its way.
 fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
     let (game_over, ending, release_wisps, target) = {
         let endgame = global.endgame.access();
@@ -221,7 +187,7 @@ fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
 fn finish(t: &mut EndingTracker, global: &Global) {
     let spawned = global.endgame.access().end_spawned;
     t.suite.check(
-        spawned == crate::endgame::ENDING_SPAWN_AMOUNT,
+        spawned == crate::gadgets::endgame::behavior::ENDING_SPAWN_AMOUNT,
         "the full authored 500-wisp ending sequence completes",
     );
     t.suite.finish();

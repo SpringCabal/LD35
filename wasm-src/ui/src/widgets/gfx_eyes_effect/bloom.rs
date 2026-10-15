@@ -1,8 +1,3 @@
-//! gfx_eyes_effect.lua's screen treatment: bright pass, separable Gaussian
-//! blur, then the combine that grades, vignettes and grains the scene.  The
-//! wisp's halo is the bloom picking the sprite up as a glow source, not
-//! anything the sprite shader draws.
-
 use alloc::string::String;
 use spring::gl;
 
@@ -13,23 +8,17 @@ const BLOOM_BRIGHT_FRAGMENT: &str = include_str!("../../shaders/bloom_bright.fra
 const BLOOM_BLUR_H_FRAGMENT: &str = include_str!("../../shaders/bloom_blur_h.frag");
 const BLOOM_BLUR_V_FRAGMENT: &str = include_str!("../../shaders/bloom_blur_v.frag");
 
-/// gfx_eyes_effect.lua's option defaults.  The plain locals above them in that
-/// file are dead: OnchangeFunc() overwrites all three from the options table
-/// before the widget ever draws.
 const MAX_BRIGHTNESS: f32 = 0.22;
 const ILLUM_THRESHOLD: f32 = 0.33;
 const BLUR_PASSES: i32 = 2;
 
-/// The combine pass's inputs for one frame.
 pub struct ScreenAmounts {
     pub spirit: f32,
     pub noise: f32,
     pub game_over: f32,
-    /// Game time in seconds.
     pub time: f32,
 }
 
-/// The bloom chain's GL handles.
 #[derive(Default)]
 pub struct Bloom {
     width: i32,
@@ -58,8 +47,6 @@ pub struct Bloom {
     initialized: bool,
 }
 
-/// `gl.RenderToTexture(tex, fn)` equivalent of the Lua helper: draw a
-/// full-target quad and let the bound shader and texture do the work.
 fn blit_pass() {
     let _ = spring::gfx::matrix_mode(gl::TEXTURE);
     let _ = spring::gfx::load_identity(0);
@@ -101,10 +88,6 @@ impl Bloom {
             self.width = width;
             self.height = height;
             self.screen_tex = create_texture(width, height, 0, false);
-            // Quarter resolution, as authored: the blur is wide enough that the
-            // lost detail never shows, and it is what makes the pass cheap.
-            // A float format, as gfx_eyes_effect.lua asks for, so the bright
-            // pass can hold values above 1.0 without clipping.
             self.bright_tex_1 = create_texture(width / 4, height / 4, gl::RGB16F, true);
             self.bright_tex_2 = create_texture(width / 4, height / 4, gl::RGB16F, true);
         }
@@ -175,8 +158,6 @@ impl Bloom {
         let _ = spring::gfx::matrix_mode(gl::TEXTURE);
         let _ = spring::gfx::load_identity(0);
 
-        // The bloom chain only runs when every stage built; a missing FBO would
-        // otherwise leave texture1 sampling whatever happened to be bound.
         let bloomed = !self.bright_tex_1.is_empty()
             && !self.bright_tex_2.is_empty()
             && self.bright_shader != 0
@@ -185,9 +166,6 @@ impl Bloom {
         if bloomed {
             let inverse_rx = 1.0 / width as f32;
             let inverse_ry = 1.0 / height as f32;
-            // kernelRadius comes from the *view height* in the Lua widget: its
-            // `vsx / 36.0` initialiser is overwritten by ViewResize with
-            // vsy / 36.0 before the first draw.
             let kernel_radius = height as f32 / 36.0;
 
             let _ = spring::gfx::use_shader(self.bright_shader);
@@ -215,8 +193,6 @@ impl Bloom {
         let _ = spring::gfx::use_shader(self.combine_shader);
         let _ = spring::gfx::uniform_int(self.loc_combine_debug, &[0], 1);
         let _ = spring::gfx::uniform(self.loc_combine_illum, &[ILLUM_THRESHOLD], 1);
-        // With no bloom texture, zero the contribution rather than scale an
-        // undefined sampler.
         let max_brightness = if bloomed { MAX_BRIGHTNESS } else { 0.0 };
         let _ = spring::gfx::uniform(self.loc_combine_max, &[max_brightness], 1);
         let _ = spring::gfx::uniform(self.loc_combine_time, &[amounts.time], 1);

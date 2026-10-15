@@ -1,11 +1,7 @@
-//! The level's units, from map_customs.lua and game_custom_spawn.lua.
-
 use spring::Float3;
 
 use super::LevelUnit;
 
-/// Only used if the map somehow did not place a gate; adopt_map_gates()
-/// claims the map's own ones first.
 pub(super) const GATES: [LevelUnit; 4] = [
     LevelUnit {
         key: 20,
@@ -13,7 +9,6 @@ pub(super) const GATES: [LevelUnit; 4] = [
         x: 4216.0,
         y: 411.499_02,
         z: 1288.0,
-        // Area 20: buildinglist in game_custom_spawn.lua faces this one west.
         rot: Float3::new(0.0, -core::f32::consts::FRAC_PI_2, 0.0),
         mid: None,
         aim: None,
@@ -24,7 +19,6 @@ pub(super) const GATES: [LevelUnit; 4] = [
         x: 5112.0,
         y: 411.499_02,
         z: 1656.0,
-        // Area 21: buildinglist in game_custom_spawn.lua faces this one north.
         rot: Float3::new(0.0, core::f32::consts::PI, 0.0),
         mid: None,
         aim: None,
@@ -35,7 +29,6 @@ pub(super) const GATES: [LevelUnit; 4] = [
         x: 6056.0,
         y: 411.499_02,
         z: 1880.0,
-        // Area 22: buildinglist in game_custom_spawn.lua faces this one east.
         rot: Float3::new(0.0, core::f32::consts::FRAC_PI_2, 0.0),
         mid: None,
         aim: None,
@@ -46,7 +39,6 @@ pub(super) const GATES: [LevelUnit; 4] = [
         x: 6648.0,
         y: 411.499_02,
         z: 1656.0,
-        // Area 23: buildinglist in game_custom_spawn.lua faces this one south.
         rot: Float3::new(0.0, 0.0, 0.0),
         mid: None,
         aim: None,

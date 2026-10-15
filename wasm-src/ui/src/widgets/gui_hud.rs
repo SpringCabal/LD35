@@ -35,8 +35,6 @@ impl Widget<Global> for GuiHudWidget {
             );
             let _ = spring::gfx::end_text(0);
         }
-        // gfx_eyes_effect.lua waits for the fade and bright spirit hold before
-        // calling ShowEndgameUI.
         if !global.end_screen_shown() {
             return;
         }

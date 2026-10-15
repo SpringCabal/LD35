@@ -1,7 +1,3 @@
-//! The player wisp: movement, body-part collection and piece visibility.
-//!
-//! Ported from `unit_wisp_controller.lua`.
-
 use alloc::vec::Vec;
 
 use partsneeded_shared::{BodyPart, BodyParts};
@@ -10,15 +6,6 @@ use springcabal_control::goal::{Bounds, Clamp, GoalHeight, MoveGoal};
 
 use crate::state::Wisp;
 
-/// Where the held keys send the wisp: a raw goal, straight where the player
-/// pointed instead of a path finder's detour, at the wisp's own height.
-///
-/// A long lookahead has to be clamped against the map edge; keep it short,
-/// the goal is re-issued every frame anyway. The edge clamp keeps the heading
-/// (clamping x and z separately would turn a diagonal into a cardinal) and the
-/// original controller's bounds: a larger margin puts the authored start
-/// position (2000, 2000) on the boundary on this map, so one half of WASD
-/// appears dead.
 const STEER: MoveGoal = MoveGoal::ahead(120.0)
     .radius(16.0)
     .raw(true)
@@ -28,14 +15,9 @@ const STEER: MoveGoal = MoveGoal::ahead(120.0)
         clamp: Clamp::KeepHeading,
     });
 
-/// unit_wisp_controller.lua's stop: a wisp still moving faster than this
-/// (elmos per frame) when the keys are released glides on a little, towards
-/// a goal this much shorter than the steering one.  Its top speed is 5, so
-/// only a push (a collision) makes it glide.
 const GLIDE_SPEED: f32 = 6.0;
 const GLIDE: MoveGoal = STEER.reach(20.0);
 
-/// unit_powerup_controller.lua picks a part up within 50 elmos.
 const PICKUP_RADIUS: f32 = 50.0;
 
 pub fn move_wisp(wisp: &Wisp) -> bool {
@@ -45,12 +27,9 @@ pub fn move_wisp(wisp: &Wisp) -> bool {
     STEER.apply(wisp.id, direction).unwrap_or(false)
 }
 
-/// Stop the wisp once its keys are released (unit_wisp_controller.lua).
 pub fn stop_wisp(id: i32) {
     commands::give_order_to_unit(id, spring::cmd::STOP, &[], 0, 0).then(move |result| {
         crate::log::check("STOP order", id, result);
-        // The move goal is set at once: give it after the STOP, which would
-        // clear it.
         let Ok(velocity) = spring::get_unit_velocity(id) else {
             return;
         };
@@ -61,10 +40,6 @@ pub fn stop_wisp(id: i32) {
     });
 }
 
-/// Ground-unit collision resolution can leave a positive vertical velocity at
-/// sharp wall corners. The authored Lua controller explicitly removed that
-/// component every frame; keep the same safety net in the WASM controller so a
-/// corner cannot turn a normal stop into a launch over the dungeon.
 pub fn cancel_upward_velocity(wisp: &Wisp) {
     if wisp.id < 0 {
         return;
@@ -110,14 +85,11 @@ pub fn collect_body_parts(wisp: &mut Wisp) -> Vec<(i32, bool, i32)> {
         .retain(|id| !collected.iter().any(|(collected, _)| collected == id));
     collected
         .into_iter()
-        // Reclaimed: a pickup vanishes at once, with no death animation.
         .map(|(id, _)| (id, true, wisp.id))
         .collect()
 }
 
 pub fn rotate_body_parts(wisp: &Wisp) {
-    // Match unit_powerup_controller.lua: loose parts slowly rotate until
-    // collected, making pickups readable against the dark level geometry.
     for id in &wisp.body_parts {
         let Ok(rotation) = spring::rules_synced::units_info::get_unit_rotation(*id) else {
             continue;
@@ -129,9 +101,6 @@ pub fn rotate_body_parts(wisp: &Wisp) {
     }
 }
 
-/// wisp.lua's piece groups: the body part that shows each piece.  Body and
-/// Head (`None`) show whenever the wisp is embodied; pieces not listed here,
-/// the hair, never do.
 pub const WISP_PIECE_GROUPS: [(&str, Option<BodyPart>); 18] = [
     ("Body", None),
     ("Head", None),
@@ -153,8 +122,6 @@ pub const WISP_PIECE_GROUPS: [(&str, Option<BodyPart>); 18] = [
     ("Mouth", Some(BodyPart::Mouth)),
 ];
 
-/// Whether a group's pieces show for a wisp embodied with `parts`
-/// (`None`: a spirit, with every piece hidden).
 pub fn group_visible(group: Option<BodyPart>, parts: Option<BodyParts>) -> bool {
     parts.is_some_and(|parts| group.is_none_or(|part| parts.contains(part)))
 }
@@ -163,7 +130,6 @@ pub fn sync_wisp_pieces(id: i32, spirit: bool, collected_parts: BodyParts) {
     if id < 0 {
         return;
     }
-    // The unit script owns the piece groups and the gait they select.
     let parts = (!spirit).then_some(collected_parts);
     crate::unit_scripts::with_host(|host| {
         crate::unit_scripts::set_piece_mask(host, id, parts);

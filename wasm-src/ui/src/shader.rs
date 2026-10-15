@@ -1,7 +1,3 @@
-//! Fragment-shader boilerplate shared by the screen effects.
-
-/// Build a fragment-only shader and bind each named sampler to the texture
-/// unit of its index.  Returns the shader id, or `None` if it did not build.
 pub fn create(fragment: &str, samplers: &[&str]) -> Option<u32> {
     let id = spring::gfx::create_shader(spring::gfx::ShaderCreateParams {
         fragment,
@@ -21,7 +17,6 @@ pub fn create(fragment: &str, samplers: &[&str]) -> Option<u32> {
     Some(id)
 }
 
-/// A uniform's location, or -1 (which GL ignores) when it is absent.
 pub fn location(shader: u32, name: &str) -> i32 {
     spring::gfx::get_uniform_location(shader, name).unwrap_or(-1)
 }

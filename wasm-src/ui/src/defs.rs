@@ -1,5 +1,3 @@
-//! Unit def ids the UI tells apart, resolved once.
-
 use springcabal::defs::DefCache;
 
 #[derive(Clone, Copy, Debug)]
@@ -24,7 +22,6 @@ pub fn defs() -> Defs {
     *DEFS.get()
 }
 
-/// The def id of a unit, or -1.
 pub fn unit_def(unit: i32) -> i32 {
     spring::get_unit_def_id(unit).map_or(-1, |def| def.0)
 }

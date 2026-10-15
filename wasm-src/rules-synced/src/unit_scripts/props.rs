@@ -1,5 +1,3 @@
-//! The level props' scripts: gate.lua, lever.lua, plate.lua and cage.lua.
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
@@ -8,7 +6,6 @@ use spring::cus::{Axis, Duration, InitCtx, Piece, UnitCtx};
 use super::SIG_GATE;
 use super::wisp::turn;
 
-/// The one moving piece of each prop's model.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct PropPieces {
     pub(crate) gate: Piece,

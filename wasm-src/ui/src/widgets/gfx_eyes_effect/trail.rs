@@ -1,5 +1,3 @@
-//! The spirit's trail: small puffs left behind by the moving wisp.
-
 use alloc::vec::Vec;
 use spring::gfx::GfxVertexData;
 use spring::gl;
@@ -8,7 +6,6 @@ use super::Camera;
 
 const TRAIL_PARTICLE_LIFETIME: f32 = 24.0;
 const MAX_TRAIL_PARTICLES: usize = 64;
-/// Each puff is a fan: a centre and a closed ring of this many sides.
 const PUFF_SIDES: usize = 10;
 
 #[derive(Clone, Copy)]
@@ -19,9 +16,6 @@ struct TrailParticle {
     seed: f32,
 }
 
-/// `gfx.shape` serializes fixed-width vertex attributes regardless of the
-/// `has_*` flags. Keep those buffers populated even for the untextured,
-/// unlit particle fan; empty normal/UV buffers trap inside the generated ABI.
 fn particle_vertex() -> GfxVertexData {
     GfxVertexData {
         vertex: vec![0.0; 3],
@@ -40,16 +34,13 @@ fn set_vertex(vertex: &mut GfxVertexData, point: spring::Float3, color: [f32; 4]
     vertex.color.copy_from_slice(&color);
 }
 
-/// The most simulation frames one update catches up on, after a stall.
 const MAX_CATCH_UP_FRAMES: i32 = 4;
 
 #[derive(Default)]
 pub struct Trail {
     particles: Vec<TrailParticle>,
     last_position: Option<spring::Float3>,
-    /// The simulation frame the particles were last advanced on.
     last_frame: Option<i32>,
-    /// One puff's fan, reused so drawing allocates nothing.
     vertices: Vec<GfxVertexData>,
 }
 
@@ -60,8 +51,6 @@ impl Trail {
         self.last_frame = None;
     }
 
-    /// Advance the particles and emit new ones behind the wisp at `position`,
-    /// once per simulation frame however often it is drawn.
     pub fn update(&mut self, position: spring::Float3, frame: i32) {
         let steps = self
             .last_frame
@@ -80,11 +69,6 @@ impl Trail {
             })
             .unwrap_or((0.0, 0.0, 0.0));
 
-        // Emit from the body, rather than from the end of a ribbon. The little
-        // translucent puffs inherit some backwards velocity, so they read as
-        // fragments being left behind by the moving wisp. Their deterministic
-        // sinusoidal offsets provide the noisy, uneven silhouette without a
-        // random-number dependency in the render widget.
         {
             let particles = &mut self.particles;
             for _ in 0..steps {
@@ -131,10 +115,6 @@ impl Trail {
         }
     }
 
-    /// Draw small irregular camera-facing puffs at the particle positions.
-    /// Each puff is a separate fan because the low-level shape call has no
-    /// primitive-restart support. The pool stays deliberately small so this
-    /// remains cheap even while the player is moving continuously.
     pub fn draw(&mut self, camera: &Camera, frame: i32) {
         if self.particles.is_empty() {
             return;

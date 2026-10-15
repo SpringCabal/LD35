@@ -1,5 +1,3 @@
-//! wisp.lua: the player's and the NPCs' wisp.
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
@@ -7,7 +5,7 @@ use partsneeded_shared::{BodyPart, BodyParts};
 use spring::cus::{Angle, Axis, InitCtx, Piece, TaskDefinition, UnitCtx};
 
 use super::{SIG_FLOAT, SIG_WALK};
-use crate::wisp::WISP_PIECE_GROUPS;
+use crate::gadgets::wisp::behavior::WISP_PIECE_GROUPS;
 
 mod float_arms;
 mod idle;
@@ -23,7 +21,6 @@ use walk_legs::wisp_walk_legs;
 #[derive(Clone, Copy, Default)]
 pub(crate) struct WispPieces {
     pub(crate) all: [Piece; 22],
-    /// The shown pieces and the body part that shows each.
     pub(crate) groups: [(Piece, Option<BodyPart>); WISP_PIECE_GROUPS.len()],
     pub(crate) body: Piece,
     pub(crate) head: Piece,
@@ -109,7 +106,6 @@ impl WispPieces {
 
 pub(crate) struct WispAnimationState {
     pub(crate) pieces: WispPieces,
-    /// The collected parts shown, or `None` while a spirit.
     pub(crate) parts: Option<BodyParts>,
     pub(crate) moving: bool,
 }
@@ -208,8 +204,6 @@ pub(crate) fn apply_turn_commands(ctx: &UnitCtx, p: WispPieces, commands: &[Turn
 
 pub(crate) async fn wisp_create(state: Rc<RefCell<WispAnimationState>>, ctx: UnitCtx) {
     let p = state.borrow().pieces;
-    // Scripts/wisp.lua blocks in PlayAnimation("idle") before it starts
-    // Float_Body: Sleep(20 * 33 ms) is 20 frames in unit_script.lua.
     ctx.sleep_frames(20).await;
     apply_wisp_idle_frame_20(&ctx, p);
     ctx.sleep_frames(10).await;
@@ -257,7 +251,6 @@ pub(crate) fn start_wisp_movement(ctx: &UnitCtx, state: Rc<RefCell<WispAnimation
 async fn wisp_float_body(state: Rc<RefCell<WispAnimationState>>, ctx: UnitCtx) {
     ctx.set_signal_mask(SIG_FLOAT);
     let p = state.borrow().pieces;
-    // wisp_hover_body.lua, with Body's authored Z offset (24.52532) removed.
     const FRAMES: &[(u64, f32, f32)] = &[
         (0, 1.600370, 7.495241),
         (6, 3.688683, 12.529873),

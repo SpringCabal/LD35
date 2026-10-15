@@ -1,6 +1,3 @@
-//! The headless integration scenario: the checks and what they measure.
-//! `gadgets::integration` drives it.
-
 use springcabal::check::Suite;
 
 use crate::state::{Endgame, Global, Wisp, World};
@@ -20,17 +17,11 @@ pub(super) struct Snapshot<'a> {
     pub(super) endgame: &'a Endgame,
 }
 
-/// How many checks the main scenario makes.
-const CHECKS: u32 = 58;
+const CHECKS: u32 = 57;
 
-/// The main scenario's progress and the samples later checks compare with.
 pub struct Tracker {
     pub(super) suite: Suite,
     pub(super) initial_npc_wisps: usize,
-    /// Whether the UI module's hello reached the rules; the gadget sets it.
-    pub ui_hello: bool,
-    /// The scenario's commands and movement messages: (sent, received over
-    /// RecvLuaMsg); the gadget sets it.
     pub messages: (u32, u32),
     pub(super) wisp_position_at_15: Option<spring::Float3>,
     pub(super) arm_vs_body: Option<f32>,
@@ -41,7 +32,6 @@ pub struct Tracker {
     pub(super) plate_piece: Option<f32>,
     pub(super) arm_swim_changed: bool,
     pub(super) leg_walk_changed: bool,
-    /// Prisoners being freed or killed at frame 105, before any bars are open.
     pub(super) dying_before_bars_open: Option<usize>,
 }
 
@@ -54,7 +44,6 @@ impl Default for Tracker {
                 CHECKS,
             ),
             initial_npc_wisps: 0,
-            ui_hello: false,
             messages: (0, 0),
             wisp_position_at_15: None,
             arm_vs_body: None,
@@ -70,13 +59,10 @@ impl Default for Tracker {
     }
 }
 
-/// Run the main scenario's checks due on `frame`.
 pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
     if t.suite.is_finished() {
         return;
     }
-    // Test-only bookkeeping; nothing below issues a callout that re-enters a
-    // callin wanting these resources.
     let wisp = global.wisp.access();
     let world = global.world.access();
     let endgame = global.endgame.access();
@@ -88,10 +74,7 @@ pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
     match frame {
         15 => level_spawned(t, state),
         21 => movement_message(t, state),
-        30 => {
-            before_pickups(t, state);
-            ui_hello(t);
-        }
+        30 => before_pickups(t, state),
         31 => remote_lever_refused(t, state),
         45 => walking(t, state),
         60 => cages_hold(t, state),
@@ -132,7 +115,6 @@ pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
         216 => finish(t, state),
         _ => {}
     }
-    // Legs arrive at frame 80; from then on the arms follow the walk instead.
     if (75..80).contains(&frame) {
         track_swim(t, state);
     }

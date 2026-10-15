@@ -1,7 +1,3 @@
-//! Definitions the rules and UI modules must agree on, including the two
-//! messages between them: [`Status`] (rules to UI) and [`Command`] (UI to
-//! rules).
-
 #![no_std]
 
 extern crate alloc;
@@ -10,16 +6,10 @@ use alloc::string::String;
 
 use springcabal::message::{Encoder, fields};
 
-/// Frames between two form switches.  The UI predicts the switch locally, so
-/// it needs the same cooldown the rules module enforces.
 pub const FORM_COOLDOWN: i32 = 60;
 
-/// How close the player has to stand to pull a lever (ui_wisp_control.lua).
-/// The UI checks it before sending a pull, and the rules again.
 pub const LEVER_REACH: f32 = 100.0;
 
-/// The six body parts the player collects.  The discriminant is the part's
-/// bit in [`BodyParts`], which is also how [`Status`] sends them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BodyPart {
     Eyes,
@@ -40,7 +30,6 @@ impl BodyPart {
         BodyPart::Mouth,
     ];
 
-    /// The pickup's unit def name, also used in the `has_<name>` rules param.
     pub const fn name(self) -> &'static str {
         match self {
             BodyPart::Eyes => "eyes",
@@ -57,7 +46,6 @@ impl BodyPart {
     }
 }
 
-/// A set of body parts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BodyParts(u8);
 
@@ -98,25 +86,15 @@ impl BodyParts {
     }
 }
 
-/// game_end.lua's four endings, chosen when the last body part is picked up.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ending {
-    /// Ending #1: NPC wisps are still alive and none was saved or killed.
     WelcomeBack,
-    /// Ending #2: every NPC wisp was saved.  The only ending with a
-    /// ceremony: spirits arrive from all sides before the end screen.
     SoulsFreed,
-    /// Ending #3: every NPC wisp was killed.
     SacrificeAccepted,
-    /// Ending #4: anything else.
     NothingNoteworthy,
 }
 
 impl Ending {
-    /// game_end.lua's choice, from its counters as they are at the pickup.
-    /// A wisp being freed or killed stays alive, and uncounted, until its
-    /// death animation ends (unit_wisp_death.lua), so a pickup during one
-    /// counts it as alive.
     pub fn from_counts(alive_wisps: usize, saved_wisps: i32, killed_wisps: i32) -> Self {
         match (alive_wisps == 0, saved_wisps > 0, killed_wisps > 0) {
             (false, false, false) => Ending::WelcomeBack,
@@ -126,7 +104,6 @@ impl Ending {
         }
     }
 
-    /// game_end.lua's `game_over_type`, 0-3.
     pub const fn number(self) -> i32 {
         self as i32
     }
@@ -141,7 +118,6 @@ impl Ending {
         }
     }
 
-    /// The end screen's line (ui_endgame.lua).
     pub const fn text(self) -> &'static str {
         match self {
             Ending::WelcomeBack => "Welcome back, Master.   Ending #1",
@@ -152,18 +128,13 @@ impl Ending {
     }
 }
 
-/// What the UI is told about the player and the ending, sent whenever it
-/// changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Status {
     pub spirit: bool,
     pub game_over: bool,
-    /// The player wisp's unit id, or -1.
     pub wisp: i32,
     pub parts: BodyParts,
-    /// The ending, once the game is over.
     pub ending: Option<Ending>,
-    /// The ending's visual sequence is over and the end screen may show.
     pub sequence_complete: bool,
 }
 
@@ -198,19 +169,11 @@ impl Status {
     }
 }
 
-/// A player command from the UI. Movement has its own message,
-/// `springcabal_control::protocol`'s `movement|x|z`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
-    /// Space: leave or return to spirit form.
     SwitchForm,
-    /// Pull the clicked lever.
     PullLever(i32),
-    /// The UI (re)started and needs the current status: after a LuaUI reload
-    /// the rules would otherwise only send it on the next change.
     Hello,
-    /// The end screen's restart: start the level over (ui_endgame.lua's
-    /// `luarules reload`). The rules take it only once the game is over.
     Restart,
 }
 
@@ -230,16 +193,15 @@ impl Command {
     }
 
     pub fn decode(message: &str) -> Option<Self> {
-        if fields(message, SWITCH_FORM).is_some() {
-            return Some(Command::SwitchForm);
+        match message {
+            SWITCH_FORM => return Some(Command::SwitchForm),
+            HELLO => return Some(Command::Hello),
+            RESTART => return Some(Command::Restart),
+            _ => {}
         }
-        if fields(message, HELLO).is_some() {
-            return Some(Command::Hello);
-        }
-        if fields(message, RESTART).is_some() {
-            return Some(Command::Restart);
-        }
-        Some(Command::PullLever(fields(message, PULL_LEVER)?.i32()?))
+        let mut fields = fields(message, PULL_LEVER)?;
+        let unit = fields.i32()?;
+        fields.is_done().then_some(Command::PullLever(unit))
     }
 }
 
@@ -277,8 +239,6 @@ mod tests {
         assert_eq!(Ending::from_counts(0, 3, 4), NothingNoteworthy);
         assert_eq!(Ending::from_counts(3, 7, 0), NothingNoteworthy);
         assert_eq!(Ending::from_counts(0, 0, 0), NothingNoteworthy);
-        // Three rescues still in their death animation: alive and not yet
-        // saved, so game_end.lua welcomes the master back.
         assert_eq!(Ending::from_counts(3, 0, 0), WelcomeBack);
         for ending in [
             WelcomeBack,
@@ -313,5 +273,13 @@ mod tests {
         assert_eq!(Command::decode("movement|1|0"), None);
         assert_eq!(Command::decode("pull_lever"), None);
         assert_eq!(Command::decode("unknown|1"), None);
+        for message in [
+            "switch_form|1",
+            "parts_hello|1",
+            "parts_restart|1",
+            "pull_lever|77|1",
+        ] {
+            assert_eq!(Command::decode(message), None);
+        }
     }
 }

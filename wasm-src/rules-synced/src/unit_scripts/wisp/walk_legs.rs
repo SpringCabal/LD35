@@ -1,5 +1,3 @@
-//! wisp_walk_legs.lua.
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
@@ -28,7 +26,6 @@ pub(crate) async fn wisp_walk_legs(state: Rc<RefCell<WispAnimationState>>, ctx: 
     }
 }
 
-/// The Body piece's Z moves: the keyframe index, target and speed.
 #[allow(clippy::excessive_precision)]
 const BODY_MOVES: [(usize, f32, f32); 5] = [
     (1, -0.694033, 8.139038),
@@ -38,9 +35,6 @@ const BODY_MOVES: [(usize, f32, f32); 5] = [
     (6, -0.394337, 7.839352),
 ];
 
-// Sparse commands are intentional. In the Lua animation, an omitted
-// channel keeps its current animation; filling it with zero commands
-// changes the gait and cancels the previous interpolation.
 #[allow(clippy::excessive_precision)]
 const FRAMES: &[(u64, &[TurnCommand])] = &[
     (

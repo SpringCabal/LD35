@@ -1,7 +1,11 @@
-use spring_addons::rules::Gadget;
+use partsneeded_shared::{BodyPart, Command, LEVER_REACH};
+use spring::{cmd, commands};
+use springcabal_control::protocol;
 
-use crate::input;
-use crate::state::Global;
+use crate::gadgets::triggers::behavior::nearby;
+use crate::state::{FORM_COOLDOWN, Global};
+
+use spring_addons::rules::Gadget;
 
 #[derive(Default)]
 pub struct InputGadget;
@@ -25,6 +29,69 @@ impl Gadget<Global> for InputGadget {
         _mode: i32,
         data: &[u8],
     ) {
-        input::handle_message(ctx.global(), data);
+        let global = ctx.global();
+        let Ok(message) = core::str::from_utf8(data) else {
+            return;
+        };
+        if let Some(direction) = protocol::decode_direction(message) {
+            steer(global, direction);
+        } else if let Some(command) = Command::decode(message) {
+            handle_command(global, command);
+        }
     }
+}
+
+fn steer(global: &Global, direction: (f32, f32)) {
+    if global.endgame.access().game_over {
+        return;
+    }
+    global.wisp.access_mut().steering.set(direction);
+}
+
+fn handle_command(global: &Global, command: Command) {
+    if global.endgame.access().game_over {
+        return;
+    }
+    let frame = spring::game::current_frame();
+    match command {
+        Command::SwitchForm => {
+            let mut wisp = global.wisp.access_mut();
+            if frame - wisp.form_frame <= FORM_COOLDOWN
+                || !wisp.collected_parts.contains(BodyPart::Eyes)
+            {
+                return;
+            }
+            wisp.form_frame = frame;
+            wisp.spirit = !wisp.spirit;
+            wisp.pieces_dirty = true;
+        }
+        Command::PullLever(id) => pull_lever(global, id),
+        Command::Hello | Command::Restart => {}
+    }
+}
+
+fn pull_lever(global: &Global, id: i32) {
+    let (has_arms, spirit, wisp_id) = {
+        let wisp = global.wisp.access();
+        (
+            wisp.collected_parts.contains(BodyPart::Arms),
+            wisp.spirit,
+            wisp.id,
+        )
+    };
+    let is_lever = crate::defs::unit_def(id) == crate::defs::defs().lever;
+    if spirit || !has_arms || !is_lever || !nearby(wisp_id, id, LEVER_REACH) {
+        return;
+    }
+    let enabled = {
+        let mut world = global.world.access_mut();
+        let enabled = !world.active_triggers.contains(&id);
+        crate::gadgets::triggers::behavior::set_trigger(&mut world, id, enabled);
+        enabled
+    };
+    commands::give_order_to_unit(id, cmd::ONOFF, &[f32::from(u8::from(enabled))], 0, 0).then(
+        move |result| {
+            crate::log::check("lever ONOFF order", id, result);
+        },
+    );
 }

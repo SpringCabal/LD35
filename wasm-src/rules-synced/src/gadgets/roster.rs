@@ -4,8 +4,6 @@ use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 use crate::defs::defs;
 use crate::state::Global;
 
-/// Keeps track of the player wisp, the body-part pickups and the NPC wisps,
-/// and gives each cage its prisoner (unit_cage.lua).
 #[derive(Default)]
 pub struct RosterGadget;
 
@@ -39,7 +37,6 @@ impl Gadget<Global> for RosterGadget {
         } else if def == defs.npcwisp {
             global.world.access_mut().npc_wisps.push(id);
         } else if def == defs.cage {
-            // The prisoner goes where the cage stands once it has been placed.
             commands::run(move || crate::cages::spawn_cage_wisp(id));
         }
     }

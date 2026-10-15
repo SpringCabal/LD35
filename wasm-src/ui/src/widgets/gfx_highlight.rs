@@ -1,12 +1,3 @@
-//! The mouse-over glow on a reachable lever, ported from `gfx_highlight.lua`.
-//!
-//! Structurally this is the same three-pass chain as the cartoon outline in
-//! Flove (silhouette into an FBO, separable blur, composite), but the authored
-//! widget here draws exactly one unit -- the lever under the cursor -- and only
-//! while an armed, embodied player is standing close enough to pull it.  That
-//! glow is the game's only cue for which lever is interactive, so it is not
-//! decoration.
-
 use alloc::string::String;
 use core::cell::RefCell;
 
@@ -59,7 +50,6 @@ impl Default for Pipeline {
     }
 }
 
-/// The hovered unit, if it is a lever the player could pull right now.
 fn find_hovered_lever(player_wisp: i32) -> i32 {
     let Ok(mouse) = spring::input::get_mouse_state(0) else {
         return -1;
@@ -80,7 +70,6 @@ fn find_hovered_lever(player_wisp: i32) -> i32 {
         return -1;
     };
     let (dx, dz) = (lever.x - wisp.x, lever.z - wisp.z);
-    // The click uses the same reach, so everything that glows can be pulled.
     if dx * dx + dz * dz >= LEVER_REACH * LEVER_REACH {
         return -1;
     }
@@ -118,8 +107,6 @@ fn recreate_textures(state: &mut Pipeline) {
     ) {
         state.depth_tex = tex;
     }
-    // fbo_depth matters: without a depth buffer on the silhouette target the
-    // lever's own far faces draw over its near ones.
     if let Ok(tex) = spring::gfx::create_texture(
         state.vsx,
         state.vsy,
@@ -204,9 +191,6 @@ fn update_uniforms(state: &mut Pipeline) {
     let _ = spring::gfx::use_shader(0);
 }
 
-/// Draw the lever's silhouette.  `render_to_texture` installs identity
-/// matrices before invoking this, and a native module -- unlike a Lua widget
-/// calling gl.ResetMatrices() -- has to put the camera back itself.
 fn pass_draw_target(projection: &[f32; 16], modelview: &[f32; 16], target: i32) {
     let _ = spring::gfx::clear(gl::COLOR_BUFFER_BIT, &[0.0, 0.0, 0.0, 0.0], 4);
     let _ = spring::gfx::matrix_mode(gl::PROJECTION);
@@ -248,7 +232,6 @@ fn blur_pass(shader: u32, vsx: i32, vsy: i32) {
     );
 }
 
-/// Draw the blurred silhouette over the screen.
 fn composite(offscreen_tex: &str, vsx: i32, vsy: i32) {
     let _ = spring::gfx::use_shader(0);
     let _ = spring::gfx::matrix_mode(gl::TEXTURE);
@@ -260,8 +243,6 @@ fn composite(offscreen_tex: &str, vsx: i32, vsy: i32) {
     let _ = spring::gfx::push_matrix(0);
     let _ = spring::gfx::load_identity(0);
 
-    // The world pass leaves alpha and depth testing on, which would eat the
-    // soft edge of the glow.  A Lua widget has these reset for it.
     let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
     let _ = spring::gfx::alpha_test(false, gl::ALWAYS, 0.0);
     let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
@@ -323,8 +304,6 @@ impl Widget<Global> for GfxHighlightWidget {
     }
 
     fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
-        // gfx_highlight.lua's own gate: spirits cannot touch anything, and
-        // without arms there is nothing to pull with.
         let (spirit, has_arms, wisp, game_over) = {
             let player = ctx.global().player.access();
             (
@@ -381,7 +360,6 @@ impl Widget<Global> for GfxHighlightWidget {
         let _ = spring::gfx::copy_to_texture(&depth_tex, 0, 0, 0, 0, vsx, vsy, gl::TEXTURE_2D, 0);
         let _ = spring::gfx::bind_texture(&depth_tex, 0, true);
 
-        // The world matrices, restored inside the silhouette pass.
         let mut projection = [0.0; 16];
         let mut modelview = [0.0; 16];
         if let Ok(live_projection) = spring::gfx::get_matrix_data(gl::PROJECTION)

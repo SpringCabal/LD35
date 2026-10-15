@@ -1,8 +1,3 @@
-//! The restart from the end screen, after the ending scenario: the UI's
-//! headless-integration build asks for it (`ui/src/widgets/dbg_restart.rs`),
-//! and the level must come back as the first round had it, the same number
-//! of frames after its spawn.
-
 use alloc::format;
 use alloc::vec::Vec;
 
@@ -10,23 +5,16 @@ use partsneeded_shared::BodyPart;
 use springcabal::check::Suite;
 
 use crate::defs::{defs, unit_def};
+use crate::gadgets::triggers::behavior::{GATE_AREAS, GATE_CLOSED_HEIGHT};
 use crate::state::Global;
-use crate::triggers::{GATE_AREAS, GATE_CLOSED_HEIGHT};
 
-/// When a round is compared, frames after its level spawned: the main
-/// scenario's first check.
 const AFTER_SPAWN: i32 = 12;
 
-/// The first gate, opened by its levers, and the last one, opened by its
-/// plate, in the first round.
 const OPENED_GATES: [i32; 2] = [20, 23];
 
-/// What the level looks like `AFTER_SPAWN` frames after it spawned.
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct Census {
     units: usize,
-    /// Units per def the level spawns: player, NPC wisps, gates, levers,
-    /// plates, cages, lights and the six pickups.
     per_def: Vec<usize>,
 }
 
@@ -71,7 +59,6 @@ impl Default for RestartTracker {
 }
 
 impl RestartTracker {
-    /// Whether the restarted round has been checked.
     pub fn is_finished(&self) -> bool {
         self.suite.is_finished()
     }

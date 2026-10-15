@@ -6,9 +6,6 @@ use spring_addons::rules::Gadget;
 use crate::defs::{defs, params};
 use crate::state::Global;
 
-/// Keep map-authored walls at the level's explicit floor height.  A map unit
-/// can predate the WASM rules module, so it does not necessarily pass through
-/// level::create(), where the same MoveCtrl pin is applied.
 fn pin_authored_wall_height(id: i32, def: i32) {
     if !params(def).pinned_wall {
         return;
@@ -27,14 +24,6 @@ fn pin_authored_wall_height(id: i32, def: i32) {
     });
 }
 
-/// Everything unit_collisions.lua and unit_plate.lua do to a unit's collision
-/// state the moment it is created.
-///
-/// The dungeon's walls, levers and plates are scenery: the real barriers are
-/// the map's terrain, and the authored gadgets take all three out of the
-/// collision world.  Leaving them solid means the player is shoved around by
-/// decoration, and a prisoner spawned at its cage would be displaced to the
-/// nearest free spot, which a neighbouring wall can put outside the cell.
 fn apply_authored_collisions(id: i32, def: i32) {
     pin_authored_wall_height(id, def);
     let clear_blocking = |quad_map_rays: bool| crate::level::clear_blocking(id, quad_map_rays);
@@ -50,15 +39,12 @@ fn apply_authored_collisions(id: i32, def: i32) {
         .log_err_once("clearing a collision volume");
     };
 
-    // unit_collisions.lua
     let rule = params(def);
     if rule.scenery_wall {
         clear_volume();
         clear_blocking(false);
         return;
     }
-    // unit_plate.lua.  A lever keeps quad_map_rays so TraceScreenRay can still
-    // find one to click; everything else loses its volume too.
     if rule.trigger {
         if def == defs().lever {
             clear_blocking(true);
@@ -69,10 +55,8 @@ fn apply_authored_collisions(id: i32, def: i32) {
     }
 }
 
-/// The authored collision rules: unit_collisions.lua and unit_plate.lua.
 #[derive(Default)]
 pub struct CollisionsGadget {
-    /// Whether the one-shot sweep over the map's own units has run.
     swept: Cell<bool>,
 }
 
@@ -87,9 +71,6 @@ impl Gadget<Global> for CollisionsGadget {
         "Collisions"
     }
 
-    /// Apply the rules to the units the map itself placed.
-    ///
-    /// UnitCreated does not reach them: they exist before this module loads.
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         if self.swept.replace(true) {
             return;
