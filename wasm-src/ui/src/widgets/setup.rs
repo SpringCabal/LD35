@@ -21,7 +21,7 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
         handler,
         [
             ApiSyncWidget::new(),
-            HideDefaultInterface::new(HIDDEN_INTERFACE),
+            HideDefaultInterface::new(HIDDEN_INTERFACE & !CONSOLE),
             CameraFollowWidget::new(),
             GuiWispControlWidget::new(),
             SndMusicWidget::new(),
