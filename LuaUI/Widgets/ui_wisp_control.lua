@@ -15,6 +15,7 @@ end
 local mouseControl1 = false
 local mouseControl3 = false
 require("keysym.lua")
+local controls = VFS.Include("LuaHandler/Utilities/game_controls.lua")
 local UP = KEYSYMS.UP
 local DOWN = KEYSYMS.DOWN
 local LEFT = KEYSYMS.LEFT
@@ -91,6 +92,9 @@ local function MovementControl()
 end
 
 function widget:MousePress(mx, my, button)
+	if controls.IsWriting() then
+		return false
+	end
 	if Spring.GetGameRulesParam("gameMode") == "develop" then
 		return false
 	end
@@ -137,6 +141,12 @@ function widget:GameFrame()
 	if not wispID then
 		return
 	end
+	if controls.IsWriting() then
+		Spring.SendLuaRulesMsg('movement|0|0')
+		lastMoveX, lastMoveZ = 0, 0
+		mouseControl1, mouseControl3 = false, false
+		return
+	end
 
 	if Spring.GetGameRulesParam("has_eyes") == 1 and pressSpace == 1 then
 		pressSpace = 2
@@ -172,6 +182,9 @@ end
 
 -- handles weapon switching and abilities
 function widget:KeyPress(key, mods, isRepeat)
+	if controls.IsWriting() then
+		return false
+	end
 	if Spring.GetGameRulesParam("gameMode") == "develop" then
 		return false
 	end
