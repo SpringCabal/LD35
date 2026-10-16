@@ -18,15 +18,6 @@ local x,y,h
 local notPurple = "\255\202\202\101"
 local white = "\255\255\255\255"
 
-local gameMode
-local function SetGameMode(gameMode)
-    if gameMode == "play" then
-        Spring.SendCommands("unbindkeyset enter chat") --because because.
-    else
-        Spring.SendCommands("bind enter chat")
-    end
-end
-
 local hasArms, hasEyes
 local function SetBodyParts(hasEyes, hasArms)
 	mouseText = {
@@ -55,8 +46,6 @@ function widget:Initialize()
 	Chili = WG.Chili
 	screen0 = Chili.Screen0
 	
-    gameMode = Spring.GetGameRulesParam("gameMode")
-    SetGameMode(gameMode)
 	SetBodyParts(Spring.GetGameRulesParam("has_eyes"), Spring.GetGameRulesParam("has_arms"))
 end
 
@@ -95,11 +84,6 @@ function  AddLine(text,x,y,h)
 end
 
 function widget:Update()
-    local newGameMode = Spring.GetGameRulesParam("gameMode")
-    if gameMode ~= newGameMode then
-        gameMode = newGameMode
-        SetGameMode(gameMode)
-    end
 	local newHasArms, newHasEyes = Spring.GetGameRulesParam("has_arms"), Spring.GetGameRulesParam("has_eyes")
 	if hasArms ~= newHasArms or hasEyes ~= newHasEyes then
 		hasArms = newHasArms
