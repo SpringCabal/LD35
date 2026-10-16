@@ -364,7 +364,6 @@ pub(super) fn messages_delivered(t: &mut Tracker) {
     );
 }
 
-
 pub(super) fn switch_refused_without_eyes(t: &mut Tracker, state: &Snapshot<'_>) {
     t.suite.check(
         state.wisp.spirit && state.wisp.form_frame == 0,

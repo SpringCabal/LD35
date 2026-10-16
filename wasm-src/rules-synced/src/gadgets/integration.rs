@@ -50,7 +50,10 @@ impl Gadget<Global> for IntegrationGadget {
         data: &[u8],
     ) {
         if data == Command::Hello.encode().as_bytes() {
-            let _ = spring::echo("[PartsNeeded-Rust-Test] PARTS NEEDED UI HANDSHAKE PASSED", "");
+            let _ = spring::echo(
+                "[PartsNeeded-Rust-Test] PARTS NEEDED UI HANDSHAKE PASSED",
+                "",
+            );
         } else if core::str::from_utf8(data).is_ok_and(|message| {
             Command::decode(message).is_some() || protocol::decode_direction(message).is_some()
         }) {
