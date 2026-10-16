@@ -18,35 +18,13 @@ local x,y,h
 local notPurple = "\255\202\202\101"
 local white = "\255\255\255\255"
 
-local function SetBindings()
-    local binds = { --real keybinds
-
-        --"Alt+b  debug",
-        --"--Alt+v  debugcolvol",
-
-		"ctrl+q reloadforce",
-		
-		"Any+w moveforward ",
-		"Any+a moveleft ",
-		"Any+d moveright",
-		"Any+s moveback",
-    }
-
-    for _,binding in pairs(binds) do
-        Spring.SendCommands("bind ".. binding)
-    end
-end
-
 local gameMode
 local function SetGameMode(gameMode)
     if gameMode == "play" then
-		-- Preserve the engine's default bindings (pause, screenshot, camera
-		-- movement, game speed, etc.). Only disable chat while playing.
         Spring.SendCommands("unbindkeyset enter chat") --because because.
     else
-        Spring.SendCommands("bindkeyset enter chat")
+        Spring.SendCommands("bind enter chat")
     end
-    SetBindings()
 end
 
 local hasArms, hasEyes
@@ -70,11 +48,6 @@ function widget:Initialize()
         --purple .. "W : " .. white .. "jump (+ left mouse)",
         --purple .. "S : " .. white .. "stop shooting & moving",
     }
-
-    -- Install gameplay bindings even when the optional Chili UI is unavailable.
-    -- Otherwise the engine's default Ctrl+Q binding remains quitforce, which
-    -- exits to the desktop instead of returning to the menu.
-    SetBindings()
 
     if (not WG.Chili) then
 		return
