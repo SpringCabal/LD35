@@ -1,12 +1,11 @@
 use alloc::vec::Vec;
 
 use partsneeded_shared::Ending;
-use spring::commands;
 
 use crate::sound::play_unit_sound;
 use crate::state::{ENDING_WISP_DESTROY_DELAY, Global, PUBLIC, WISP_DESTROY_DELAY};
 
-pub fn update_game_end(global: &Global) {
+pub fn update_game_end(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global) {
     let (has_all_parts, already_over, alive_wisps, saved_wisps, killed_wisps) = {
         let wisp = global.wisp.access();
         let endgame = global.endgame.access();
@@ -42,9 +41,10 @@ pub fn update_game_end(global: &Global) {
             wisp.id
         };
         crate::log::check(
+            spring,
             "freezing the player for the ending",
             wisp_id,
-            spring::move_ctrl::move_ctrl(wisp_id, true),
+            spring.move_ctrl().move_ctrl(wisp_id, true),
         );
     }
 }
@@ -54,8 +54,14 @@ pub const ENDING_SPAWN_AMOUNT: i32 = 500;
 const ENDING_SPAWN_DISTANCE: f32 = 300.0;
 const ENDING_SPAWN_DISTANCE_MIN: f32 = 100.0;
 
-fn ending_offset() -> f32 {
-    let offset = (0.5 - spring::random::synced::float()) * ENDING_SPAWN_DISTANCE * 2.0;
+fn ending_offset(spring: &spring::Spring<'_, spring::RulesSynced>) -> f32 {
+    let offset = (0.5
+        - spring
+            .synced_random()
+            .next_float()
+            .expect("synced random float"))
+        * ENDING_SPAWN_DISTANCE
+        * 2.0;
     if offset > 0.0 {
         offset + ENDING_SPAWN_DISTANCE_MIN
     } else {
@@ -63,31 +69,38 @@ fn ending_offset() -> f32 {
     }
 }
 
-pub fn spawn_ending_wisp(global: &Global) {
+pub fn spawn_ending_wisp(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global) {
     let wisp_id = global.wisp.access().id;
-    let Some(position) = spring::get_unit_position(wisp_id, false, false).ok() else {
+    let Some(position) = spring
+        .units_info()
+        .get_unit_position(wisp_id, Default::default())
+        .ok()
+    else {
         return;
     };
-    let dx = ending_offset();
-    let dz = ending_offset();
+    let dx = ending_offset(spring);
+    let dz = ending_offset(spring);
     let spawn_position = spring::Float3::new(position.x + dx, position.y, position.z + dz);
     crate::level::spawn_unit(
+        spring,
         "npcwisp",
-        crate::defs::defs().npcwisp,
+        crate::defs::defs(spring).npcwisp,
         spawn_position,
-        move |id| {
-            commands::give_order_to_unit(
-                id,
-                spring::cmd::MOVE,
-                &[position.x, position.y, position.z],
-                0,
-                0,
-            )
-            .then(move |result| {
-                crate::log::check("ending wisp MOVE order", id, result);
+        move |spring, id| {
+            crate::with_addon_context(|ctx| {
+                ctx.commands().give_order_to_unit(
+                    id,
+                    spring::cmd::MOVE,
+                    &[position.x, position.y, position.z],
+                    0,
+                    0,
+                )
+            })
+            .then(move |spring, result| {
+                crate::log::check(spring, "ending wisp MOVE order", id, result);
             });
             crate::with_global(|global| {
-                mark_wisp_dying_with_delay(global, id, true, ENDING_WISP_DESTROY_DELAY);
+                mark_wisp_dying_with_delay(spring, global, id, true, ENDING_WISP_DESTROY_DELAY);
                 global
                     .endgame
                     .access_mut()
@@ -98,23 +111,35 @@ pub fn spawn_ending_wisp(global: &Global) {
     );
 }
 
-pub fn move_ending_wisps(global: &Global) {
-    global
-        .endgame
-        .access_mut()
-        .ending_wisps
-        .retain(|(id, _)| spring::get_unit_position(*id, false, false).is_ok());
+pub fn move_ending_wisps(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global) {
+    global.endgame.access_mut().ending_wisps.retain(|(id, _)| {
+        spring
+            .units_info()
+            .get_unit_position(*id, Default::default())
+            .is_ok()
+    });
 }
 
-pub fn mark_wisp_dying(global: &Global, id: i32, saved: bool) {
-    mark_wisp_dying_with_delay(global, id, saved, WISP_DESTROY_DELAY);
+pub fn mark_wisp_dying(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    id: i32,
+    saved: bool,
+) {
+    mark_wisp_dying_with_delay(spring, global, id, saved, WISP_DESTROY_DELAY);
 }
 
-fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32) {
+fn mark_wisp_dying_with_delay(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    id: i32,
+    saved: bool,
+    delay: i32,
+) {
     if !global.world.access().npc_wisps.contains(&id) {
         return;
     }
-    let frame = spring::game::current_frame();
+    let frame = spring.game().current_frame().unwrap_or(0);
     let destroy_frame = frame + delay;
     {
         let mut endgame = global.endgame.access_mut();
@@ -133,9 +158,12 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
         ("destroy_frame", destroy_frame as f32),
     ] {
         crate::log::check(
+            spring,
             param,
             id,
-            spring::set_unit_rules_param_f32(id, param, value, PUBLIC),
+            spring
+                .rules_params()
+                .set_unit_rules_param_f32(id, param, value, PUBLIC),
         );
     }
     if saved {
@@ -144,14 +172,17 @@ fn mark_wisp_dying_with_delay(global: &Global, id: i32, saved: bool, delay: i32)
         } else {
             100.0
         };
-        play_unit_sound("sounds/freed.ogg", volume, id);
+        play_unit_sound(spring, "sounds/freed.ogg", volume, id);
     } else {
-        play_unit_sound("sounds/death.ogg", 100.0, id);
+        play_unit_sound(spring, "sounds/death.ogg", 100.0, id);
     }
 }
 
-pub fn expire_dying_wisps(global: &Global) -> Vec<(i32, bool, i32)> {
-    let now = spring::game::current_frame();
+pub fn expire_dying_wisps(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+) -> Vec<(i32, bool, i32)> {
+    let now = spring.game().current_frame().unwrap_or(0);
     let mut expired = Vec::new();
     let mut endgame = global.endgame.access_mut();
     endgame.dying_wisps.retain(|(id, saved, frame)| {

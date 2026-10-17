@@ -115,7 +115,7 @@ impl Trail {
         }
     }
 
-    pub fn draw(&mut self, camera: &Camera, frame: i32) {
+    pub fn draw(&mut self, spring: &spring::Spring<'_, spring::Ui>, camera: &Camera, frame: i32) {
         if self.particles.is_empty() {
             return;
         }
@@ -125,15 +125,15 @@ impl Trail {
         if self.vertices.is_empty() {
             self.vertices = (0..PUFF_SIDES + 2).map(|_| particle_vertex()).collect();
         }
-        let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
-        let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
+        let _ = spring.gfx().push_attrib(gl::ALL_ATTRIB_BITS);
+        let _ = spring.gfx().depth_test(spring::gfx::GfxDepthTestOptions {
             enable: true,
             set_func: false,
             func: 0,
         });
-        let _ = spring::gfx::blending(true);
-        let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE);
-        let _ = spring::gfx::use_shader(0);
+        let _ = spring.gfx().blending(true);
+        let _ = spring.gfx().blend_func(gl::SRC_ALPHA, gl::ONE);
+        let _ = spring.gfx().use_shader(0);
 
         for particle in &self.particles {
             let fade = (particle.life / TRAIL_PARTICLE_LIFETIME).clamp(0.0, 1.0);
@@ -162,9 +162,9 @@ impl Trail {
                     [0.32, 0.43, 1.0, edge_alpha],
                 );
             }
-            let _ = spring::gfx::shape(gl::TRIANGLE_FAN, &self.vertices);
+            let _ = spring.gfx().shape(gl::TRIANGLE_FAN, &self.vertices);
         }
-        let _ = spring::gfx::pop_attrib(0);
+        let _ = spring.gfx().pop_attrib();
     }
 }
 

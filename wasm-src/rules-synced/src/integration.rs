@@ -59,7 +59,12 @@ impl Default for Tracker {
     }
 }
 
-pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
+pub fn update(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut Tracker,
+    global: &Global,
+    frame: i32,
+) {
     if t.suite.is_finished() {
         return;
     }
@@ -72,53 +77,53 @@ pub fn update(t: &mut Tracker, global: &Global, frame: i32) {
         endgame: &endgame,
     };
     match frame {
-        15 => level_spawned(t, state),
-        21 => movement_message(t, state),
-        30 => before_pickups(t, state),
-        31 => remote_lever_refused(t, state),
-        45 => walking(t, state),
-        60 => cages_hold(t, state),
-        63 => switch_refused_without_eyes(t, state),
-        65 => eyes_collected(t, state),
-        71 => lever_at_rest(t, state),
-        74 => arm_baseline(t, state),
-        75 => body_form_and_lever(t, state),
+        15 => level_spawned(spring, t, state),
+        21 => movement_message(spring, t, state),
+        30 => before_pickups(spring, t, state),
+        31 => remote_lever_refused(spring, t, state),
+        45 => walking(spring, t, state),
+        60 => cages_hold(spring, t, state),
+        63 => switch_refused_without_eyes(spring, t, state),
+        65 => eyes_collected(spring, t, state),
+        71 => lever_at_rest(spring, t, state),
+        74 => arm_baseline(spring, t, state),
+        75 => body_form_and_lever(spring, t, state),
         77 => {
-            lever_pulled(t, state);
-            gate_baseline(t, state);
-            plate_baseline(t, state);
+            lever_pulled(spring, t, state);
+            gate_baseline(spring, t, state);
+            plate_baseline(spring, t, state);
         }
-        78 => form_persists(t, state),
-        81 => leg_baseline(t, state),
-        84 => lever_released(t, state),
-        85 => plate_pressed(t, state),
+        78 => form_persists(spring, t, state),
+        81 => leg_baseline(spring, t, state),
+        84 => lever_released(spring, t, state),
+        85 => plate_pressed(spring, t, state),
         91 => {
-            swam(t);
-            walked(t);
+            swam(spring, t);
+            walked(spring, t);
         }
-        95 => plate_sank(t, state),
+        95 => plate_sank(spring, t, state),
         105 => before_bars_open(t, state),
-        120 => bars_opened_before_release(t, state),
-        142 => game_over(t, state),
-        145 => pickups_removed(t, state),
+        120 => bars_opened_before_release(spring, t, state),
+        142 => game_over(spring, t, state),
+        145 => pickups_removed(spring, t, state),
         160 => {
-            one_way_gate(t, state);
-            gate_opened(t, state);
-            plate_stays_down(t, state);
-            cage_stays_open(t, state);
+            one_way_gate(spring, t, state);
+            gate_opened(spring, t, state);
+            plate_stays_down(spring, t, state);
+            cage_stays_open(spring, t, state);
         }
         165 => {
-            form_locked_after_game_over(t, state);
-            messages_delivered(t);
+            form_locked_after_game_over(spring, t, state);
+            messages_delivered(spring, t);
         }
-        175 => kill_plate(t, state),
-        216 => finish(t, state),
+        175 => kill_plate(spring, t, state),
+        216 => finish(spring, t, state),
         _ => {}
     }
     if (75..80).contains(&frame) {
-        track_swim(t, state);
+        track_swim(spring, t, state);
     }
     if (82..=90).contains(&frame) {
-        track_walk(t, state);
+        track_walk(spring, t, state);
     }
 }

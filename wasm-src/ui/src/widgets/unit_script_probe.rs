@@ -18,14 +18,18 @@ impl Widget<Global> for UnitScriptProbeWidget {
         "UnitScriptProbe"
     }
 
-    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        let _ = spring::echo("[UnitScriptProbeDriver] LOADED script=WasmUI", "");
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = _ctx.spring();
+        let _ = spring
+            .messages()
+            .echo("[UnitScriptProbeDriver] LOADED script=WasmUI", "");
     }
 
-    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
+    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
+        let spring = _ctx.spring();
         if !self.begin_sent.replace(true) {
-            let _ = spring::echo("[UnitScriptProbeDriver] BEGIN", "");
-            springcabal::message::send_to_rules("probe_begin");
+            let _ = spring.messages().echo("[UnitScriptProbeDriver] BEGIN", "");
+            springcabal::message::send_to_rules(spring, "probe_begin");
         }
     }
 }

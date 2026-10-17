@@ -34,7 +34,7 @@ impl Widget<Global> for SndMusicWidget {
         "SndMusic"
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, dt: f32) {
         let has_ears = ctx.global().player.access().parts.contains(BodyPart::Ears);
         if self.ears.replace(Some(has_ears)) != Some(has_ears) {
             if has_ears {
@@ -46,7 +46,7 @@ impl Widget<Global> for SndMusicWidget {
         self.music.update(ctx, dt);
     }
 
-    fn shutdown(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
+    fn shutdown(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
         self.music.shutdown(ctx);
     }
 }

@@ -17,8 +17,13 @@ pub struct Defs {
 }
 
 impl Defs {
-    fn resolve() -> Self {
-        let id = |name: &str| spring::get_unit_def_id_by_name(name).unwrap_or(-1);
+    fn resolve(spring: &spring::Spring<'_, spring::RulesSynced>) -> Self {
+        let id = |name: &str| {
+            spring
+                .unit_defs()
+                .get_unit_def_id_by_name(name)
+                .unwrap_or(-1)
+        };
         Self {
             wisp: id("wisp"),
             npcwisp: id("npcwisp"),
@@ -68,9 +73,11 @@ pub struct DefParams {
 }
 
 impl DefParams {
-    fn resolve(def: i32) -> Self {
+    fn resolve(spring: &spring::Spring<'_, spring::RulesSynced>, def: i32) -> Self {
         let param = |key: &str| {
-            spring::unit_defs::get_unit_def_custom_param(def, key)
+            spring
+                .unit_defs()
+                .get_unit_def_custom_param(def, key)
                 .ok()
                 .filter(|value| !value.is_empty())
         };
@@ -86,28 +93,37 @@ impl DefParams {
     }
 }
 
-fn resolve_params() -> Vec<DefParams> {
+fn resolve_params(spring: &spring::Spring<'_, spring::RulesSynced>) -> Vec<DefParams> {
     let mut params = vec![DefParams::default()];
-    while spring::unit_defs::get_unit_def_name_bytes(params.len() as i32).is_ok() {
-        params.push(DefParams::resolve(params.len() as i32));
+    while spring
+        .unit_defs()
+        .get_unit_def_name(params.len() as i32)
+        .is_ok()
+    {
+        params.push(DefParams::resolve(spring, params.len() as i32));
     }
     params
 }
 
-static DEFS: DefCache<Defs> = DefCache::new(Defs::resolve);
-static PARAMS: DefCache<Vec<DefParams>> = DefCache::new(resolve_params);
+static DEFS: DefCache<Defs> = DefCache::new();
+static PARAMS: DefCache<Vec<DefParams>> = DefCache::new();
 
-pub fn defs() -> Defs {
-    *DEFS.get()
+pub fn defs(spring: &spring::Spring<'_, spring::RulesSynced>) -> Defs {
+    *DEFS.get_or_init(|| Defs::resolve(spring))
 }
 
-pub fn params(def: i32) -> DefParams {
+pub fn params(spring: &spring::Spring<'_, spring::RulesSynced>, def: i32) -> DefParams {
     usize::try_from(def)
         .ok()
-        .and_then(|def| PARAMS.get().get(def).copied())
+        .and_then(|def| {
+            PARAMS
+                .get_or_init(|| resolve_params(spring))
+                .get(def)
+                .copied()
+        })
         .unwrap_or_default()
 }
 
-pub fn unit_def(unit: i32) -> i32 {
-    spring::get_unit_def_id(unit).map_or(-1, |def| def.0)
+pub fn unit_def(spring: &spring::Spring<'_, spring::RulesSynced>, unit: i32) -> i32 {
+    spring.units_info().get_unit_def_id(unit).unwrap_or(-1)
 }

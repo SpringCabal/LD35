@@ -1,7 +1,7 @@
 use alloc::rc::Rc;
 
 use partsneeded_shared::{Command, Status};
-use spring::commands;
+
 use spring_addons::rules::Gadget;
 use springcabal::message::SendOnChange;
 
@@ -41,6 +41,7 @@ impl Gadget<Global> for StatusGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
+        let _spring = ctx.spring();
         let status = {
             let wisp = ctx.global().wisp.access();
             let endgame = ctx.global().endgame.access();
@@ -56,13 +57,15 @@ impl Gadget<Global> for StatusGadget {
         self.sent.send_if_changed(status, |status| {
             let message = status.encode();
             let sent = Rc::clone(&self.sent);
-            commands::queue(move || springcabal::message::send_to_ui(&message)).then(
-                move |delivered| {
-                    if !delivered {
-                        sent.reset();
-                    }
-                },
-            );
+            crate::with_addon_context(|ctx| {
+                ctx.commands()
+                    .queue(move |spring| springcabal::message::send_to_ui(spring, &message))
+            })
+            .then(move |_spring, delivered| {
+                if !delivered {
+                    sent.reset();
+                }
+            });
             true
         });
     }

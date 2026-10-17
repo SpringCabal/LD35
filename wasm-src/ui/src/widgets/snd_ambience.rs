@@ -1,6 +1,5 @@
 use core::cell::Cell;
 use partsneeded_shared::BodyPart;
-use spring::random::unsynced as random;
 
 use spring_addons::ui::Widget;
 
@@ -22,7 +21,8 @@ impl Widget<Global> for SndAmbienceWidget {
         "SndAmbience"
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
+        let spring = ctx.spring();
         let (parts, spirit, wisp) = {
             let player = ctx.global().player.access();
             (player.parts, player.spirit, player.wisp)
@@ -30,13 +30,13 @@ impl Widget<Global> for SndAmbienceWidget {
         if wisp < 0 {
             return;
         }
-        let Ok(position) = spring::unit_rendering::get_unit_view_position(wisp, true) else {
+        let Ok(position) = spring.unit_rendering().get_unit_view_position(wisp, true) else {
             return;
         };
-        let frame = spring::game::current_frame();
+        let frame = spring.game().current_frame().unwrap_or(0);
         let Some(mut next_play) = self.next_play.get() else {
             self.next_play.set(Some(
-                AMBIENT_SOUNDS.map(|sound| frame + cooldown_frames(&sound)),
+                AMBIENT_SOUNDS.map(|sound| frame + cooldown_frames(spring, &sound)),
             ));
             return;
         };
@@ -45,12 +45,21 @@ impl Widget<Global> for SndAmbienceWidget {
             if (sound.needs_ears && !has_ears) || frame < *next_frame {
                 continue;
             }
-            *next_frame = frame + cooldown_frames(sound);
-            let volume = random::range(sound.volume.0, sound.volume.1) * 10.0;
+            *next_frame = frame + cooldown_frames(spring, sound);
+            let volume = spring
+                .unsynced_random()
+                .range(sound.volume.0, sound.volume.1)
+                .expect("unsynced random")
+                * 10.0;
             match sound.needs_part {
-                None => play_at(sound.file, volume, nearby_position(position)),
+                None => play_at(
+                    spring,
+                    sound.file,
+                    volume,
+                    nearby_position(spring, position),
+                ),
                 Some(part) if parts.contains(part) && !spirit => {
-                    play_at(sound.file, volume, position)
+                    play_at(spring, sound.file, volume, position)
                 }
                 Some(_) => {}
             }
@@ -108,16 +117,29 @@ const AMBIENT_SOUNDS: [AmbientSound; 5] = [
 const MIN_COORD_DISTANCE: f32 = 100.0;
 const MAX_COORD_DISTANCE: f32 = 500.0;
 
-fn play_at(name: &str, volume: f32, position: spring::Float3) {
-    let _ = spring::sound::play_sound_file(name, volume, position, spring::Float3::default(), 0);
+fn play_at(
+    spring: &spring::Spring<'_, spring::Ui>,
+    name: &str,
+    volume: f32,
+    position: spring::Float3,
+) {
+    let _ = spring
+        .sound()
+        .play_sound_file(name, volume, position, spring::Float3::default(), 0);
 }
 
-fn cooldown_frames(sound: &AmbientSound) -> i32 {
-    (random::range(sound.cooldown.0, sound.cooldown.1) * spring::consts::GAME_SPEED as f32) as i32
+fn cooldown_frames(spring: &spring::Spring<'_, spring::Ui>, sound: &AmbientSound) -> i32 {
+    (spring
+        .unsynced_random()
+        .range(sound.cooldown.0, sound.cooldown.1)
+        .expect("unsynced random")
+        * spring::consts::GAME_SPEED as f32) as i32
 }
 
-fn axis_offset() -> f32 {
-    let offset = 2.0 * (0.5 - random::float()) * (MAX_COORD_DISTANCE - MIN_COORD_DISTANCE);
+fn axis_offset(spring: &spring::Spring<'_, spring::Ui>) -> f32 {
+    let offset = 2.0
+        * (0.5 - spring.unsynced_random().float().expect("unsynced random"))
+        * (MAX_COORD_DISTANCE - MIN_COORD_DISTANCE);
     if offset > 0.0 {
         offset + MIN_COORD_DISTANCE
     } else {
@@ -125,6 +147,13 @@ fn axis_offset() -> f32 {
     }
 }
 
-fn nearby_position(origin: spring::Float3) -> spring::Float3 {
-    spring::Float3::new(origin.x + axis_offset(), origin.y, origin.z + axis_offset())
+fn nearby_position(
+    spring: &spring::Spring<'_, spring::Ui>,
+    origin: spring::Float3,
+) -> spring::Float3 {
+    spring::Float3::new(
+        origin.x + axis_offset(spring),
+        origin.y,
+        origin.z + axis_offset(spring),
+    )
 }

@@ -1,4 +1,3 @@
-use spring::commands;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::defs::defs;
@@ -26,8 +25,9 @@ impl Gadget<Global> for RosterGadget {
         _team: i32,
         _builder: i32,
     ) {
+        let spring = ctx.spring();
         let global = ctx.global();
-        let defs = defs();
+        let defs = defs(spring);
         if def == defs.wisp {
             let mut wisp = global.wisp.access_mut();
             wisp.id = id;
@@ -37,7 +37,10 @@ impl Gadget<Global> for RosterGadget {
         } else if def == defs.npcwisp {
             global.world.access_mut().npc_wisps.push(id);
         } else if def == defs.cage {
-            commands::run(move || crate::cages::spawn_cage_wisp(id));
+            crate::with_addon_context(|ctx| {
+                ctx.commands()
+                    .run(move |spring| crate::cages::spawn_cage_wisp(spring, id))
+            });
         }
     }
 

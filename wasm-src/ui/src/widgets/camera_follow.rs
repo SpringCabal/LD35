@@ -38,14 +38,15 @@ impl Widget<Global> for CameraFollowWidget {
         "CameraFollow"
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, dt: f32) {
+        let spring = ctx.spring();
         let wisp = ctx.global().player.access().wisp;
-        self.camera.update((wisp >= 0).then_some(wisp), dt);
+        self.camera.update(spring, (wisp >= 0).then_some(wisp), dt);
     }
 
     fn mouse_wheel(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         _up: bool,
         _value: f32,
     ) -> EventResult {

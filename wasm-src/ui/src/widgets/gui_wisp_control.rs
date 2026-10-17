@@ -30,10 +30,16 @@ impl GuiWispControlWidget {
         }
     }
 
-    fn update_movement(&self, event: &KeyEvent<'_>, pressed: bool) -> EventResult {
-        let claimed = self.movement.key(event, pressed);
+    fn update_movement(
+        &self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        event: &KeyEvent<'_>,
+        pressed: bool,
+    ) -> EventResult {
+        let claimed = self.movement.key(spring, event, pressed);
         if claimed {
-            self.movement.send(send_direction);
+            self.movement
+                .send(spring, |direction| send_direction(spring, direction));
         }
         claimed.into()
     }
@@ -44,33 +50,41 @@ impl Widget<Global> for GuiWispControlWidget {
         "GuiWispControl"
     }
 
-    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
-        self.movement.send(send_direction);
-        if spring::selection::get_selected_units_count(0).unwrap_or(0) > 0 {
-            let _ = spring::selection::select_unit_array(&[], false);
+    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
+        let spring = _ctx.spring();
+        self.movement
+            .send(spring, |direction| send_direction(spring, direction));
+        if spring.selection().get_selected_units_count().unwrap_or(0) > 0 {
+            let _ = spring.selection().select_unit_array(&[], false);
         }
     }
 
-    fn draw_screen(&self, _ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
+    fn draw_screen(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        width: i32,
+        height: i32,
+    ) {
         self.screen_width.set(width);
         self.screen_height.set(height);
     }
 
     fn key_press(
         &self,
-        ctx: &spring_addons::AddonContext<'_, Global>,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
-        if event.matches("r") && ctx.global().player.access().end_screen_shown() {
-            send(Command::Restart);
+        let spring = ctx.spring();
+        if event.matches("r") && ctx.global().player.access().end_screen_shown(spring) {
+            send(spring, Command::Restart);
             return EventResult::Handled;
         }
         if menu::is_quit_to_menu(event) {
-            menu::quit_to_menu();
+            menu::quit_to_menu(spring);
             return EventResult::Handled;
         }
         if event.matches("space") {
-            send(Command::SwitchForm);
+            send(spring, Command::SwitchForm);
             let mut player = ctx.global().player.access_mut();
             let has_eyes = player.parts.contains(BodyPart::Eyes);
             if player.spirit && has_eyes {
@@ -78,54 +92,58 @@ impl Widget<Global> for GuiWispControlWidget {
             }
             let current = player.spirit;
             let wanted = !(current && has_eyes);
-            let now = spring::game::current_frame();
+            let now = spring.game().current_frame().unwrap_or(0);
             let off_cooldown = now - self.last_form_change.get() > FORM_COOLDOWN;
             if wanted != current && off_cooldown {
                 self.last_form_change.set(now);
-                player.form.begin(current, wanted);
+                player.form.begin(spring, current, wanted);
                 player.spirit = wanted;
                 let wisp = player.wisp;
                 player.pending_spirit = Some(wanted);
-                player.pending_since = spring::game::current_frame();
+                player.pending_since = spring.game().current_frame().unwrap_or(0);
                 drop(player);
-                let position = spring::get_unit_position(wisp, false, false)
-                    .unwrap_or_else(|_| spring::types::Float3::default());
-                let _ = spring::sound::play_sound_file(
+                let position = spring
+                    .units_info()
+                    .get_unit_position(wisp, Default::default())
+                    .unwrap_or_else(|_| spring::Float3::default());
+                let _ = spring.sound().play_sound_file(
                     "sounds/changestate.ogg",
                     1.0,
                     position,
-                    spring::types::Float3::default(),
+                    spring::Float3::default(),
                     0,
                 );
-                crate::show_body(wisp, !wanted);
+                crate::show_body(spring, wisp, !wanted);
             }
             return EventResult::Handled;
         }
-        self.update_movement(event, true)
+        self.update_movement(spring, event, true)
     }
 
     fn key_release(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
-        self.update_movement(event, false)
+        let spring = _ctx.spring();
+        self.update_movement(spring, event, false)
     }
 
     fn mouse_press(
         &self,
-        ctx: &spring_addons::AddonContext<'_, Global>,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         x: i32,
         y: i32,
         button: i32,
     ) -> EventResult {
+        let spring = ctx.spring();
         let (center_x, center_y) = (self.screen_width.get() / 2, self.screen_height.get() / 2);
-        let in_restart_prompt = ctx.global().player.access().end_screen_shown()
+        let in_restart_prompt = ctx.global().player.access().end_screen_shown(spring)
             && button == mouse::LEFT
             && (x - center_x).abs() <= RESTART_PROMPT_HALF_WIDTH
             && (center_y + RESTART_PROMPT_TOP..=center_y + RESTART_PROMPT_BOTTOM).contains(&y);
         if in_restart_prompt {
-            send(Command::Restart);
+            send(spring, Command::Restart);
             return EventResult::Handled;
         }
         let global = ctx.global().player.access();
@@ -142,17 +160,21 @@ impl Widget<Global> for GuiWispControlWidget {
         let unit_id = if let Some(hovered) = hovered {
             hovered
         } else {
-            let Some(unit_id) = spring::pick::unit_at(x as f32, y as f32) else {
+            let Some(unit_id) = spring.camera().unit_at(x as f32, y as f32).ok().flatten() else {
                 return EventResult::Handled;
             };
             unit_id
         };
-        if unit_def(unit_id) != defs().lever {
+        if unit_def(spring, unit_id) != defs(spring).lever {
             return EventResult::Handled;
         }
         let (Ok(lever_position), Ok(wisp_position)) = (
-            spring::get_unit_position(unit_id, false, false),
-            spring::get_unit_position(wisp, false, false),
+            spring
+                .units_info()
+                .get_unit_position(unit_id, Default::default()),
+            spring
+                .units_info()
+                .get_unit_position(wisp, Default::default()),
         ) else {
             return EventResult::Handled;
         };
@@ -161,7 +183,7 @@ impl Widget<Global> for GuiWispControlWidget {
         if dx * dx + dz * dz >= LEVER_REACH * LEVER_REACH {
             return EventResult::Handled;
         }
-        send(Command::PullLever(unit_id));
+        send(spring, Command::PullLever(unit_id));
         EventResult::Handled
     }
 }

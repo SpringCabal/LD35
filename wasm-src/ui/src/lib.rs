@@ -6,10 +6,13 @@ pub mod shader;
 pub mod state;
 pub mod widgets;
 
-pub fn show_body(wisp: i32, shown: bool) {
+pub fn show_body(spring: &spring::Spring<'_, spring::Ui>, wisp: i32, shown: bool) {
     use spring::ResultExt;
     if wisp >= 0 {
-        spring::unsynced_ctrl::set_unit_no_draw(wisp, !shown).log_err_once("showing the body");
+        spring
+            .unsynced_ctrl()
+            .set_unit_no_draw(wisp, !shown)
+            .log_err_once(spring, "showing the body");
     }
 }
 

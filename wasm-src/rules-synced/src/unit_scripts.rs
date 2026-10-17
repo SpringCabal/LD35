@@ -38,8 +38,11 @@ enum ScriptKind {
     Trigger,
 }
 
-fn script_kind_for_def(def: i32) -> Option<ScriptKind> {
-    let defs = crate::defs::defs();
+fn script_kind_for_def(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    def: i32,
+) -> Option<ScriptKind> {
+    let defs = crate::defs::defs(spring);
     if def < 0 {
         None
     } else if def == defs.wisp || def == defs.npcwisp {

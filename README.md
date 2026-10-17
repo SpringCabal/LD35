@@ -13,3 +13,30 @@ Differences from the Lua version:
 - Wisps arriving during the ending fade after six seconds so they can reach the player; Lua fades them after 1.5 seconds.
 
 [![Join the chat at https://gitter.im/SpringCabal/LD35](https://badges.gitter.im/SpringCabal/LD35.svg)](https://gitter.im/SpringCabal/LD35?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+## Scoped SDK port
+
+This worktree builds the Wasm game with `spring-sdk` and the shared addon/CUS
+host. Helpers receive `&Spring`; queued commands and their continuations get
+fresh engine access. Unit-script tasks use `UnitCtx::with_spring` for each
+operation. UI sound variation retains the former module-local PCG stream.
+This port does not build native game modules.
+
+Verification on the SDK test engine:
+
+- Linux and Wine pass all 57 main assertions, four ending assertions, four
+  restart assertions, five same-pass assertions and the UI handshake.
+- Strict Clippy passes with default/all features; four shared Rust tests pass.
+  The headless-only UI build is checked by the actual integration run.
+- Unit-script source comparison passes. Live Lua/Wasm comparison passes for
+  3,498 transform samples: largest delta 0.00003384, below the existing 0.0001
+  limit. Walking, hovering, idle animation and assembled body parts are kept.
+- The six-shot visual scenario completes with the existing non-black and
+  settled-camera assertions. Manual image differences are 4.77% and 2.93%
+  against 8%, 0.76% and 0.53% against the settled 3% limit, and zero for the
+  final ending text. The suite still rejects Mesa package revision `.4`
+  versus the recorded `.2`; expected images and limits are unchanged.
+
+Use the parent development repository's `just verify partsneeded` and
+`just verify unit-scripts partsneeded` commands, selecting the engine with
+`SPRING_ENGINE_DIR`.

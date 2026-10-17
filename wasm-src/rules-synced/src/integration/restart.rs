@@ -18,9 +18,9 @@ struct Census {
     per_def: Vec<usize>,
 }
 
-fn census() -> Census {
-    let units: Vec<i32> = spring::get_all_units().unwrap_or_default();
-    let defs = defs();
+fn census(spring: &spring::Spring<'_, spring::RulesSynced>) -> Census {
+    let units: Vec<i32> = spring.units().get_all_units().unwrap_or_default();
+    let defs = defs(spring);
     let tracked = [
         defs.wisp,
         defs.npcwisp,
@@ -35,7 +35,12 @@ fn census() -> Census {
     Census {
         units: units.len(),
         per_def: tracked
-            .map(|def| units.iter().filter(|id| unit_def(**id) == def).count())
+            .map(|def| {
+                units
+                    .iter()
+                    .filter(|id| unit_def(spring, **id) == def)
+                    .count()
+            })
             .collect(),
     }
 }
@@ -64,7 +69,12 @@ impl RestartTracker {
     }
 }
 
-pub fn update(t: &mut RestartTracker, global: &Global, frame: i32) {
+pub fn update(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut RestartTracker,
+    global: &Global,
+    frame: i32,
+) {
     if t.suite.is_finished() {
         return;
     }
@@ -73,14 +83,19 @@ pub fn update(t: &mut RestartTracker, global: &Global, frame: i32) {
         return;
     }
     match t.first_round.clone() {
-        None => t.first_round = Some(census()),
-        Some(first) => check_restarted(t, global, &first),
+        None => t.first_round = Some(census(spring)),
+        Some(first) => check_restarted(spring, t, global, &first),
     }
 }
 
-fn check_restarted(t: &mut RestartTracker, global: &Global, first: &Census) {
-    let now = census();
-    t.suite.check(
+fn check_restarted(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut RestartTracker,
+    global: &Global,
+    first: &Census,
+) {
+    let now = census(spring);
+    t.suite.check(spring,
         now == *first,
         format!(
             "the restart builds the level again as the first round had it ({} units, per def {:?}; first round {} units, {:?})",
@@ -100,13 +115,13 @@ fn check_restarted(t: &mut RestartTracker, global: &Global, first: &Census) {
             world.level_ids.len(),
         )
     };
-    t.suite.check(
+    t.suite.check(spring,
         spirit && parts.is_empty() && !game_over && triggered == 0,
         format!(
             "the restarted round starts over: a spirit with no parts, the game running, nothing triggered (spirit {spirit}, parts {parts:?}, over {game_over}, {triggered} triggered)"
         ),
     );
-    t.suite.check(
+    t.suite.check(spring,
         npc_wisps == 10 && level_units == 61,
         format!(
             "the restarted round tracks the new level: 61 level units and 10 caged NPC wisps (got {level_units} and {npc_wisps})"
@@ -116,10 +131,13 @@ fn check_restarted(t: &mut RestartTracker, global: &Global, first: &Census) {
         .iter()
         .filter(|(key, ..)| OPENED_GATES.contains(key))
         .map(|(_, x1, z1, x2, z2)| {
-            spring::get_ground_height((x1 + x2) / 2.0, (z1 + z2) / 2.0).unwrap_or(0.0)
+            spring
+                .terrain()
+                .get_ground_height((x1 + x2) / 2.0, (z1 + z2) / 2.0)
+                .unwrap_or(0.0)
         })
         .collect();
-    t.suite.check(
+    t.suite.check(spring,
         heights.len() == OPENED_GATES.len()
             && heights
                 .iter()
@@ -128,5 +146,5 @@ fn check_restarted(t: &mut RestartTracker, global: &Global, first: &Census) {
             "the restart closes the gates the first round opened: the doorway terrain is back at {GATE_CLOSED_HEIGHT} (got {heights:?})"
         ),
     );
-    t.suite.finish();
+    t.suite.finish(spring);
 }

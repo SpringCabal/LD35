@@ -42,12 +42,27 @@ fn planar_distance(a: spring::Float3, b: spring::Float3) -> f32 {
     (dx * dx + dz * dz).sqrt()
 }
 
-fn unit_position(id: i32) -> Option<spring::Float3> {
-    spring::get_unit_position(id, false, false).ok()
+fn unit_position(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    id: i32,
+) -> Option<spring::Float3> {
+    spring
+        .units_info()
+        .get_unit_position(id, Default::default())
+        .ok()
 }
 
-fn moving_to(id: i32, target: spring::Float3) -> bool {
-    match spring::get_unit_commands(id, 1).ok().as_deref() {
+fn moving_to(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    id: i32,
+    target: spring::Float3,
+) -> bool {
+    match spring
+        .units_commands()
+        .get_unit_commands(id, 1)
+        .ok()
+        .as_deref()
+    {
         Some([]) => true,
         Some([command, ..]) => {
             command.cmd_id == spring::cmd::MOVE
@@ -59,12 +74,17 @@ fn moving_to(id: i32, target: spring::Float3) -> bool {
     }
 }
 
-pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
+pub fn update(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut EndingTracker,
+    global: &Global,
+    frame: i32,
+) {
     if frame == PREPARE_FRAME && !t.prepared {
-        prepare(t, global);
+        prepare(spring, t, global);
     }
     if frame == PENDING_CHECK_FRAME && t.prepared {
-        check_pending_rescues(t, global);
+        check_pending_rescues(spring, t, global);
     }
     if frame == SECOND_PICKUP_FRAME && t.prepared {
         let saved_wisps = global.endgame.access().saved_wisps;
@@ -72,18 +92,18 @@ pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
             saved_wisps,
             ..Endgame::default()
         };
-        pick_up_last_part_again(global);
+        pick_up_last_part_again(spring, global);
     }
     if t.prepared && t.first_arrival.is_none() {
         let first = global.endgame.access().ending_wisps.first().copied();
         if let Some((id, _)) = first
-            && let Some(position) = unit_position(id)
+            && let Some(position) = unit_position(spring, id)
         {
             t.first_arrival = Some((id, position, frame));
         }
     }
     if frame == ARRIVAL_CHECK_FRAME && t.prepared && !t.spawn_checked {
-        check_first_arrival(t, global, frame);
+        check_first_arrival(spring, t, global, frame);
         t.spawn_checked = true;
     }
     if frame >= 800
@@ -91,15 +111,19 @@ pub fn update(t: &mut EndingTracker, global: &Global, frame: i32) {
         && !t.suite.is_finished()
         && global.endgame.access().sequence_complete
     {
-        finish(t, global);
+        finish(spring, t, global);
     }
 }
 
-fn prepare(t: &mut EndingTracker, global: &Global) {
+fn prepare(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut EndingTracker,
+    global: &Global,
+) {
     let ids = global.world.access().npc_wisps.clone();
     *global.endgame.access_mut() = Endgame::default();
     for id in ids {
-        mark_wisp_dying(global, id, true);
+        mark_wisp_dying(spring, global, id, true);
     }
     {
         let mut wisp = global.wisp.access_mut();
@@ -107,38 +131,48 @@ fn prepare(t: &mut EndingTracker, global: &Global) {
         wisp.steering.release();
         wisp.pieces_dirty = true;
     }
-    pick_up_last_part_again(global);
+    pick_up_last_part_again(spring, global);
     t.prepared = true;
-    let _ = spring::echo(
+    let _ = spring.messages().echo(
         "[PartsNeeded-Rust-Test] saving all remaining NPC wisps for the endings",
         "",
     );
 }
 
-fn pick_up_last_part_again(global: &Global) {
+fn pick_up_last_part_again(spring: &spring::Spring<'_, spring::RulesSynced>, global: &Global) {
     let (wisp, position) = {
         let mut wisp = global.wisp.access_mut();
         wisp.collected_parts.remove(BodyPart::Mouth);
-        (wisp.id, spring::get_unit_position(wisp.id, false, false))
+        (
+            wisp.id,
+            spring
+                .units_info()
+                .get_unit_position(wisp.id, Default::default()),
+        )
     };
-    let def = crate::defs::defs().part_def(BodyPart::Mouth);
+    let def = crate::defs::defs(spring).part_def(BodyPart::Mouth);
     match position {
         Ok(position) => {
-            crate::level::spawn_unit(BodyPart::Mouth.name(), def, position, |_| {});
+            crate::level::spawn_unit(spring, BodyPart::Mouth.name(), def, position, |_, _| {});
         }
         Err(error) => spring::log_warning!(
+            spring,
             crate::log::SECTION,
             "the ending scenario can't find the player {wisp}: {error:?}"
         ),
     }
 }
 
-fn check_pending_rescues(t: &mut EndingTracker, global: &Global) {
+fn check_pending_rescues(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut EndingTracker,
+    global: &Global,
+) {
     let (game_over, ending, pending) = {
         let endgame = global.endgame.access();
         (endgame.game_over, endgame.ending, endgame.dying_wisps.len())
     };
-    t.suite.check(
+    t.suite.check(spring,
         game_over && ending == Some(Ending::WelcomeBack) && pending == 3,
         format!(
             "the last pickup while 3 rescues are under way ends the game at once, counting them as alive (game over: {game_over}, {ending:?}, {pending} rescues pending)"
@@ -146,7 +180,12 @@ fn check_pending_rescues(t: &mut EndingTracker, global: &Global) {
     );
 }
 
-fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
+fn check_first_arrival(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut EndingTracker,
+    global: &Global,
+    frame: i32,
+) {
     let (game_over, ending, release_wisps, target) = {
         let endgame = global.endgame.access();
         (
@@ -157,21 +196,22 @@ fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
         )
     };
     t.suite.check(
+        spring,
         game_over && ending == Some(Ending::SoulsFreed) && release_wisps,
         "the last pickup after every NPC is freed selects the souls-freed ending",
     );
     let progress = t.first_arrival.and_then(|(id, start, seen)| {
         let target = target?;
-        let now = unit_position(id)?;
+        let now = unit_position(spring, id)?;
         Some((
             planar_distance(start, target),
             planar_distance(now, target),
             planar_distance(start, now),
             frame - seen,
-            moving_to(id, target),
+            moving_to(spring, id, target),
         ))
     });
-    t.suite.check(progress
+    t.suite.check(spring, progress
             .is_some_and(|(_, _, travelled, _, ordered)| ordered && travelled >= ENDING_MIN_TRAVEL),
         match progress {
             Some((start, now, travelled, frames, ordered)) => format!(
@@ -184,11 +224,16 @@ fn check_first_arrival(t: &mut EndingTracker, global: &Global, frame: i32) {
     );
 }
 
-fn finish(t: &mut EndingTracker, global: &Global) {
+fn finish(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut EndingTracker,
+    global: &Global,
+) {
     let spawned = global.endgame.access().end_spawned;
     t.suite.check(
+        spring,
         spawned == crate::gadgets::endgame::behavior::ENDING_SPAWN_AMOUNT,
         "the full authored 500-wisp ending sequence completes",
     );
-    t.suite.finish();
+    t.suite.finish(spring);
 }

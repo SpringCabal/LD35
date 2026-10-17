@@ -2,7 +2,7 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
-use spring::{Float3, ResultExt, commands};
+use spring::{Float3, ResultExt};
 
 use crate::log::check;
 
@@ -12,10 +12,14 @@ use units::{GATES, LEVEL_UNITS};
 
 pub const FLOOR_Y: f32 = 411.499_02;
 
-pub fn clear_blocking(id: i32, quad_map_rays: bool) {
-    let result = spring::set_unit_blocking(
+pub fn clear_blocking(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    id: i32,
+    quad_map_rays: bool,
+) {
+    let result = spring.unit_control().set_unit_blocking(
         id,
-        spring::rules_synced::unit_control::SetUnitBlockingOptions {
+        spring::unit_control::SetUnitBlockingOptions {
             blocking: false,
             solid_objects: false,
             projectiles: false,
@@ -25,7 +29,7 @@ pub fn clear_blocking(id: i32, quad_map_rays: bool) {
             block_height_changes: false,
         },
     );
-    result.log_err_once("taking a unit out of the collision world");
+    result.log_err_once(spring, "taking a unit out of the collision world");
 }
 
 #[derive(Clone, Copy)]
@@ -41,144 +45,190 @@ pub struct LevelUnit {
 }
 
 pub fn spawn_unit(
+    _spring: &spring::Spring<'_, spring::RulesSynced>,
     name: &'static str,
     def: i32,
     position: Float3,
-    then: impl FnOnce(i32) + 'static,
+    then: impl FnOnce(&spring::Spring<'_, spring::RulesSynced>, i32) + 'static,
 ) {
-    let options = spring::CreateUnitOptions {
+    let options = spring::unit_control::CreateUnitOptions {
         build: false,
         flatten_ground: false,
         unit_id: -1,
         builder_id: -1,
     };
-    commands::create_unit(spring::UnitDefRef { name, id: def }, position, 0, options).then(
-        move |created| match created {
-            Ok(id) => then(id),
-            Err(error) => spring::log_warning!(
-                crate::log::SECTION,
-                "creating {name} at ({:.0}, {:.0}) failed: {error:?}",
-                position.x,
-                position.z
-            ),
-        },
-    );
+    crate::with_addon_context(|ctx| {
+        ctx.commands().create_unit(
+            &spring::unit_control::DefRef {
+                name: name.into(),
+                id: def,
+            },
+            position,
+            0,
+            0,
+            options,
+        )
+    })
+    .then(move |spring, created| match created {
+        Ok(id) => then(spring, id),
+        Err(error) => spring::log_warning!(
+            spring,
+            crate::log::SECTION,
+            "creating {name} at ({:.0}, {:.0}) failed: {error:?}",
+            position.x,
+            position.z
+        ),
+    });
 }
 
 type Ids = Rc<RefCell<Vec<(i32, i32)>>>;
 
-fn create(unit: LevelUnit, ids: &Ids) {
-    let Some(def) = crate::defs::defs().by_name(unit.name) else {
-        spring::log_warning!(crate::log::SECTION, "unknown level unit {}", unit.name);
+fn create(spring: &spring::Spring<'_, spring::RulesSynced>, unit: LevelUnit, ids: &Ids) {
+    let Some(def) = crate::defs::defs(spring).by_name(unit.name) else {
+        spring::log_warning!(
+            spring,
+            crate::log::SECTION,
+            "unknown level unit {}",
+            unit.name
+        );
         return;
     };
     let ids = Rc::clone(ids);
     spawn_unit(
+        spring,
         unit.name,
         def,
         Float3::new(unit.x, unit.y, unit.z),
-        move |id| {
-            configure(&unit, def, id);
+        move |spring, id| {
+            configure(spring, &unit, def, id);
             ids.borrow_mut().push((unit.key, id));
         },
     );
 }
 
-fn configure(unit: &LevelUnit, def: i32, id: i32) {
-    let defs = crate::defs::defs();
+fn configure(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit: &LevelUnit,
+    def: i32,
+    id: i32,
+) {
+    let defs = crate::defs::defs(spring);
     if def != defs.wisp {
-        configure_fixed_height(id, Float3::new(unit.x, unit.y, unit.z));
+        configure_fixed_height(spring, id, Float3::new(unit.x, unit.y, unit.z));
     }
     check(
+        spring,
         "level unit rotation",
         id,
-        spring::set_unit_rotation(id, unit.rot),
+        spring.unit_control().set_unit_rotation(id, unit.rot),
     );
     if let (Some(mid), Some(aim)) = (unit.mid, unit.aim) {
         check(
+            spring,
             "level unit mid and aim position",
             id,
-            spring::set_unit_mid_and_aim_pos(id, mid, aim, true),
+            spring
+                .unit_control()
+                .set_unit_mid_and_aim_pos(id, mid, aim, true),
         );
     }
     if def == defs.gate {
-        configure_gate(id, unit.y);
+        configure_gate(spring, id, unit.y);
     }
 }
 
-fn configure_fixed_height(unit_id: i32, position: Float3) {
+fn configure_fixed_height(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit_id: i32,
+    position: Float3,
+) {
     check(
+        spring,
         "MoveCtrl",
         unit_id,
-        spring::move_ctrl::move_ctrl(unit_id, true),
+        spring.move_ctrl().move_ctrl(unit_id, true),
     );
     check(
+        spring,
         "MoveCtrl gravity",
         unit_id,
-        spring::move_ctrl::set_move_ctrl_gravity(unit_id, 0.0),
+        spring.move_ctrl().set_move_ctrl_gravity(unit_id, 0.0),
     );
     check(
+        spring,
         "level unit position",
         unit_id,
-        spring::set_unit_position(unit_id, position),
+        spring.unit_control().set_unit_position(unit_id, position),
     );
 }
 
-fn configure_gate(unit_id: i32, floor_y: f32) {
+fn configure_gate(spring: &spring::Spring<'_, spring::RulesSynced>, unit_id: i32, floor_y: f32) {
     check(
+        spring,
         "gate always visible",
         unit_id,
-        spring::set_unit_always_visible(unit_id, true),
+        spring.unit_control().set_unit_always_visible(unit_id, true),
     );
     check(
+        spring,
         "gate neutral",
         unit_id,
-        spring::set_unit_neutral(unit_id, true),
+        spring.unit_control().set_unit_neutral(unit_id, true),
     );
     check(
+        spring,
         "gate MoveCtrl",
         unit_id,
-        spring::move_ctrl::move_ctrl(unit_id, true),
+        spring.move_ctrl().move_ctrl(unit_id, true),
     );
     check(
+        spring,
         "gate MoveCtrl no blocking",
         unit_id,
-        spring::move_ctrl::set_no_blocking(unit_id, true),
+        spring.move_ctrl().set_no_blocking(unit_id, true),
     );
     check(
+        spring,
         "gate MoveCtrl gravity",
         unit_id,
-        spring::move_ctrl::set_move_ctrl_gravity(unit_id, 0.0),
+        spring.move_ctrl().set_move_ctrl_gravity(unit_id, 0.0),
     );
     if let Some(position) = check(
+        spring,
         "gate position",
         unit_id,
-        spring::get_unit_position(unit_id, false, false),
+        spring
+            .units_info()
+            .get_unit_position(unit_id, Default::default()),
     ) {
         check(
+            spring,
             "gate floor height",
             unit_id,
-            spring::set_unit_position(
+            spring.unit_control().set_unit_position(
                 unit_id,
                 spring::Float3::new(position.x, floor_y, position.z),
             ),
         );
     }
-    clear_blocking(unit_id, false);
+    clear_blocking(spring, unit_id, false);
 }
 
-fn adopt_map_gates(ids: &Ids) {
+fn adopt_map_gates(spring: &spring::Spring<'_, spring::RulesSynced>, ids: &Ids) {
     const MATCH_RADIUS_SQUARED: f32 = 64.0 * 64.0;
     let mut claimed = [false; GATES.len()];
     let mut adopted = Vec::new();
 
-    let gate_def = crate::defs::defs().gate;
-    if let Ok(units) = spring::get_all_units() {
+    let gate_def = crate::defs::defs(spring).gate;
+    if let Ok(units) = spring.units().get_all_units() {
         for unit_id in units {
-            if crate::defs::unit_def(unit_id) != gate_def {
+            if crate::defs::unit_def(spring, unit_id) != gate_def {
                 continue;
             }
-            let Ok(position) = spring::get_unit_position(unit_id, false, false) else {
+            let Ok(position) = spring
+                .units_info()
+                .get_unit_position(unit_id, Default::default())
+            else {
                 continue;
             };
             let nearest = GATES
@@ -199,26 +249,31 @@ fn adopt_map_gates(ids: &Ids) {
     }
 
     let adopted_ids = Rc::clone(ids);
-    commands::run(move || {
-        for (slot, unit_id) in adopted {
-            configure_gate(unit_id, GATES[slot].y);
-            adopted_ids.borrow_mut().push((GATES[slot].key, unit_id));
-        }
+    crate::with_addon_context(|ctx| {
+        ctx.commands().run(move |spring| {
+            for (slot, unit_id) in adopted {
+                configure_gate(spring, unit_id, GATES[slot].y);
+                adopted_ids.borrow_mut().push((GATES[slot].key, unit_id));
+            }
+        })
     });
     for (slot, gate) in GATES.iter().enumerate() {
         if !claimed[slot] {
-            create(*gate, ids);
+            create(spring, *gate, ids);
         }
     }
 }
 
-pub fn spawn(done: impl FnOnce(Vec<(i32, i32)>) + 'static) {
+pub fn spawn(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    done: impl FnOnce(&spring::Spring<'_, spring::RulesSynced>, Vec<(i32, i32)>) + 'static,
+) {
     let ids: Ids = Rc::new(RefCell::new(Vec::with_capacity(
         LEVEL_UNITS.len() + GATES.len(),
     )));
     for unit in LEVEL_UNITS {
-        create(unit, &ids);
+        create(spring, unit, &ids);
     }
-    adopt_map_gates(&ids);
-    commands::run(move || done(ids.take()));
+    adopt_map_gates(spring, &ids);
+    crate::with_addon_context(|ctx| ctx.commands().run(move |spring| done(spring, ids.take())));
 }

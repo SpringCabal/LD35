@@ -24,10 +24,11 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn end_screen_shown(&self) -> bool {
+    pub fn end_screen_shown(&self, spring: &spring::Spring<'_, spring::Ui>) -> bool {
         self.game_over_sequence
             && self.sequence_since >= 0
-            && spring::game::current_frame() - self.sequence_since > GAME_END_DURATION * 2
+            && spring.game().current_frame().unwrap_or(0) - self.sequence_since
+                > GAME_END_DURATION * 2
     }
 }
 
@@ -69,25 +70,30 @@ impl Default for FormTransition {
 }
 
 impl FormTransition {
-    pub fn begin(&mut self, from_spirit: bool, to_spirit: bool) {
+    pub fn begin(
+        &mut self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        from_spirit: bool,
+        to_spirit: bool,
+    ) {
         if from_spirit == to_spirit {
             return;
         }
-        self.start = spring::game::current_frame();
+        self.start = spring.game().current_frame().unwrap_or(0);
         self.from = f32::from(from_spirit);
         self.to = f32::from(to_spirit);
         self.duration = if from_spirit { 3 } else { FORM_CHANGE_FRAMES };
     }
 
-    pub fn amount(&self) -> f32 {
-        let progress = ((spring::game::current_frame() - self.start) as f32
+    pub fn amount(&self, spring: &spring::Spring<'_, spring::Ui>) -> f32 {
+        let progress = ((spring.game().current_frame().unwrap_or(0) - self.start) as f32
             / self.duration.max(1) as f32)
             .clamp(0.0, 1.0);
         self.from + (self.to - self.from) * progress
     }
 
-    pub fn screen_amounts(&self) -> (f32, f32) {
-        let elapsed = spring::game::current_frame() - self.start;
+    pub fn screen_amounts(&self, spring: &spring::Spring<'_, spring::Ui>) -> (f32, f32) {
+        let elapsed = spring.game().current_frame().unwrap_or(0) - self.start;
         let entering = self.to > self.from;
         if !(0..=FORM_CHANGE_FRAMES).contains(&elapsed) {
             let steady = if self.to > 0.5 { 1.0 } else { 0.0 };

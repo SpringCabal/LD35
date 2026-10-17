@@ -19,14 +19,16 @@ impl Widget<Global> for ApiSyncWidget {
         "ApiSync"
     }
 
-    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        crate::commands::send(Command::Hello);
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = _ctx.spring();
+        crate::commands::send(spring, Command::Hello);
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
+        let spring = ctx.spring();
         let mut player = ctx.global().player.access_mut();
         if player.pending_spirit.is_none()
-            || spring::game::current_frame() - player.pending_since <= PENDING_TIMEOUT
+            || spring.game().current_frame().unwrap_or(0) - player.pending_since <= PENDING_TIMEOUT
         {
             return;
         }
@@ -35,14 +37,19 @@ impl Widget<Global> for ApiSyncWidget {
         if predicted == confirmed {
             return;
         }
-        player.form.begin(predicted, confirmed);
+        player.form.begin(spring, predicted, confirmed);
         player.spirit = confirmed;
         let wisp = player.wisp;
         drop(player);
-        crate::show_body(wisp, !confirmed);
+        crate::show_body(spring, wisp, !confirmed);
     }
 
-    fn recv_from_synced(&self, ctx: &spring_addons::AddonContext<'_, Global>, message: &[u8]) {
+    fn recv_from_synced(
+        &self,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        message: &[u8],
+    ) {
+        let spring = ctx.spring();
         let Some(status) = core::str::from_utf8(message).ok().and_then(Status::decode) else {
             return;
         };
@@ -62,7 +69,7 @@ impl Widget<Global> for ApiSyncWidget {
 
         let was_spirit = player.spirit;
         if !stale {
-            player.form.begin(was_spirit, new_spirit);
+            player.form.begin(spring, was_spirit, new_spirit);
             player.spirit = new_spirit;
         }
         player.game_over = status.game_over;
@@ -71,7 +78,7 @@ impl Widget<Global> for ApiSyncWidget {
         player.ending = status.ending;
         if status.sequence_complete != player.game_over_sequence {
             player.sequence_since = if status.sequence_complete {
-                spring::game::current_frame()
+                spring.game().current_frame().unwrap_or(0)
             } else {
                 -1
             };
@@ -82,15 +89,17 @@ impl Widget<Global> for ApiSyncWidget {
             return;
         }
         let wisp = status.wisp;
-        crate::show_body(wisp, !new_spirit);
+        crate::show_body(spring, wisp, !new_spirit);
         if was_spirit != new_spirit && !predicted {
-            let position = spring::get_unit_position(wisp, false, false)
-                .unwrap_or_else(|_| spring::types::Float3::default());
-            let _ = spring::sound::play_sound_file(
+            let position = spring
+                .units_info()
+                .get_unit_position(wisp, Default::default())
+                .unwrap_or_else(|_| spring::Float3::default());
+            let _ = spring.sound().play_sound_file(
                 "sounds/changestate.ogg",
                 1.0,
                 position,
-                spring::types::Float3::default(),
+                spring::Float3::default(),
                 0,
             );
         }

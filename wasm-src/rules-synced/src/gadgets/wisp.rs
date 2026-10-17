@@ -24,22 +24,24 @@ impl Gadget<Global> for WispGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
+        let spring = ctx.spring();
         let mut wisp = ctx.global().wisp.access_mut();
         if wisp.id >= 0 {
-            behavior::cancel_upward_velocity(&wisp);
-            let rejected = wisp.steering.direction().is_some() && !behavior::move_wisp(&wisp);
+            behavior::cancel_upward_velocity(spring, &wisp);
+            let rejected =
+                wisp.steering.direction().is_some() && !behavior::move_wisp(spring, &wisp);
             if rejected && !self.move_rejected.get() {
-                spring::log_warning!(SECTION, "the engine refused the wisp's move goal");
+                spring::log_warning!(spring, SECTION, "the engine refused the wisp's move goal");
             }
             self.move_rejected.set(rejected);
-            crate::units::destroy(behavior::collect_body_parts(&mut wisp));
+            crate::units::destroy(spring, behavior::collect_body_parts(spring, &mut wisp));
         }
-        behavior::rotate_body_parts(&wisp);
+        behavior::rotate_body_parts(spring, &wisp);
         if core::mem::take(&mut wisp.pieces_dirty) {
-            behavior::sync_wisp_pieces(wisp.id, wisp.spirit, wisp.collected_parts);
+            behavior::sync_wisp_pieces(spring, wisp.id, wisp.spirit, wisp.collected_parts);
         }
         if wisp.id >= 0 && wisp.steering.take_stop() {
-            behavior::stop_wisp(wisp.id);
+            behavior::stop_wisp(spring, wisp.id);
         }
     }
 }

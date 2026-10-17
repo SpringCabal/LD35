@@ -157,7 +157,7 @@ struct Quad {
 }
 
 impl Quad {
-    fn new(decal: &Decal) -> Self {
+    fn new(spring: &spring::Spring<'_, spring::Ui>, decal: &Decal) -> Self {
         let corners = [
             (decal.x1, decal.z1, 0.0, 0.0),
             (decal.x2, decal.z1, 1.0, 0.0),
@@ -167,7 +167,7 @@ impl Quad {
         let vertices = corners
             .iter()
             .map(|(x, z, u, v)| {
-                let y = spring::get_ground_height(*x, *z).unwrap_or(0.0) + GROUND_OFFSET;
+                let y = spring.terrain().get_ground_height(*x, *z).unwrap_or(0.0) + GROUND_OFFSET;
                 spring::gfx::GfxVertexData {
                     vertex: vec![*x, y, *z],
                     normal: vec![0.0, 1.0, 0.0],
@@ -187,12 +187,12 @@ impl Quad {
         }
     }
 
-    fn draw(&self) {
-        if spring::gfx::bind_texture(&self.texture, 0, true).is_err() {
+    fn draw(&self, spring: &spring::Spring<'_, spring::Ui>) {
+        if spring.gfx().bind_texture(&self.texture, 0, true).is_err() {
             return;
         }
-        let _ = spring::gfx::shape(gl::TRIANGLE_FAN, &self.vertices);
-        let _ = spring::gfx::bind_texture(&self.texture, 0, false);
+        let _ = spring.gfx().shape(gl::TRIANGLE_FAN, &self.vertices);
+        let _ = spring.gfx().bind_texture(&self.texture, 0, false);
     }
 }
 
@@ -212,24 +212,28 @@ impl Widget<Global> for GfxBloodWidget {
         "GfxBlood"
     }
 
-    fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
+    fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = ctx.spring();
         let spirit = ctx.global().player.access().spirit;
         let mut quads = self.quads.borrow_mut();
         if quads.is_empty() {
-            *quads = DECALS.iter().map(Quad::new).collect();
+            *quads = DECALS
+                .iter()
+                .map(|decal| Quad::new(spring, decal))
+                .collect();
         }
-        let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
-        let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
+        let _ = spring.gfx().push_attrib(gl::ALL_ATTRIB_BITS);
+        let _ = spring.gfx().depth_test(spring::gfx::GfxDepthTestOptions {
             enable: true,
             set_func: false,
             func: 0,
         });
-        let _ = spring::gfx::blending(true);
-        let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE);
-        let _ = spring::gfx::use_shader(0);
+        let _ = spring.gfx().blending(true);
+        let _ = spring.gfx().blend_func(gl::SRC_ALPHA, gl::ONE);
+        let _ = spring.gfx().use_shader(0);
         for quad in quads.iter().filter(|quad| quad.spirit == spirit) {
-            quad.draw();
+            quad.draw(spring);
         }
-        let _ = spring::gfx::pop_attrib(0);
+        let _ = spring.gfx().pop_attrib();
     }
 }

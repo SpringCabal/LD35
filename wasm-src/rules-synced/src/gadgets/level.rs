@@ -2,7 +2,7 @@ use core::cell::Cell;
 
 use alloc::vec::Vec;
 use partsneeded_shared::Command;
-use spring::commands;
+
 use spring_addons::rules::Gadget;
 
 use crate::state::{Endgame, Global, Wisp, World};
@@ -54,53 +54,65 @@ impl Gadget<Global> for LevelGadget {
     }
 
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+        let spring = _ctx.spring();
         if self.restart_requested.take() && self.spawn_frame.get().is_none() {
-            spring::log_info!(crate::log::SECTION, "the level restarts at frame {frame}");
+            spring::log_info!(
+                spring,
+                crate::log::SECTION,
+                "the level restarts at frame {frame}"
+            );
             self.spawn_frame.set(Some(frame + RESPAWN_DELAY));
-            clear_level();
+            clear_level(spring);
         }
         if self.spawn_frame.get().is_some_and(|at| frame >= at) {
             self.spawn_frame.set(None);
-            crate::level::spawn(move |ids| {
+            crate::level::spawn(spring, move |spring, ids| {
                 crate::with_global(|global| {
                     let mut world = global.world.access_mut();
                     world.level_ids = ids.into_iter().collect();
                     world.spawn_frame = frame;
-                    crate::gadgets::triggers::behavior::initialize_gate_terrain(&world);
+                    crate::gadgets::triggers::behavior::initialize_gate_terrain(spring, &world);
                 });
             });
         }
     }
 }
 
-fn clear_level() {
-    let units: Vec<i32> = spring::get_all_units()
+fn clear_level(spring: &spring::Spring<'_, spring::RulesSynced>) {
+    let units: Vec<i32> = spring
+        .units()
+        .get_all_units()
         .unwrap_or_default()
         .into_iter()
         .filter(|id| {
-            let def = crate::defs::unit_def(*id);
-            def == crate::defs::defs().gate || !crate::defs::params(def).dungeon_element
+            let def = crate::defs::unit_def(spring, *id);
+            def == crate::defs::defs(spring).gate
+                || !crate::defs::params(spring, def).dungeon_element
         })
         .collect();
     for id in units {
-        commands::destroy_unit(
-            id,
-            spring::rules_synced::unit_control::DestroyUnitOptions {
-                selfd: false,
-                reclaimed: false,
-                attacker_id: -1,
-                recycle_id: false,
-            },
-        )
-        .then(move |result| {
-            crate::log::check("restart: destroy", id, result);
+        crate::with_addon_context(|ctx| {
+            ctx.commands().destroy_unit(
+                id,
+                spring::unit_control::DestroyUnitOptions {
+                    selfd: false,
+                    reclaimed: false,
+                    attacker_id: -1,
+                    recycle_id: false,
+                },
+            )
+        })
+        .then(move |spring, result| {
+            crate::log::check(spring, "restart: destroy", id, result);
         });
     }
-    commands::run(|| {
-        crate::with_global(|global| {
-            *global.wisp.access_mut() = Wisp::default();
-            *global.world.access_mut() = World::default();
-            *global.endgame.access_mut() = Endgame::default();
-        });
+    crate::with_addon_context(|ctx| {
+        ctx.commands().run(|_spring| {
+            crate::with_global(|global| {
+                *global.wisp.access_mut() = Wisp::default();
+                *global.world.access_mut() = World::default();
+                *global.endgame.access_mut() = Endgame::default();
+            });
+        })
     });
 }

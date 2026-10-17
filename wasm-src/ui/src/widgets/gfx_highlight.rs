@@ -2,7 +2,7 @@ use alloc::string::String;
 use core::cell::RefCell;
 
 use partsneeded_shared::{BodyPart, LEVER_REACH};
-use spring::gfx::{GfxUnitDrawOptions, TextureCreateParams};
+use spring::gfx::{GfxTextureParams, GfxUnitDrawOptions};
 use spring::gl;
 use spring_addons::event::ViewGeometry;
 use spring_addons::ui::Widget;
@@ -50,22 +50,26 @@ impl Default for Pipeline {
     }
 }
 
-fn find_hovered_lever(player_wisp: i32) -> i32 {
-    let Ok(mouse) = spring::input::get_mouse_state(0) else {
+fn find_hovered_lever(spring: &spring::Spring<'_, spring::Ui>, player_wisp: i32) -> i32 {
+    let Ok(mouse) = spring.input().get_mouse_state() else {
         return -1;
     };
     if mouse.offscreen {
         return -1;
     }
-    let Some(unit_id) = spring::pick::unit_at(mouse.x, mouse.y) else {
+    let Some(unit_id) = spring.camera().unit_at(mouse.x, mouse.y).ok().flatten() else {
         return -1;
     };
-    if crate::defs::unit_def(unit_id) != crate::defs::defs().lever {
+    if crate::defs::unit_def(spring, unit_id) != crate::defs::defs(spring).lever {
         return -1;
     }
     let (Ok(lever), Ok(wisp)) = (
-        spring::get_unit_position(unit_id, false, false),
-        spring::get_unit_position(player_wisp, false, false),
+        spring
+            .units_info()
+            .get_unit_position(unit_id, Default::default()),
+        spring
+            .units_info()
+            .get_unit_position(player_wisp, Default::default()),
     ) else {
         return -1;
     };
@@ -76,27 +80,27 @@ fn find_hovered_lever(player_wisp: i32) -> i32 {
     unit_id
 }
 
-fn recreate_textures(state: &mut Pipeline) {
+fn recreate_textures(spring: &spring::Spring<'_, spring::Ui>, state: &mut Pipeline) {
     if !state.depth_tex.is_empty() {
-        let _ = spring::gfx::delete_texture(&state.depth_tex);
+        let _ = spring.gfx().delete_texture(&state.depth_tex);
         state.depth_tex.clear();
     }
     if !state.offscreen_tex.is_empty() {
-        let _ = spring::gfx::delete_texture_fbo(&state.offscreen_tex);
+        let _ = spring.gfx().delete_texture_fbo(&state.offscreen_tex);
         state.offscreen_tex.clear();
     }
     if !state.blur_tex.is_empty() {
-        let _ = spring::gfx::delete_texture_fbo(&state.blur_tex);
+        let _ = spring.gfx().delete_texture_fbo(&state.blur_tex);
         state.blur_tex.clear();
     }
     if state.vsx <= 1 || state.vsy <= 1 {
         return;
     }
-    if let Ok(tex) = spring::gfx::create_texture(
+    if let Ok(tex) = spring.gfx().create_texture(
         state.vsx,
         state.vsy,
         0,
-        TextureCreateParams {
+        GfxTextureParams {
             target: gl::TEXTURE_2D,
             format: gl::DEPTH_COMPONENT24,
             border: 0,
@@ -107,11 +111,11 @@ fn recreate_textures(state: &mut Pipeline) {
     ) {
         state.depth_tex = tex;
     }
-    if let Ok(tex) = spring::gfx::create_texture(
+    if let Ok(tex) = spring.gfx().create_texture(
         state.vsx,
         state.vsy,
         0,
-        TextureCreateParams {
+        GfxTextureParams {
             target: gl::TEXTURE_2D,
             format: 0,
             border: 0,
@@ -126,11 +130,11 @@ fn recreate_textures(state: &mut Pipeline) {
     ) {
         state.offscreen_tex = tex;
     }
-    if let Ok(tex) = spring::gfx::create_texture(
+    if let Ok(tex) = spring.gfx().create_texture(
         state.vsx,
         state.vsy,
         0,
-        TextureCreateParams {
+        GfxTextureParams {
             target: gl::TEXTURE_2D,
             format: 0,
             border: 0,
@@ -147,57 +151,68 @@ fn recreate_textures(state: &mut Pipeline) {
     state.res_changed = true;
 }
 
-fn ensure_initialized(state: &mut Pipeline) {
+fn ensure_initialized(spring: &spring::Spring<'_, spring::Ui>, state: &mut Pipeline) {
     if state.initialized {
         return;
     }
     state.initialized = true;
-    if let Some(id) = shader::create(DEPTH_FRAGMENT, &["tex0"]) {
+    if let Some(id) = shader::create(spring, DEPTH_FRAGMENT, &["tex0"]) {
         state.depth_shader = id;
-        state.loc_screen_xy = shader::location(id, "screenXY");
+        state.loc_screen_xy = shader::location(spring, id, "screenXY");
     }
-    if let Some(id) = shader::create(BLUR_H_FRAGMENT, &["tex0"]) {
+    if let Some(id) = shader::create(spring, BLUR_H_FRAGMENT, &["tex0"]) {
         state.blur_h_shader = id;
-        state.loc_screen_x = shader::location(id, "screenX");
+        state.loc_screen_x = shader::location(spring, id, "screenX");
     }
-    if let Some(id) = shader::create(BLUR_V_FRAGMENT, &["tex0"]) {
+    if let Some(id) = shader::create(spring, BLUR_V_FRAGMENT, &["tex0"]) {
         state.blur_v_shader = id;
-        state.loc_screen_y = shader::location(id, "screenY");
+        state.loc_screen_y = shader::location(spring, id, "screenY");
     }
-    recreate_textures(state);
+    recreate_textures(spring, state);
 }
 
-fn update_uniforms(state: &mut Pipeline) {
+fn update_uniforms(spring: &spring::Spring<'_, spring::Ui>, state: &mut Pipeline) {
     if !state.res_changed || state.vsx <= 1 || state.vsy <= 1 {
         return;
     }
     state.res_changed = false;
     if state.depth_shader != 0 && state.loc_screen_xy >= 0 {
-        let _ = spring::gfx::use_shader(state.depth_shader);
-        let _ = spring::gfx::uniform(
+        let _ = spring.gfx().use_shader(state.depth_shader);
+        let _ = spring.gfx().uniform(
             state.loc_screen_xy,
             &[state.vsx as f32, state.vsy as f32],
             2,
         );
     }
     if state.blur_h_shader != 0 && state.loc_screen_x >= 0 {
-        let _ = spring::gfx::use_shader(state.blur_h_shader);
-        let _ = spring::gfx::uniform_int(state.loc_screen_x, &[state.vsx], 1);
+        let _ = spring.gfx().use_shader(state.blur_h_shader);
+        let _ = spring
+            .gfx()
+            .uniform_int(state.loc_screen_x, &[state.vsx], 1);
     }
     if state.blur_v_shader != 0 && state.loc_screen_y >= 0 {
-        let _ = spring::gfx::use_shader(state.blur_v_shader);
-        let _ = spring::gfx::uniform_int(state.loc_screen_y, &[state.vsy], 1);
+        let _ = spring.gfx().use_shader(state.blur_v_shader);
+        let _ = spring
+            .gfx()
+            .uniform_int(state.loc_screen_y, &[state.vsy], 1);
     }
-    let _ = spring::gfx::use_shader(0);
+    let _ = spring.gfx().use_shader(0);
 }
 
-fn pass_draw_target(projection: &[f32; 16], modelview: &[f32; 16], target: i32) {
-    let _ = spring::gfx::clear(gl::COLOR_BUFFER_BIT, &[0.0, 0.0, 0.0, 0.0], 4);
-    let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-    let _ = spring::gfx::load_matrix(projection);
-    let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-    let _ = spring::gfx::load_matrix(modelview);
-    let _ = spring::gfx::unit(
+fn pass_draw_target(
+    spring: &spring::Spring<'_, spring::Ui>,
+    projection: &[f32; 16],
+    modelview: &[f32; 16],
+    target: i32,
+) {
+    let _ = spring
+        .gfx()
+        .clear(gl::COLOR_BUFFER_BIT, &[0.0, 0.0, 0.0, 0.0], 4);
+    let _ = spring.gfx().matrix_mode(gl::PROJECTION);
+    let _ = spring.gfx().load_matrix(projection);
+    let _ = spring.gfx().matrix_mode(gl::MODELVIEW);
+    let _ = spring.gfx().load_matrix(modelview);
+    let _ = spring.gfx().unit(
         target,
         GfxUnitDrawOptions {
             apply_transform: true,
@@ -209,18 +224,20 @@ fn pass_draw_target(projection: &[f32; 16], modelview: &[f32; 16], target: i32) 
     );
 }
 
-fn blur_pass(shader: u32, vsx: i32, vsy: i32) {
+fn blur_pass(spring: &spring::Spring<'_, spring::Ui>, shader: u32, vsx: i32, vsy: i32) {
     if shader == 0 || vsx <= 1 || vsy <= 1 {
         return;
     }
-    let _ = spring::gfx::clear(gl::COLOR_BUFFER_BIT, &[0.0, 0.0, 0.0, 0.0], 4);
-    let _ = spring::gfx::matrix_mode(gl::TEXTURE);
-    let _ = spring::gfx::load_identity(0);
-    let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-    let _ = spring::gfx::use_shader(shader);
+    let _ = spring
+        .gfx()
+        .clear(gl::COLOR_BUFFER_BIT, &[0.0, 0.0, 0.0, 0.0], 4);
+    let _ = spring.gfx().matrix_mode(gl::TEXTURE);
+    let _ = spring.gfx().load_identity();
+    let _ = spring.gfx().matrix_mode(gl::MODELVIEW);
+    let _ = spring.gfx().use_shader(shader);
     let x_off = 0.5 / (vsx as f32);
     let y_off = 0.5 / (vsy as f32);
-    let _ = spring::gfx::tex_rect(
+    let _ = spring.gfx().tex_rect(
         -1.0 - x_off,
         1.0 + y_off,
         1.0 + x_off,
@@ -232,33 +249,35 @@ fn blur_pass(shader: u32, vsx: i32, vsy: i32) {
     );
 }
 
-fn composite(offscreen_tex: &str, vsx: i32, vsy: i32) {
-    let _ = spring::gfx::use_shader(0);
-    let _ = spring::gfx::matrix_mode(gl::TEXTURE);
-    let _ = spring::gfx::load_identity(0);
-    let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-    let _ = spring::gfx::push_matrix(0);
-    let _ = spring::gfx::load_identity(0);
-    let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-    let _ = spring::gfx::push_matrix(0);
-    let _ = spring::gfx::load_identity(0);
+fn composite(spring: &spring::Spring<'_, spring::Ui>, offscreen_tex: &str, vsx: i32, vsy: i32) {
+    let _ = spring.gfx().use_shader(0);
+    let _ = spring.gfx().matrix_mode(gl::TEXTURE);
+    let _ = spring.gfx().load_identity();
+    let _ = spring.gfx().matrix_mode(gl::PROJECTION);
+    let _ = spring.gfx().push_matrix();
+    let _ = spring.gfx().load_identity();
+    let _ = spring.gfx().matrix_mode(gl::MODELVIEW);
+    let _ = spring.gfx().push_matrix();
+    let _ = spring.gfx().load_identity();
 
-    let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
-    let _ = spring::gfx::alpha_test(false, gl::ALWAYS, 0.0);
-    let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
+    let _ = spring.gfx().push_attrib(gl::ALL_ATTRIB_BITS);
+    let _ = spring.gfx().alpha_test(false, gl::ALWAYS, 0.0);
+    let _ = spring.gfx().depth_test(spring::gfx::GfxDepthTestOptions {
         enable: false,
         set_func: false,
         func: 0,
     });
-    let _ = spring::gfx::depth_mask(false);
-    let _ = spring::gfx::culling(false);
-    let _ = spring::gfx::blending(true);
-    let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-    let _ = spring::gfx::bind_texture(offscreen_tex, 0, true);
+    let _ = spring.gfx().depth_mask(false);
+    let _ = spring.gfx().culling(false);
+    let _ = spring.gfx().blending(true);
+    let _ = spring
+        .gfx()
+        .blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+    let _ = spring.gfx().bind_texture(offscreen_tex, 0, true);
 
     let x_off = 0.5 / (vsx as f32);
     let y_off = 0.5 / (vsy as f32);
-    let _ = spring::gfx::tex_rect(
+    let _ = spring.gfx().tex_rect(
         -1.0 - x_off,
         1.0 + y_off,
         1.0 + x_off,
@@ -269,13 +288,13 @@ fn composite(offscreen_tex: &str, vsx: i32, vsy: i32) {
         0.0,
     );
 
-    let _ = spring::gfx::bind_texture(offscreen_tex, 0, false);
-    let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-    let _ = spring::gfx::pop_matrix(0);
-    let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-    let _ = spring::gfx::pop_matrix(0);
-    let _ = spring::gfx::use_shader(0);
-    let _ = spring::gfx::pop_attrib(0);
+    let _ = spring.gfx().bind_texture(offscreen_tex, 0, false);
+    let _ = spring.gfx().matrix_mode(gl::PROJECTION);
+    let _ = spring.gfx().pop_matrix();
+    let _ = spring.gfx().matrix_mode(gl::MODELVIEW);
+    let _ = spring.gfx().pop_matrix();
+    let _ = spring.gfx().use_shader(0);
+    let _ = spring.gfx().pop_attrib();
 }
 
 #[derive(Default)]
@@ -294,16 +313,22 @@ impl Widget<Global> for GfxHighlightWidget {
         "GfxHighlight"
     }
 
-    fn view_resize(&self, _ctx: &spring_addons::AddonContext<'_, Global>, geometry: &ViewGeometry) {
+    fn view_resize(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        geometry: &ViewGeometry,
+    ) {
+        let spring = _ctx.spring();
         let mut state = self.pipeline.borrow_mut();
         state.vsx = geometry.view_size.0;
         state.vsy = geometry.view_size.1;
         if state.initialized {
-            recreate_textures(&mut state);
+            recreate_textures(spring, &mut state);
         }
     }
 
-    fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
+    fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = ctx.spring();
         let (spirit, has_arms, wisp, game_over) = {
             let player = ctx.global().player.access();
             (
@@ -316,7 +341,7 @@ impl Widget<Global> for GfxHighlightWidget {
         let target = if spirit || !has_arms || game_over || wisp < 0 {
             -1
         } else {
-            find_hovered_lever(wisp)
+            find_hovered_lever(spring, wisp)
         };
         *ctx.global().hovered_lever.access_mut() = (target >= 0).then_some(target);
         if target < 0 {
@@ -325,17 +350,17 @@ impl Widget<Global> for GfxHighlightWidget {
 
         let (depth_tex, offscreen_tex, blur_tex, depth_shader, blur_h, blur_v, vsx, vsy) = {
             let mut state = self.pipeline.borrow_mut();
-            ensure_initialized(&mut state);
-            if let Ok(geometry) = spring::display::get_view_geometry(0)
+            ensure_initialized(spring, &mut state);
+            if let Ok(geometry) = spring.display().get_view_geometry()
                 && geometry.view_size_x > 1
                 && geometry.view_size_y > 1
                 && (geometry.view_size_x != state.vsx || geometry.view_size_y != state.vsy)
             {
                 state.vsx = geometry.view_size_x;
                 state.vsy = geometry.view_size_y;
-                recreate_textures(&mut state);
+                recreate_textures(spring, &mut state);
             }
-            update_uniforms(&mut state);
+            update_uniforms(spring, &mut state);
             (
                 state.depth_tex.clone(),
                 state.offscreen_tex.clone(),
@@ -357,13 +382,15 @@ impl Widget<Global> for GfxHighlightWidget {
             return;
         }
 
-        let _ = spring::gfx::copy_to_texture(&depth_tex, 0, 0, 0, 0, vsx, vsy, gl::TEXTURE_2D, 0);
-        let _ = spring::gfx::bind_texture(&depth_tex, 0, true);
+        let _ = spring
+            .gfx()
+            .copy_to_texture(&depth_tex, 0, 0, 0, 0, vsx, vsy, gl::TEXTURE_2D, 0);
+        let _ = spring.gfx().bind_texture(&depth_tex, 0, true);
 
         let mut projection = [0.0; 16];
         let mut modelview = [0.0; 16];
-        if let Ok(live_projection) = spring::gfx::get_matrix_data(gl::PROJECTION)
-            && let Ok(live_modelview) = spring::gfx::get_matrix_data(gl::MODELVIEW)
+        if let Ok(live_projection) = spring.gfx().get_matrix_data(gl::PROJECTION)
+            && let Ok(live_modelview) = spring.gfx().get_matrix_data(gl::MODELVIEW)
             && live_projection.len() == 16
             && live_modelview.len() == 16
         {
@@ -371,16 +398,20 @@ impl Widget<Global> for GfxHighlightWidget {
             modelview.copy_from_slice(&live_modelview);
         }
 
-        let _ = spring::gfx::use_shader(depth_shader);
-        let _ = spring::gfx::render_to_texture(&offscreen_tex, || {
-            pass_draw_target(&projection, &modelview, target);
+        let _ = spring.gfx().use_shader(depth_shader);
+        let _ = spring.gfx().render_to_texture(&offscreen_tex, |spring| {
+            pass_draw_target(spring, &projection, &modelview, target);
         });
 
-        let _ = spring::gfx::bind_texture(&offscreen_tex, 0, true);
-        let _ = spring::gfx::render_to_texture(&blur_tex, || blur_pass(blur_v, vsx, vsy));
-        let _ = spring::gfx::bind_texture(&blur_tex, 0, true);
-        let _ = spring::gfx::render_to_texture(&offscreen_tex, || blur_pass(blur_h, vsx, vsy));
+        let _ = spring.gfx().bind_texture(&offscreen_tex, 0, true);
+        let _ = spring
+            .gfx()
+            .render_to_texture(&blur_tex, |spring| blur_pass(spring, blur_v, vsx, vsy));
+        let _ = spring.gfx().bind_texture(&blur_tex, 0, true);
+        let _ = spring
+            .gfx()
+            .render_to_texture(&offscreen_tex, |spring| blur_pass(spring, blur_h, vsx, vsy));
 
-        composite(&offscreen_tex, vsx, vsy);
+        composite(spring, &offscreen_tex, vsx, vsy);
     }
 }

@@ -4,7 +4,10 @@ use spring_addons::rules::GadgetHandler;
 use super::*;
 use crate::state::Global;
 
-pub fn setup(handler: &mut GadgetHandler<Global>) {
+pub fn setup(
+    handler: &mut GadgetHandler<Global>,
+    _spring: &spring::Spring<'_, spring::RulesSynced>,
+) {
     register_gadgets!(handler, [UnitScriptsGadget::new(), LevelGadget::new()]);
 
     #[cfg(feature = "unit-script-probe")]

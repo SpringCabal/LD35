@@ -64,8 +64,8 @@ impl DbgE2eWidget {
         Self::default()
     }
 
-    fn track_camera(&self) -> u32 {
-        let Ok(now) = spring::camera::get_camera_position(0) else {
+    fn track_camera(&self, spring: &spring::Spring<'_, spring::Ui>) -> u32 {
+        let Ok(now) = spring.camera().get_camera_position() else {
             self.still_updates.set(0);
             return 0;
         };
@@ -82,8 +82,8 @@ impl DbgE2eWidget {
         updates
     }
 
-    fn settled_shot(&self, frame: i32) {
-        let still_updates = self.track_camera();
+    fn settled_shot(&self, spring: &spring::Spring<'_, spring::Ui>, frame: i32) {
+        let still_updates = self.track_camera(spring);
         let Some(shot) = SETTLED_SHOTS.get(self.settled_taken.get()) else {
             return;
         };
@@ -96,12 +96,13 @@ impl DbgE2eWidget {
         }
         if !settled {
             spring::log_warning!(
+                spring,
                 "partsneeded",
                 "E2E camera not settled for screenshot {}",
                 shot.label
             );
         }
-        screenshot(&alloc::format!("{} at {frame}", shot.label));
+        screenshot(spring, &alloc::format!("{} at {frame}", shot.label));
         self.settled_taken.set(self.settled_taken.get() + 1);
         #[cfg(not(feature = "headless-integration"))]
         if self.settled_taken.get() == SETTLED_SHOTS.len() {
@@ -115,11 +116,12 @@ impl Widget<Global> for DbgE2eWidget {
         "DbgE2e"
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
-        let frame = spring::game::current_frame();
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, dt: f32) {
+        let spring = ctx.spring();
+        let frame = spring.game().current_frame().unwrap_or(0);
         let quit_frame = self.quit_frame.get();
         if quit_frame >= 0 && frame >= quit_frame {
-            let _ = spring::system_control::quit(0);
+            let _ = spring.system_control().quit();
             return;
         }
         let ending = ctx.global().player.access();
@@ -128,7 +130,7 @@ impl Widget<Global> for DbgE2eWidget {
             && self.ending_start.get() < 0
         {
             self.ending_start.set(frame);
-            screenshot("ending start");
+            screenshot(spring, "ending start");
             return;
         }
         drop(ending);
@@ -137,11 +139,11 @@ impl Widget<Global> for DbgE2eWidget {
             && frame - ending_start >= ENDING_FINAL_SHOT_DELAY
             && !self.ending_final_captured.replace(true)
         {
-            screenshot("ending final");
+            screenshot(spring, "ending final");
             self.quit_frame.set(frame + 30);
             return;
         }
         self.shots.update(ctx, dt);
-        self.settled_shot(frame);
+        self.settled_shot(spring, frame);
     }
 }

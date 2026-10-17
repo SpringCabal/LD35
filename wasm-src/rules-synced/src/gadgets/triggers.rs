@@ -26,9 +26,10 @@ impl Gadget<Global> for TriggersGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+        let spring = ctx.spring();
         let global = ctx.global();
         if frame % UPDATE_RATE == 0 {
-            let opened = behavior::update_triggers(global);
+            let opened = behavior::update_triggers(spring, global);
             let mut opening = self.opening_cages.borrow_mut();
             for (cage, kill) in opened {
                 let due = if kill {
@@ -50,7 +51,7 @@ impl Gadget<Global> for TriggersGadget {
             due
         };
         for (cage, kill) in due {
-            cages::resolve_cage(global, cage, kill);
+            cages::resolve_cage(spring, global, cage, kill);
         }
     }
 

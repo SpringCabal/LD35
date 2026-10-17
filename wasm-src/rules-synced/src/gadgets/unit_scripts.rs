@@ -18,11 +18,14 @@ impl Gadget<Global> for UnitScriptsGadget {
     }
 
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        crate::unit_scripts::with_host(|host| host.attach_existing());
+        crate::unit_scripts::with_host(_ctx.spring(), |host, spring| host.attach_existing(spring));
     }
 
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        crate::unit_scripts::with_host(move |host| host.game_frame(frame));
+        crate::unit_scripts::with_host(_ctx.spring(), move |host, _| {
+            host.game_frame(frame);
+            Ok(())
+        });
     }
 
     fn unit_created(
@@ -33,6 +36,8 @@ impl Gadget<Global> for UnitScriptsGadget {
         _team: i32,
         _builder: i32,
     ) {
-        crate::unit_scripts::with_host(move |host| host.unit_created(UnitId(id), def));
+        crate::unit_scripts::with_host(_ctx.spring(), move |host, spring| {
+            host.unit_created(spring, UnitId(id), def)
+        });
     }
 }

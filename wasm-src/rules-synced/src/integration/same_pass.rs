@@ -70,7 +70,12 @@ impl Default for SamePassTracker {
     }
 }
 
-pub fn update(t: &mut SamePassTracker, global: &Global, frame: i32) -> Option<Step> {
+pub fn update(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut SamePassTracker,
+    global: &Global,
+    frame: i32,
+) -> Option<Step> {
     if t.suite.is_finished() {
         return None;
     }
@@ -92,23 +97,28 @@ pub fn update(t: &mut SamePassTracker, global: &Global, frame: i32) -> Option<St
             return Some(Step::PullLever(room.lever));
         }
         if frame == pass - 1 {
-            before_pass(t, global, room);
+            before_pass(spring, t, global, room);
             return Some(Step::StandOn(room.plate));
         }
         if frame == pass + 1 {
-            after_pass(t, global, room);
+            after_pass(spring, t, global, room);
         }
         if index == 0 && frame == pass + OPEN_FRAMES + 1 {
-            bars_open(t, global, room);
+            bars_open(spring, t, global, room);
         }
     }
     if frame == first_pass + (ROOMS.len() as i32 - 1) * ROOM_GAP + 1 {
-        t.suite.finish();
+        t.suite.finish(spring);
     }
     None
 }
 
-fn before_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
+fn before_pass(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut SamePassTracker,
+    global: &Global,
+    room: &Room,
+) {
     let wisp = global.wisp.access();
     let world = global.world.access();
     let key_active = |key| level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id));
@@ -120,7 +130,7 @@ fn before_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
                 .npc_wisps
                 .iter()
                 .copied()
-                .find(|wisp| nearby(cage, *wisp, PRISONER_RADIUS))
+                .find(|wisp| nearby(spring, cage, *wisp, PRISONER_RADIUS))
         });
         t.prisoners.push((cage, prisoner));
     }
@@ -143,7 +153,7 @@ fn before_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
         .iter()
         .filter(|(cage, _)| prisoner_of(t, *cage).is_some())
         .count();
-    t.suite.check(
+    t.suite.check(spring,
         embodied && lever && !plate && open == 0 && caged == room.cages.len(),
         format!(
             "{}: before the pass the lever is on, the kill plate is up and all four cages are closed, each with its prisoner (body form with arms and legs: {embodied}, lever {lever}, plate {plate}, {open} open, {caged} caged)",
@@ -152,7 +162,12 @@ fn before_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
     );
 }
 
-fn after_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
+fn after_pass(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut SamePassTracker,
+    global: &Global,
+    room: &Room,
+) {
     let world = global.world.access();
     let endgame = global.endgame.access();
     let plate = level_id(&world, room.plate).is_some_and(|id| is_trigger_active(&world, id));
@@ -173,7 +188,7 @@ fn after_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
         .iter()
         .zip(&fates)
         .all(|((_, saved), (_, fate))| *fate == if *saved { None } else { Some(false) });
-    t.suite.check(
+    t.suite.check(spring,
         plate && open == room.cages.len() && as_expected,
         format!(
             "{}: stepping on the kill plate opens all four cages in the pass that also sees the lever, and the link listed first decides each prisoner's fate (plate {plate}, {open} open, killed at once: {:?})",
@@ -186,7 +201,12 @@ fn after_pass(t: &mut SamePassTracker, global: &Global, room: &Room) {
     );
 }
 
-fn bars_open(t: &mut SamePassTracker, global: &Global, room: &Room) {
+fn bars_open(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    t: &mut SamePassTracker,
+    global: &Global,
+    room: &Room,
+) {
     let endgame = global.endgame.access();
     let fates: Vec<(i32, Option<bool>)> = room
         .cages
@@ -198,7 +218,7 @@ fn bars_open(t: &mut SamePassTracker, global: &Global, room: &Room) {
         .iter()
         .zip(&fates)
         .all(|((_, saved), (_, fate))| *fate == Some(*saved));
-    t.suite.check(
+    t.suite.check(spring,
         as_expected,
         format!(
             "{}: the lever's link, listed before the kill plate's, frees cage 15054's prisoner once its bars are open (saved: {:?})",

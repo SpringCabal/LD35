@@ -61,6 +61,7 @@ impl Gadget<Global> for UnitScriptProbeGadget {
 }
 
 fn assemble(ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+    let spring = ctx.spring();
     let global = ctx.global();
     let wisp_id = global.wisp.access().id;
     if wisp_id < 0 {
@@ -68,12 +69,12 @@ fn assemble(ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
     }
 
     let mut parts = alloc::vec::Vec::new();
-    if let Ok(units) = spring::get_all_units() {
+    if let Ok(units) = spring.units().get_all_units() {
         for id in units {
-            let Ok(def) = spring::get_unit_def_id(id) else {
+            let Ok(def) = spring.units_info().get_unit_def_id(id) else {
                 continue;
             };
-            if let Some(part) = crate::defs::defs().body_part(def.0) {
+            if let Some(part) = crate::defs::defs(spring).body_part(def) {
                 parts.push((id, part));
             }
         }
@@ -84,7 +85,7 @@ fn assemble(ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         collected.insert(part);
     }
     if !collected.is_complete() {
-        let _ = spring::echo(
+        let _ = spring.messages().echo(
             &alloc::format!(
                 "[UnitScriptProbeAssembly] ERROR frame={frame} expected=6 found={}",
                 collected.len()
@@ -101,12 +102,13 @@ fn assemble(ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         wisp.pieces_dirty = true;
     }
     crate::units::destroy(
+        spring,
         parts
             .into_iter()
             .map(|(id, _)| (id, true, wisp_id))
             .collect(),
     );
-    let _ = spring::echo(
+    let _ = spring.messages().echo(
         &alloc::format!("[UnitScriptProbeAssembly] COLLECTED frame={frame} parts=6"),
         "",
     );

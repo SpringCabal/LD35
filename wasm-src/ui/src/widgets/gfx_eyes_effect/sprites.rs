@@ -17,62 +17,75 @@ pub struct Sprites {
 }
 
 impl Sprites {
-    fn ensure_shader(&mut self) -> bool {
+    fn ensure_shader(&mut self, spring: &spring::Spring<'_, spring::Ui>) -> bool {
         if self.shader == 0
-            && let Some(id) = shader::create(WISP_SPRITE_FRAGMENT, &[])
+            && let Some(id) = shader::create(spring, WISP_SPRITE_FRAGMENT, &[])
         {
-            self.loc_time = shader::location(id, "time");
-            self.loc_spirit = shader::location(id, "spiritAmount");
-            self.loc_unit = shader::location(id, "unitID");
-            self.loc_death = shader::location(id, "deathAmount");
+            self.loc_time = shader::location(spring, id, "time");
+            self.loc_spirit = shader::location(spring, id, "spiritAmount");
+            self.loc_unit = shader::location(spring, id, "unitID");
+            self.loc_death = shader::location(spring, id, "deathAmount");
             self.shader = id;
         }
         self.shader != 0
     }
 
-    pub fn draw(&mut self, camera: &Camera, wisps: impl Iterator<Item = i32>, opacity: f32) {
-        let _ = spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS);
-        let _ = spring::gfx::depth_test(spring::gfx::GfxDepthTestOptions {
+    pub fn draw(
+        &mut self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        camera: &Camera,
+        wisps: impl Iterator<Item = i32>,
+        opacity: f32,
+    ) {
+        let _ = spring.gfx().push_attrib(gl::ALL_ATTRIB_BITS);
+        let _ = spring.gfx().depth_test(spring::gfx::GfxDepthTestOptions {
             enable: true,
             set_func: false,
             func: 0,
         });
-        let _ = spring::gfx::blending(true);
-        let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE);
-        let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-        let _ = spring::gfx::push_matrix(0);
-        let _ = spring::gfx::load_matrix(&camera.projection);
-        let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-        let _ = spring::gfx::push_matrix(0);
-        let _ = spring::gfx::load_matrix(&camera.modelview);
-        if self.ensure_shader() {
-            let _ = spring::gfx::use_shader(self.shader);
-            let frame = spring::game::current_frame() as f32;
+        let _ = spring.gfx().blending(true);
+        let _ = spring.gfx().blend_func(gl::SRC_ALPHA, gl::ONE);
+        let _ = spring.gfx().matrix_mode(gl::PROJECTION);
+        let _ = spring.gfx().push_matrix();
+        let _ = spring.gfx().load_matrix(&camera.projection);
+        let _ = spring.gfx().matrix_mode(gl::MODELVIEW);
+        let _ = spring.gfx().push_matrix();
+        let _ = spring.gfx().load_matrix(&camera.modelview);
+        if self.ensure_shader(spring) {
+            let _ = spring.gfx().use_shader(self.shader);
+            let frame = spring.game().current_frame().unwrap_or(0) as f32;
             let seconds = frame / spring::consts::GAME_SPEED as f32;
-            let _ = spring::gfx::uniform(self.loc_time, &[(seconds * 10.0).floor() / 10.0], 1);
-            let _ = spring::gfx::uniform(self.loc_spirit, &[opacity], 1);
+            let _ = spring
+                .gfx()
+                .uniform(self.loc_time, &[(seconds * 10.0).floor() / 10.0], 1);
+            let _ = spring.gfx().uniform(self.loc_spirit, &[opacity], 1);
             for unit_id in wisps {
-                self.draw_one(unit_id, frame);
+                self.draw_one(spring, unit_id, frame);
             }
         }
-        let _ = spring::gfx::use_shader(0);
-        let _ = spring::gfx::matrix_mode(gl::PROJECTION);
-        let _ = spring::gfx::pop_matrix(0);
-        let _ = spring::gfx::matrix_mode(gl::MODELVIEW);
-        let _ = spring::gfx::pop_matrix(0);
-        let _ = spring::gfx::pop_attrib(0);
+        let _ = spring.gfx().use_shader(0);
+        let _ = spring.gfx().matrix_mode(gl::PROJECTION);
+        let _ = spring.gfx().pop_matrix();
+        let _ = spring.gfx().matrix_mode(gl::MODELVIEW);
+        let _ = spring.gfx().pop_matrix();
+        let _ = spring.gfx().pop_attrib();
     }
 
-    fn draw_one(&self, unit_id: i32, frame: f32) {
-        let Ok(position) = spring::unit_rendering::get_unit_view_position(unit_id, false) else {
+    fn draw_one(&self, spring: &spring::Spring<'_, spring::Ui>, unit_id: i32, frame: f32) {
+        let Ok(position) = spring
+            .unit_rendering()
+            .get_unit_view_position(unit_id, false)
+        else {
             return;
         };
-        let _ = spring::gfx::uniform(self.loc_unit, &[unit_id as f32], 1);
-        let _ = spring::gfx::uniform(self.loc_death, &[death_amount(unit_id, frame)], 1);
-        let _ = spring::gfx::push_matrix(0);
-        let _ = spring::gfx::translate(position.x, position.y, position.z);
-        let _ = spring::gfx::billboard(0);
-        let _ = spring::gfx::tex_rect(
+        let _ = spring.gfx().uniform(self.loc_unit, &[unit_id as f32], 1);
+        let _ = spring
+            .gfx()
+            .uniform(self.loc_death, &[death_amount(spring, unit_id, frame)], 1);
+        let _ = spring.gfx().push_matrix();
+        let _ = spring.gfx().translate(position.x, position.y, position.z);
+        let _ = spring.gfx().billboard();
+        let _ = spring.gfx().tex_rect(
             -WISP_SPRITE_SIZE / 2.0,
             0.0,
             WISP_SPRITE_SIZE / 2.0,
@@ -82,16 +95,24 @@ impl Sprites {
             1.0,
             1.0,
         );
-        let _ = spring::gfx::pop_matrix(0);
+        let _ = spring.gfx().pop_matrix();
     }
 }
 
-fn death_amount(unit_id: i32, frame: f32) -> f32 {
-    if spring::get_unit_rules_param_f32(unit_id, "is_dying") != Ok(1.0) {
+fn death_amount(spring: &spring::Spring<'_, spring::Ui>, unit_id: i32, frame: f32) -> f32 {
+    if spring
+        .rules_params()
+        .get_unit_rules_param_f32(unit_id, "is_dying")
+        != Ok(1.0)
+    {
         return 0.0;
     }
-    let destroy = spring::get_unit_rules_param_f32(unit_id, "destroy_frame");
-    let killed = spring::get_unit_rules_param_f32(unit_id, "killed_frame");
+    let destroy = spring
+        .rules_params()
+        .get_unit_rules_param_f32(unit_id, "destroy_frame");
+    let killed = spring
+        .rules_params()
+        .get_unit_rules_param_f32(unit_id, "killed_frame");
     match (destroy, killed) {
         (Ok(destroy), Ok(killed)) if destroy > killed => {
             (1.0 - (destroy - frame) / (destroy - killed)).clamp(0.0, 1.0)

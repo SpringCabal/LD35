@@ -1,5 +1,5 @@
 use partsneeded_shared::BodyPart;
-use spring::{cmd, commands};
+use spring::cmd;
 
 use alloc::vec::Vec;
 
@@ -25,7 +25,10 @@ const LEVER_GATE_COMBINATION: [(i32, bool); 4] =
 
 const PLATE_RADIUS: f32 = 60.0;
 
-pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
+pub fn update_triggers(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+) -> Vec<(i32, bool)> {
     let (has_legs, spirit, wisp_id) = {
         let wisp = global.wisp.access();
         (
@@ -40,9 +43,12 @@ pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
         let Some(plate) = level_id(&world, key) else {
             continue;
         };
-        if standing && !is_trigger_active(&world, plate) && nearby(wisp_id, plate, PLATE_RADIUS) {
+        if standing
+            && !is_trigger_active(&world, plate)
+            && nearby(spring, wisp_id, plate, PLATE_RADIUS)
+        {
             set_trigger(&mut world, plate, true);
-            give_onoff(plate, true);
+            give_onoff(spring, plate, true);
         }
     }
     let mut cages = Vec::new();
@@ -57,15 +63,18 @@ pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
         }
         if link.kill {
             crate::log::check(
+                spring,
                 "do_kill rules param",
                 target,
-                spring::set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC),
+                spring
+                    .rules_params()
+                    .set_unit_rules_param_f32(target, "do_kill", 1.0, PUBLIC),
             );
         }
         if switch_on(&mut world, target) {
-            open(&world, target);
-            if crate::defs::unit_def(target) == crate::defs::defs().cage {
-                cages.push((target, crate::cages::kills(target)));
+            open(spring, &world, target);
+            if crate::defs::unit_def(spring, target) == crate::defs::defs(spring).cage {
+                cages.push((target, crate::cages::kills(spring, target)));
             }
         }
     }
@@ -74,33 +83,35 @@ pub fn update_triggers(global: &Global) -> Vec<(i32, bool)> {
             level_id(&world, key).is_some_and(|id| is_trigger_active(&world, id) == expected)
         });
         if open_gate && switch_on(&mut world, gate) {
-            open(&world, gate);
+            open(spring, &world, gate);
         }
     }
     cages
 }
 
-fn open(world: &World, id: i32) {
+fn open(spring: &spring::Spring<'_, spring::RulesSynced>, world: &World, id: i32) {
     if let Some((_, x1, z1, x2, z2)) = gate_area(world, id) {
-        set_gate_physics(id, x1, z1, x2, z2, true);
+        set_gate_physics(spring, id, x1, z1, x2, z2, true);
     }
-    give_onoff(id, true);
+    give_onoff(spring, id, true);
 }
 
-fn give_onoff(id: i32, on: bool) {
-    commands::give_order_to_unit(id, cmd::ONOFF, &[if on { 1.0 } else { 0.0 }], 0, 0).then(
-        move |result| {
-            crate::log::check("ONOFF order", id, result);
-        },
-    );
+fn give_onoff(_spring: &spring::Spring<'_, spring::RulesSynced>, id: i32, on: bool) {
+    crate::with_addon_context(|ctx| {
+        ctx.commands()
+            .give_order_to_unit(id, cmd::ONOFF, &[if on { 1.0 } else { 0.0 }], 0, 0)
+    })
+    .then(move |spring, result| {
+        crate::log::check(spring, "ONOFF order", id, result);
+    });
 }
 
-pub fn initialize_gate_terrain(world: &World) {
+pub fn initialize_gate_terrain(spring: &spring::Spring<'_, spring::RulesSynced>, world: &World) {
     for (key, x1, z1, x2, z2) in GATE_AREAS {
         let Some(id) = level_id(world, *key) else {
             continue;
         };
-        set_gate_physics(id, *x1, *z1, *x2, *z2, false);
+        set_gate_physics(spring, id, *x1, *z1, *x2, *z2, false);
     }
 }
 
@@ -137,29 +148,50 @@ fn gate_area(world: &World, id: i32) -> Option<(i32, f32, f32, f32, f32)> {
         .find(|(key, _, _, _, _)| level_id(world, *key) == Some(id))
 }
 
-fn set_gate_physics(id: i32, x1: f32, z1: f32, x2: f32, z2: f32, open: bool) {
+fn set_gate_physics(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    id: i32,
+    x1: f32,
+    z1: f32,
+    x2: f32,
+    z2: f32,
+    open: bool,
+) {
     let height = if open {
         GATE_OPEN_HEIGHT
     } else {
         GATE_CLOSED_HEIGHT
     };
     crate::log::check(
+        spring,
         "gate terrain",
         id,
-        spring::level_height_map(x1, z1, x2, z2, height),
+        spring
+            .terrain_control()
+            .level_height_map(x1, z1, x2, z2, height),
     );
-    crate::level::clear_blocking(id, false);
+    crate::level::clear_blocking(spring, id, false);
     crate::log::check(
+        spring,
         "gate collision update",
         id,
-        spring::force_unit_collision_update(id),
+        spring.unit_control().force_unit_collision_update(id),
     );
 }
 
-pub fn nearby(first: i32, second: i32, distance: f32) -> bool {
+pub fn nearby(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    first: i32,
+    second: i32,
+    distance: f32,
+) -> bool {
     let (Ok(first), Ok(second)) = (
-        spring::get_unit_position(first, false, false),
-        spring::get_unit_position(second, false, false),
+        spring
+            .units_info()
+            .get_unit_position(first, Default::default()),
+        spring
+            .units_info()
+            .get_unit_position(second, Default::default()),
     ) else {
         return false;
     };

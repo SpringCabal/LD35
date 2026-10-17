@@ -48,13 +48,20 @@ impl GfxEyesEffectWidget {
         Self::default()
     }
 
-    fn screen_amounts(&self, ctx: &spring_addons::AddonContext<'_, Global>) -> ScreenAmounts {
+    fn screen_amounts(
+        &self,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+    ) -> ScreenAmounts {
+        let spring = ctx.spring();
         let (form, sequence) = {
             let player = ctx.global().player.access();
-            (player.form.screen_amounts(), player.game_over_sequence)
+            (
+                player.form.screen_amounts(spring),
+                player.game_over_sequence,
+            )
         };
         let (mut spirit, mut noise) = form;
-        let frame = spring::game::current_frame();
+        let frame = spring.game().current_frame().unwrap_or(0);
         let game_over = if !sequence {
             self.game_end_start.set(-1);
             0.0
@@ -89,15 +96,17 @@ impl Widget<Global> for GfxEyesEffectWidget {
         "GfxEyesEffect"
     }
 
-    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
+    fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
+        let spring = ctx.spring();
         let ending = ctx.global().player.access().game_over;
-        self.npcs.borrow_mut().refresh(ending);
+        self.npcs.borrow_mut().refresh(spring, ending);
     }
 
-    fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global>) {
+    fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = ctx.spring();
         let mut camera = self.camera.borrow_mut();
-        if let Ok(projection) = spring::gfx::get_matrix_data(gl::PROJECTION)
-            && let Ok(modelview) = spring::gfx::get_matrix_data(gl::MODELVIEW)
+        if let Ok(projection) = spring.gfx().get_matrix_data(gl::PROJECTION)
+            && let Ok(modelview) = spring.gfx().get_matrix_data(gl::MODELVIEW)
             && projection.len() == 16
             && modelview.len() == 16
         {
@@ -111,26 +120,32 @@ impl Widget<Global> for GfxEyesEffectWidget {
         };
         let mut trail = self.trail.borrow_mut();
         let position = (spirit && wisp >= 0)
-            .then(|| spring::unit_rendering::get_unit_view_position(wisp, false).ok())
+            .then(|| {
+                spring
+                    .unit_rendering()
+                    .get_unit_view_position(wisp, false)
+                    .ok()
+            })
             .flatten();
         let Some(position) = position else {
             trail.clear();
             return;
         };
-        let frame = spring::game::current_frame();
+        let frame = spring.game().current_frame().unwrap_or(0);
         trail.update(position, frame);
-        trail.draw(&camera, frame);
+        trail.draw(spring, &camera, frame);
     }
 
     fn draw_screen_effects(
         &self,
-        ctx: &spring_addons::AddonContext<'_, Global>,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         width: i32,
         height: i32,
     ) {
+        let spring = ctx.spring();
         let (opacity, wisp) = {
             let player = ctx.global().player.access();
-            (player.form.amount(), player.wisp)
+            (player.form.amount(spring), player.wisp)
         };
         {
             let npcs = self.npcs.borrow();
@@ -141,10 +156,12 @@ impl Widget<Global> for GfxEyesEffectWidget {
                     .chain(npcs.wisps.iter().copied());
                 self.sprites
                     .borrow_mut()
-                    .draw(&self.camera.borrow(), wisps, opacity);
+                    .draw(spring, &self.camera.borrow(), wisps, opacity);
             }
         }
         let amounts = self.screen_amounts(ctx);
-        self.bloom.borrow_mut().draw(width, height, &amounts);
+        self.bloom
+            .borrow_mut()
+            .draw(spring, width, height, &amounts);
     }
 }
