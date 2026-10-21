@@ -241,12 +241,12 @@ function updateMovement()
 end
 
 function script.StartMoving()
-    isMoving = true;
-    updateMovement();
+	isMoving = true;
+	updateMovement();
 end
 
 function script.StopMoving()
-    isMoving = false;
+	isMoving = false;
     updateMovement();
 end
 
