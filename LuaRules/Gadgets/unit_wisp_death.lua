@@ -24,6 +24,7 @@ if gadgetHandler:IsSyncedCode() then
 
 local npcWispDefID = UnitDefNames["npcwisp"].id
 local DEFAULT_DESTROY_TIME = 30 * 1.5
+local pending = {}
 
 -------------------------------------------------------------------
 -------------------------------------------------------------------
@@ -33,6 +34,7 @@ function KillWisp(unitID, destroyTime)
 	Spring.SetUnitRulesParam(unitID, "is_dying", 1)
 	Spring.SetUnitRulesParam(unitID, "killed_frame", Spring.GetGameFrame(), {public=true})
 	Spring.SetUnitRulesParam(unitID, "destroy_frame", Spring.GetGameFrame() + destroyTime, {public=true})
+	pending[unitID] = Spring.GetGameFrame() + destroyTime
 	local x, y, z = Spring.GetUnitPosition(unitID)
 	Spring.PlaySoundFile("sounds/death.ogg", 100, x, y, z)
 end
@@ -43,6 +45,7 @@ function SaveWisp(unitID, destroyTime)
 	Spring.SetUnitRulesParam(unitID, "is_being_saved", 1)
 	Spring.SetUnitRulesParam(unitID, "killed_frame", Spring.GetGameFrame(), {public=true})
 	Spring.SetUnitRulesParam(unitID, "destroy_frame", Spring.GetGameFrame() + destroyTime, {public=true})
+	pending[unitID] = Spring.GetGameFrame() + destroyTime
 	local x, y, z = Spring.GetUnitPosition(unitID)
 	local volume = 100
 	if Spring.GetGameRulesParam("game_over") == 1 then
@@ -51,22 +54,16 @@ function SaveWisp(unitID, destroyTime)
 	Spring.PlaySoundFile("sounds/freed.ogg", volume, x, y, z)
 end
 
-function gadget:GameFrame()
-	local frame = Spring.GetGameFrame()
-	for _, unitID in pairs(Spring.GetAllUnits()) do
-		if Spring.GetUnitRulesParam(unitID, "is_dying") == 1 then
-			local destroy_frame = Spring.GetUnitRulesParam(unitID, "destroy_frame")
-			if destroy_frame == frame then
-				local is_being_saved = Spring.GetUnitRulesParam(unitID, "is_being_saved") or 0
-				if is_being_saved == 1 then
-					local v =Spring.GetGameRulesParam("saved_wisps") or 0
-					Spring.SetGameRulesParam("saved_wisps", v + 1)
-				else
-					local v = Spring.GetGameRulesParam("killed_wisps") or 0
-					Spring.SetGameRulesParam("killed_wisps", v + 1)
-				end
-				Spring.DestroyUnit(unitID)
-			end
+function gadget:GameFrame(frame)
+	-- Only scheduled deaths need polling; other units cannot enter this state
+	-- except through KillWisp/SaveWisp above.
+	for unitID, destroyFrame in pairs(pending) do
+		if destroyFrame == frame then
+			pending[unitID] = nil
+			local saved = Spring.GetUnitRulesParam(unitID, "is_being_saved") == 1
+			local key = saved and "saved_wisps" or "killed_wisps"
+			Spring.SetGameRulesParam(key, (Spring.GetGameRulesParam(key) or 0) + 1)
+			Spring.DestroyUnit(unitID)
 		end
 	end
 end
@@ -79,6 +76,7 @@ function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 end
 
 function gadget:UnitDestroyed(unitID, unitDefID)
+	pending[unitID] = nil
 	if npcWispDefID == unitDefID then
 		local v = Spring.GetGameRulesParam("alive_wisps") or 0
 		Spring.SetGameRulesParam("alive_wisps", v - 1)
@@ -93,6 +91,9 @@ function gadget:Initialize()
 	for _, unitID in ipairs(Spring.GetAllUnits()) do
 		local unitDefID = Spring.GetUnitDefID(unitID)
 		gadget:UnitCreated(unitID, unitDefID)
+		if Spring.GetUnitRulesParam(unitID, "is_dying") == 1 then
+			pending[unitID] = Spring.GetUnitRulesParam(unitID, "destroy_frame")
+		end
 	end
 end
 

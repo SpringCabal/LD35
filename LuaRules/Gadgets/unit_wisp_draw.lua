@@ -32,6 +32,16 @@ local TEXTURE     = 'LuaUI/Images/wisp1.png'
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
 local npcWispDefID = UnitDefNames["npcwisp"].id
+local npcWisps, npcOrder, npcOrderDirty = {}, {}, true
+local function OrderedWisps()
+	if npcOrderDirty then
+		npcOrder = {}
+		for id in pairs(npcWisps) do npcOrder[#npcOrder+1] = id end
+		table.sort(npcOrder)
+		npcOrderDirty = false
+	end
+	return npcOrder
+end
 
 -- BEGIN Custom eye stuff
 -- local shader
@@ -51,6 +61,9 @@ local changeSpiritMode = 0
 local lightDefID = UnitDefNames["light"].id
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
+	if unitDefID == npcWispDefID then
+		npcWisps[unitID], npcOrderDirty = true, true
+	end
 	if unitDefID == wispDefID then
 		wispID = unitID
 	end
@@ -60,10 +73,14 @@ function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 end
 
 function gadget:UnitDestroyed(unitID)
+	if npcWisps[unitID] then npcWisps[unitID], npcOrderDirty = nil, true end
 	if wispID == unitID then
 		wispID = nil
 	end
 end
+
+gadget.UnitEnteredLos = gadget.UnitCreated
+gadget.UnitLeftLos = gadget.UnitDestroyed
 
 function gadget:Initialize()
 	CreateShader()
@@ -92,8 +109,8 @@ function DrawWisp()
 	gl.TexRect(-width/2, 0, width/2, height)
 	gl.PopMatrix()
 	
-	for _, npcWispID in pairs(Spring.GetAllUnits()) do
-		if Spring.GetUnitDefID(npcWispID) == npcWispDefID then
+	for _, npcWispID in ipairs(OrderedWisps()) do
+		if npcWisps[npcWispID] then
 			
 			local deathAmount = 0
 			if Spring.GetUnitRulesParam(npcWispID, "is_dying") == 1 then
