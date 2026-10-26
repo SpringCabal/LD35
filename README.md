@@ -31,11 +31,10 @@ Verification on the SDK test engine:
 - Unit-script source comparison passes. Live Lua/Wasm comparison passes for
   3,498 transform samples: largest delta 0.00003384, below the existing 0.0001
   limit. Walking, hovering, idle animation and assembled body parts are kept.
-- The six-shot visual scenario completes with the existing non-black and
-  settled-camera assertions. Manual image differences are 4.77% and 2.93%
-  against 8%, 0.76% and 0.53% against the settled 3% limit, and zero for the
-  final ending text. The suite still rejects Mesa package revision `.4`
-  versus the recorded `.2`; expected images and limits are unchanged.
+- The six-shot visual scenario passes the non-black and settled-camera
+  assertions on NVIDIA. The parent repository stores reviewed NVIDIA goldens.
+- NPC sprites track creation, destruction and LOS events instead of polling
+  every unit, including during the ending.
 
 Use the parent development repository's `just verify partsneeded` and
 `just verify unit-scripts partsneeded` commands, selecting the engine with

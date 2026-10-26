@@ -98,8 +98,48 @@ impl Widget<Global> for GfxEyesEffectWidget {
 
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, _dt: f32) {
         let spring = ctx.spring();
-        let ending = ctx.global().player.access().game_over;
-        self.npcs.borrow_mut().refresh(spring, ending);
+        self.npcs.borrow_mut().refresh(spring);
+    }
+
+    fn unit_created(
+        &self,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        id: i32,
+        def: i32,
+        _team: i32,
+        _builder: i32,
+    ) {
+        self.npcs.borrow_mut().track(ctx.spring(), id, def);
+    }
+
+    fn unit_entered_los(
+        &self,
+        ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        id: i32,
+        def: i32,
+        _team: i32,
+        _ally: i32,
+    ) {
+        self.npcs.borrow_mut().track(ctx.spring(), id, def);
+    }
+
+    fn unit_destroyed(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        event: &spring_addons::event::UnitDestroyedEvent,
+    ) {
+        self.npcs.borrow_mut().remove(event.unit_id);
+    }
+
+    fn unit_left_los(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        id: i32,
+        _def: i32,
+        _team: i32,
+        _ally: i32,
+    ) {
+        self.npcs.borrow_mut().remove(id);
     }
 
     fn draw_world_pre_unit(&self, ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {

@@ -2,42 +2,41 @@ use alloc::vec::Vec;
 
 use crate::defs::{defs, unit_def};
 
-const SCAN_INTERVAL: i32 = 30;
-
 #[derive(Default)]
 pub struct Npcs {
     pub wisps: Vec<i32>,
-    hidden: Vec<i32>,
-    scan_ticks: i32,
+    initialized: bool,
 }
 
 impl Npcs {
-    pub fn refresh(&mut self, spring: &spring::Spring<'_, spring::Ui>, ending: bool) {
-        if !ending && self.scan_ticks > 0 {
-            self.scan_ticks -= 1;
+    pub fn refresh(&mut self, spring: &spring::Spring<'_, spring::Ui>) {
+        if self.initialized {
             return;
         }
-        self.scan_ticks = if ending { 0 } else { SCAN_INTERVAL };
         let Ok(all_units) = spring.units_query().get_all_units() else {
             return;
         };
-        let defs = defs(spring);
-        let mut wisps = Vec::new();
-        let mut still_hidden = Vec::with_capacity(self.hidden.len());
-        for unit_id in all_units {
-            let def = unit_def(spring, unit_id);
-            if def == defs.npcwisp {
-                wisps.push(unit_id);
-            } else if def != defs.light {
-                continue;
-            }
-            if self.hidden.binary_search(&unit_id).is_err() {
-                let _ = spring.unsynced_ctrl().set_unit_no_draw(unit_id, true);
-            }
-            still_hidden.push(unit_id);
+        self.initialized = true;
+        for id in all_units {
+            self.track(spring, id, unit_def(spring, id));
         }
-        still_hidden.sort_unstable();
-        self.hidden = still_hidden;
-        self.wisps = wisps;
+    }
+
+    pub fn track(&mut self, spring: &spring::Spring<'_, spring::Ui>, id: i32, def: i32) {
+        let defs = defs(spring);
+        if def == defs.npcwisp {
+            if let Err(index) = self.wisps.binary_search(&id) {
+                self.wisps.insert(index, id);
+            }
+        } else if def != defs.light {
+            return;
+        }
+        let _ = spring.unsynced_ctrl().set_unit_no_draw(id, true);
+    }
+
+    pub fn remove(&mut self, id: i32) {
+        if let Ok(index) = self.wisps.binary_search(&id) {
+            self.wisps.remove(index);
+        }
     }
 }
