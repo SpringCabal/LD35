@@ -22,7 +22,7 @@ const SETTLED_SHOTS: [SettledShot; 2] = [
 ];
 
 const SETTLED_STEP: f32 = 0.5;
-const SETTLED_UPDATES: u32 = 3;
+const SETTLED_FRAMES: u32 = 3;
 
 #[cfg(not(feature = "headless-integration"))]
 const QUIT_AFTER_LAST_SHOT: i32 = 60;
@@ -39,7 +39,8 @@ pub struct DbgE2eWidget {
     shots: Screenshots,
     settled_taken: Cell<usize>,
     last_camera: Cell<Option<spring::Float3>>,
-    still_updates: Cell<u32>,
+    last_camera_frame: Cell<i32>,
+    still_frames: Cell<u32>,
     quit_frame: Cell<i32>,
     ending_start: Cell<i32>,
     ending_final_captured: Cell<bool>,
@@ -51,7 +52,8 @@ impl Default for DbgE2eWidget {
             shots: Screenshots::new(Clock::GameFrame, &SHOT_FRAMES),
             settled_taken: Cell::new(0),
             last_camera: Cell::new(None),
-            still_updates: Cell::new(0),
+            last_camera_frame: Cell::new(-1),
+            still_frames: Cell::new(0),
             quit_frame: Cell::new(-1),
             ending_start: Cell::new(-1),
             ending_final_captured: Cell::new(false),
@@ -64,9 +66,14 @@ impl DbgE2eWidget {
         Self::default()
     }
 
-    fn track_camera(&self, spring: &spring::Spring<'_, spring::Ui>) -> u32 {
+    fn track_camera(&self, spring: &spring::Spring<'_, spring::Ui>, frame: i32) -> u32 {
+        // Several UI updates can occur within one simulation frame. Sampling
+        // each poll can mistake a slowly moving camera for a settled one.
+        if self.last_camera_frame.replace(frame) == frame {
+            return self.still_frames.get();
+        }
         let Ok(now) = spring.camera().get_camera_position() else {
-            self.still_updates.set(0);
+            self.still_frames.set(0);
             return 0;
         };
         let still = self.last_camera.replace(Some(now)).is_some_and(|last| {
@@ -74,23 +81,28 @@ impl DbgE2eWidget {
             dx * dx + dy * dy + dz * dz < SETTLED_STEP * SETTLED_STEP
         });
         let updates = if still {
-            self.still_updates.get() + 1
+            self.still_frames.get() + 1
         } else {
             0
         };
-        self.still_updates.set(updates);
+        self.still_frames.set(updates);
         updates
     }
 
-    fn settled_shot(&self, spring: &spring::Spring<'_, spring::Ui>, frame: i32) {
-        let still_updates = self.track_camera(spring);
+    fn settled_shot(
+        &self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        frame: i32,
+        target: Option<spring::Float3>,
+    ) {
+        let still_frames = self.track_camera(spring, frame);
         let Some(shot) = SETTLED_SHOTS.get(self.settled_taken.get()) else {
             return;
         };
         if frame < shot.from {
             return;
         }
-        let settled = still_updates >= SETTLED_UPDATES;
+        let settled = still_frames >= SETTLED_FRAMES;
         if !settled && frame < shot.until {
             return;
         }
@@ -102,6 +114,8 @@ impl DbgE2eWidget {
                 shot.label
             );
         }
+        let camera = spring.camera().get_camera_position().ok();
+        let _ = spring.messages().echo(&alloc::format!("[PartsNeeded-Camera] frame={frame} still={still_frames} camera={camera:?} target={target:?}"), "");
         screenshot(spring, &alloc::format!("{} at {frame}", shot.label));
         self.settled_taken.set(self.settled_taken.get() + 1);
         #[cfg(not(feature = "headless-integration"))]
@@ -144,6 +158,11 @@ impl Widget<Global> for DbgE2eWidget {
             return;
         }
         self.shots.update(ctx, dt);
-        self.settled_shot(spring, frame);
+        let wisp = ctx.global().player.access().wisp;
+        let target = spring
+            .unit_rendering()
+            .get_unit_view_position(wisp, false)
+            .ok();
+        self.settled_shot(spring, frame, target);
     }
 }
