@@ -10,5 +10,5 @@ build: fmt clippy
     cargo build --workspace --target wasm32-unknown-unknown --release
 
 copy: build
-    cp target/wasm32-unknown-unknown/release/partsneeded_rules_wasm.wasm ../LuaRules/wasm/partsneeded-rules.wasm
-    cp target/wasm32-unknown-unknown/release/partsneeded_ui_wasm.wasm ../LuaUI/wasm/partsneeded-ui.wasm
+    cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/partsneeded_rules_wasm.wasm" ../LuaRules/wasm/partsneeded-rules.wasm
+    cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/partsneeded_ui_wasm.wasm" ../LuaUI/wasm/partsneeded-ui.wasm
