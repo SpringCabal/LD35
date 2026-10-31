@@ -107,8 +107,12 @@ function gadget:GameFrame()
 		delayFrame = nil
 		elements = VFS.LoadFile(customElements)
 		elements = loadstring(elements)()
-		for id, unit in pairs(elements.units) do
-			local unitID = unitBridge:Add(unit)
+		-- Stable creation order shared with the Rust level loader.
+		local unitKeys = {}
+		for id in pairs(elements.units) do unitKeys[#unitKeys + 1] = id end
+		table.sort(unitKeys)
+		for _, id in ipairs(unitKeys) do
+			local unitID = unitBridge:Add(elements.units[id])
 			idMapping[id] = unitID
 		end
 		

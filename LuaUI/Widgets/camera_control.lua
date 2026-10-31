@@ -19,10 +19,14 @@ end
 
 local wispDefID = UnitDefNames["wisp"].id
 local wispID = nil
+local followReadyFrame = 0
 
 function widget:UnitCreated(unitID, unitDefID, unitTeam)
 	if unitDefID == wispDefID then
 		wispID = unitID
+        -- A just-created unit has no renderer draw position until the next
+        -- frame. Do not seed the smoother with the temporary origin.
+        followReadyFrame = Spring.GetGameFrame() + 1
 	end
 end
 
@@ -69,6 +73,7 @@ local LOOK_AHEAD = 8    -- frames of velocity to lead the wisp by
 local camX, camY, camZ
 
 local function UpdateCamera(dt)
+	if Spring.GetGameFrame() < followReadyFrame then return end
 	local x, y, z = Spring.GetUnitViewPosition(wispID)
 	if not x then
 		return

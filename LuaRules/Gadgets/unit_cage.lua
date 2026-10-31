@@ -29,12 +29,14 @@ local toCreate = {}
 
 function gadget:UnitCreated(unitID, unitDefID, unitTeam)
 	if cageDefID == unitDefID then
-		toCreate[unitID] = unitID
+		toCreate[#toCreate + 1] = unitID
 	end
 end
 
 function gadget:GameFrame()
-	for _, unitID in pairs(toCreate) do
+	-- Cage births are deterministic in both the Lua and native ports.
+	table.sort(toCreate)
+	for _, unitID in ipairs(toCreate) do
 		local x, y, z = Spring.GetUnitPosition(unitID)
 		Spring.CreateUnit(npcWispDefID, x, y, z, 0, 0)
 	end
