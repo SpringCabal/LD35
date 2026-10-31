@@ -28,6 +28,7 @@ impl Gadget<Global> for TriggersGadget {
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let spring = ctx.spring();
         let global = ctx.global();
+        behavior::apply_gate_floors(spring, global, frame);
         if frame % UPDATE_RATE == 0 {
             let opened = behavior::update_triggers(spring, global);
             let mut opening = self.opening_cages.borrow_mut();

@@ -13,6 +13,7 @@ const RESPAWN_DELAY: i32 = 3;
 
 pub struct LevelGadget {
     spawn_frame: Cell<Option<i32>>,
+    map_started: Cell<bool>,
     restart_requested: Cell<bool>,
 }
 
@@ -20,6 +21,7 @@ impl Default for LevelGadget {
     fn default() -> Self {
         Self {
             spawn_frame: Cell::new(Some(SPAWN_FRAME)),
+            map_started: Cell::new(false),
             restart_requested: Cell::new(false),
         }
     }
@@ -55,6 +57,10 @@ impl Gadget<Global> for LevelGadget {
 
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let spring = _ctx.spring();
+        if !self.map_started.replace(true) {
+            clear_level(spring);
+            crate::level::spawn_map_gates(spring);
+        }
         if self.restart_requested.take() && self.spawn_frame.get().is_none() {
             spring::log_info!(
                 spring,
@@ -63,6 +69,7 @@ impl Gadget<Global> for LevelGadget {
             );
             self.spawn_frame.set(Some(frame + RESPAWN_DELAY));
             clear_level(spring);
+            crate::level::spawn_map_gates(spring);
         }
         if self.spawn_frame.get().is_some_and(|at| frame >= at) {
             self.spawn_frame.set(None);

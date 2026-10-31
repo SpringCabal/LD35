@@ -36,6 +36,7 @@ impl Default for Wisp {
 
 #[derive(Default)]
 pub struct World {
+    pub pending_gate_floors: Vec<(i32, f32, f32, f32, f32)>,
     pub npc_wisps: Vec<i32>,
     pub level_ids: BTreeMap<i32, i32>,
     pub active_triggers: Vec<i32>,

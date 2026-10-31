@@ -6,37 +6,7 @@ use spring_addons::rules::Gadget;
 use crate::defs::{defs, params};
 use crate::state::Global;
 
-fn pin_authored_wall_height(spring: &spring::Spring<'_, spring::RulesSynced>, id: i32, def: i32) {
-    if !params(spring, def).pinned_wall {
-        return;
-    }
-    let Ok(position) = spring
-        .units_info()
-        .get_unit_position(id, Default::default())
-    else {
-        return;
-    };
-    spring
-        .move_ctrl()
-        .move_ctrl(id, true)
-        .log_err_once(spring, "pinning a wall: MoveCtrl");
-    spring
-        .move_ctrl()
-        .set_move_ctrl_gravity(id, 0.0)
-        .log_err_once(spring, "pinning a wall: gravity");
-    crate::with_addon_context(|ctx| {
-        ctx.commands().set_unit_position(
-            id,
-            spring::Float3::new(position.x, crate::level::FLOOR_Y, position.z),
-        )
-    })
-    .then(|spring, result| {
-        result.log_err_once(spring, "pinning a wall: floor height");
-    });
-}
-
 fn apply_authored_collisions(spring: &spring::Spring<'_, spring::RulesSynced>, id: i32, def: i32) {
-    pin_authored_wall_height(spring, id, def);
     let clear_blocking =
         |quad_map_rays: bool| crate::level::clear_blocking(spring, id, quad_map_rays);
     let clear_volume = || {
@@ -53,6 +23,11 @@ fn apply_authored_collisions(spring: &spring::Spring<'_, spring::RulesSynced>, i
             .log_err_once(spring, "clearing a collision volume");
     };
 
+    // Lua deliberately excludes gates from the scenery-wall override. Their
+    // authored collision volume and native blocking stay active.
+    if def == defs(spring).gate {
+        return;
+    }
     let rule = params(spring, def);
     if rule.scenery_wall {
         clear_volume();

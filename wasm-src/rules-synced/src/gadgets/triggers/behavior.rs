@@ -170,13 +170,21 @@ fn set_gate_physics(
             .terrain_control()
             .level_height_map(x1, z1, x2, z2, height),
     );
-    crate::level::clear_blocking(spring, id, false);
-    crate::log::check(
-        spring,
-        "gate collision update",
-        id,
-        spring.unit_control().force_unit_collision_update(id),
-    );
+    // Lua AdjustAreaTerrain pins the surrounding props on the next frame.
+    // Leave the native gate blocking/volume intact and let terrain raise the
+    // unit first; enabling MoveCtrl before that also changes its saved goal.
+    crate::with_addon_context(|ctx| {
+        ctx.commands().run(move |spring| {
+            let due = spring.game().current_frame().unwrap_or(0) + 1;
+            crate::with_global(|global| {
+                global
+                    .world
+                    .access_mut()
+                    .pending_gate_floors
+                    .push((due, x1, z1, x2, z2))
+            });
+        });
+    });
 }
 
 pub fn nearby(
@@ -384,3 +392,48 @@ const LINKS: &[Link] = &[
         kill: false,
     },
 ];
+
+pub fn apply_gate_floors(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    global: &Global,
+    frame: i32,
+) {
+    let due = {
+        let mut world = global.world.access_mut();
+        let all = core::mem::take(&mut world.pending_gate_floors);
+        let (due, later): (Vec<_>, Vec<_>) = all.into_iter().partition(|job| job.0 <= frame);
+        world.pending_gate_floors = later;
+        due
+    };
+    for (_, x1, z1, x2, z2) in due {
+        let units = spring
+            .units_query()
+            .get_units_in_rectangle(x1 - 100.0, z1 - 100.0, x2 + 100.0, z2 + 100.0, -1)
+            .unwrap_or_default();
+        for unit in units {
+            if crate::defs::unit_def(spring, unit) == crate::defs::defs(spring).wisp {
+                continue;
+            }
+            if let Ok(position) = spring
+                .units_info()
+                .get_unit_position(unit, Default::default())
+            {
+                crate::log::check(
+                    spring,
+                    "gate-area prop MoveCtrl",
+                    unit,
+                    spring.move_ctrl().move_ctrl(unit, true),
+                );
+                crate::log::check(
+                    spring,
+                    "gate-area prop floor",
+                    unit,
+                    spring.unit_control().set_unit_position(
+                        unit,
+                        spring::Float3::new(position.x, 411.5, position.z),
+                    ),
+                );
+            }
+        }
+    }
+}

@@ -5,7 +5,7 @@ use springcabal_control::camera::{Aim, CameraFollow, Follow, Smoothing, View};
 
 use crate::state::Global;
 
-const START_VIEW: View = View::spring(518.5416, 2.547)
+const START_VIEW: View = View::spring(518.5416, 2.547_000_2)
     .ry(0.01)
     .pitch(-0.828_376_8, -0.560_171_2);
 const START_POSITION: Float3 = Float3::new(1078.2821, 436.30078, 2710.0608);
@@ -13,6 +13,7 @@ const START_POSITION: Float3 = Float3::new(1078.2821, 436.30078, 2710.0608);
 const FOLLOW: Follow = Follow::target(0.0)
     .start(START_VIEW, START_POSITION)
     .aim(Aim::ViewPosition)
+    .lead(8.0)
     .smoothing(Smoothing::Exponential { tau: 0.12 });
 
 pub struct CameraFollowWidget {

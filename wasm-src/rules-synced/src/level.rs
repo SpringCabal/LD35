@@ -162,7 +162,7 @@ fn configure_fixed_height(
     );
 }
 
-fn configure_gate(spring: &spring::Spring<'_, spring::RulesSynced>, unit_id: i32, floor_y: f32) {
+fn configure_gate(spring: &spring::Spring<'_, spring::RulesSynced>, unit_id: i32, _floor_y: f32) {
     check(
         spring,
         "gate always visible",
@@ -175,43 +175,61 @@ fn configure_gate(spring: &spring::Spring<'_, spring::RulesSynced>, unit_id: i32
         unit_id,
         spring.unit_control().set_unit_neutral(unit_id, true),
     );
+}
+
+// Lua replaces the four map gates in its first GameFrame, before loading the
+// authored objects three frames later. Preserve that creation/RNG/ID order.
+pub fn spawn_map_gates(spring: &spring::Spring<'_, spring::RulesSynced>) {
     check(
         spring,
-        "gate MoveCtrl",
-        unit_id,
-        spring.move_ctrl().move_ctrl(unit_id, true),
+        "global level visibility",
+        -1,
+        spring.team_control().set_global_los(0, true),
     );
-    check(
-        spring,
-        "gate MoveCtrl no blocking",
-        unit_id,
-        spring.move_ctrl().set_no_blocking(unit_id, true),
-    );
-    check(
-        spring,
-        "gate MoveCtrl gravity",
-        unit_id,
-        spring.move_ctrl().set_move_ctrl_gravity(unit_id, 0.0),
-    );
-    if let Some(position) = check(
-        spring,
-        "gate position",
-        unit_id,
-        spring
-            .units_info()
-            .get_unit_position(unit_id, Default::default()),
-    ) {
-        check(
-            spring,
-            "gate floor height",
-            unit_id,
-            spring.unit_control().set_unit_position(
-                unit_id,
-                spring::Float3::new(position.x, floor_y, position.z),
-            ),
-        );
+    let gaia = spring.game().get_gaia_team_id().unwrap_or(2);
+    let def = crate::defs::defs(spring).gate;
+    for (slot, facing) in [(1, 2), (3, 0), (0, 3), (2, 1)] {
+        let gate = GATES[slot];
+        crate::with_addon_context(|ctx| {
+            ctx.commands().create_unit(
+                &spring::unit_control::DefRef {
+                    name: "gatesmoth".into(),
+                    id: def,
+                },
+                Float3::new(gate.x, 0.0, gate.z),
+                facing,
+                gaia,
+                spring::unit_control::CreateUnitOptions {
+                    build: false,
+                    flatten_ground: true,
+                    unit_id: -1,
+                    builder_id: -1,
+                },
+            )
+        })
+        .then(|spring, created| {
+            if let Some(id) = check(spring, "initial gate", -1, created) {
+                check(
+                    spring,
+                    "initial gate neutral",
+                    id,
+                    spring.unit_control().set_unit_neutral(id, true),
+                );
+                check(
+                    spring,
+                    "initial gate visibility",
+                    id,
+                    spring.unit_control().set_unit_always_visible(id, true),
+                );
+                check(
+                    spring,
+                    "initial gate LOS",
+                    id,
+                    spring.unit_control().set_unit_los_state(id, 0, 15),
+                );
+            }
+        });
     }
-    clear_blocking(spring, unit_id, false);
 }
 
 fn adopt_map_gates(spring: &spring::Spring<'_, spring::RulesSynced>, ids: &Ids) {
@@ -271,7 +289,11 @@ pub fn spawn(
     let ids: Ids = Rc::new(RefCell::new(Vec::with_capacity(
         LEVEL_UNITS.len() + GATES.len(),
     )));
-    for unit in LEVEL_UNITS {
+    // The Lua loader uses the same explicit key order. Hash-table traversal
+    // must not change engine unit IDs, cage births or synced RNG consumption.
+    let mut units = LEVEL_UNITS.to_vec();
+    units.sort_unstable_by_key(|unit| unit.key);
+    for unit in units {
         create(spring, unit, &ids);
     }
     adopt_map_gates(spring, &ids);

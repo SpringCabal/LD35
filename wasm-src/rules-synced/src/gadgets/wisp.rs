@@ -36,7 +36,12 @@ impl Gadget<Global> for WispGadget {
             self.move_rejected.set(rejected);
             crate::units::destroy(spring, behavior::collect_body_parts(spring, &mut wisp));
         }
-        behavior::rotate_body_parts(spring, &wisp);
+        // Lua rotates newly loaded parts in the same GameFrame. Drain this
+        // after the level's queued creates/configuration, when their authored
+        // rotations and the live roster are both ready.
+        ctx.commands().run(|spring| {
+            crate::with_global(|global| behavior::rotate_body_parts(spring, &global.wisp.access()));
+        });
         if core::mem::take(&mut wisp.pieces_dirty) {
             behavior::sync_wisp_pieces(spring, wisp.id, wisp.spirit, wisp.collected_parts);
         }

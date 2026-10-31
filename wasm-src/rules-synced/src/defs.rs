@@ -66,7 +66,6 @@ impl Defs {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DefParams {
-    pub pinned_wall: bool,
     pub scenery_wall: bool,
     pub trigger: bool,
     pub dungeon_element: bool,
@@ -83,9 +82,6 @@ impl DefParams {
         };
         let wall = param("wall");
         Self {
-            pinned_wall: wall
-                .as_deref()
-                .is_some_and(|value| value != "false" && value != "0"),
             scenery_wall: wall.is_some() && param("wall_blocking").is_none(),
             trigger: param("trigger").is_some(),
             dungeon_element: param("dungeonelement").is_some(),
